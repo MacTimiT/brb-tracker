@@ -19,7 +19,7 @@ class LocalAnalysisTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         ScreenOcr(instrumentation.targetContext).use { ocr ->
             for ((name, expected) in listOf("banner.png" to true, "chat-only.png" to false)) {
-                val bitmap = instrumentation.context.assets.open(name).use { android.graphics.BitmapFactory.decodeStream(it) }
+                val bitmap = checkNotNull(instrumentation.context.assets.open(name).use { android.graphics.BitmapFactory.decodeStream(it) }) { "Could not decode test fixture $name" }
                 try { assertEquals(name, expected, ocr.isBrb(bitmap, "gamin4hope")) }
                 finally { bitmap.recycle() }
             }
