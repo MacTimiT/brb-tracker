@@ -1,109 +1,253 @@
 'use strict';
-const $ = (id) => document.getElementById(id);
-const allowedReasons = ['Pee', 'Snack', 'Drink', 'Stretch', 'Technical', 'Other', 'Unknown'];
-let reports = [];
-function duration(s) {
-  s = Math.round(s);
-  return s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.floor(s % 3600 / 60)}m` : s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
+const $ = id => document.getElementById(id);
+const A = globalThis.BRBStats;
+const reasonNames = {Pee: 'Pee breaks', Snack: 'Snack raids', Drink: 'Hydration runs', Stretch: 'Touching grass', Technical: 'Tech gremlins', Other: 'Side quests', Unknown: 'Unsolved mysteries'};
+const colors = {Pee: '#bc2028', Snack: '#985182', Drink: '#23748a', Stretch: '#527346', Technical: '#586582', Other: '#8a6842', Unknown: '#77736b'};
+const state = {published: [], demo: [], imported: [], mode: 'published', vod: 'all', reason: 'all', metric: 'count', query: '', sort: 'longest', loading: true, logEntries: []};
+const integer = value => Math.round(value).toLocaleString('en-US');
+const fixed = (value, places = 1) => Number(value).toFixed(places);
+function duration(value) {
+  if (value == null) return '—';
+  const seconds = Math.round(value);
+  if (seconds >= 3600) return `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`;
+  if (seconds >= 60) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return `${seconds}s`;
 }
-function stamp(s) { s = Math.floor(s); return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; }
-function element(tag, text, className) { const node = document.createElement(tag); if (text != null) node.textContent = text; if (className) node.className = className; return node; }
-function validate(data) {
-  const list = Array.isArray(data.reports) ? data.reports : [data];
-  if (list.length > 500) throw Error('Import at most 500 VODs at once.');
-  const seen = new Set();
-  for (const r of list) {
-    if (r.schema_version !== 1 || typeof r.id !== 'string' || !r.id || typeof r.title !== 'string' || !Number.isFinite(r.duration_seconds) || r.duration_seconds < 0 || !Array.isArray(r.breaks) || !Number.isFinite(r.sample_interval_seconds) || r.sample_interval_seconds <= 0) throw Error('Invalid version 1 VOD report.');
-    if (r.video_id != null && !/^[\w-]{11}$/.test(r.video_id)) throw Error('Invalid YouTube video ID.');
-    const identity = r.video_id || r.id;
-    if (seen.has(identity)) throw Error('Duplicate VODs would inflate totals. Import one report per VOD.');
-    seen.add(identity);
-    if (r.is_demo != null && typeof r.is_demo !== 'boolean') throw Error('Invalid demo flag.');
-    if (r.warnings != null && (!Array.isArray(r.warnings) || r.warnings.some(w => typeof w !== 'string'))) throw Error('Invalid report warnings.');
-    let previousEnd = 0;
-    for (const b of r.breaks) {
-      if (!Number.isFinite(b.start_seconds) || !Number.isFinite(b.end_seconds) || b.start_seconds < previousEnd || b.end_seconds < b.start_seconds || b.end_seconds > r.duration_seconds || !allowedReasons.includes(b.reason) || typeof b.evidence !== 'string') throw Error('Invalid break timing, reason, or evidence.');
-      previousEnd = b.end_seconds;
-    }
-  }
-  return list;
+function stamp(value) { const seconds = Math.floor(value); return `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`; }
+function node(tag, text, className) { const item = document.createElement(tag); if (text != null) item.textContent = text; if (className) item.className = className; return item; }
+function watchURL(item) { return item.report.video_id ? `https://www.youtube.com/watch?v=${item.report.video_id}&t=${Math.floor(item.start_seconds)}s` : null; }
+function activeReports() { return state.mode === 'published' ? state.published : state.mode === 'demo' ? state.demo : state.imported; }
+function notice(message = '') { $('notice').textContent = message; $('notice').hidden = !message; }
+
+function updateOptions() {
+  const reports = activeReports();
+  if (!reports.some(report => A.key(report) === state.vod)) state.vod = 'all';
+  $('vod').replaceChildren(new Option('All streams', 'all'));
+  for (const report of reports) $('vod').add(new Option(report.title, A.key(report)));
+  $('vod').value = state.vod;
+  $('reason').value = state.reason;
+  $('reason-metric').value = state.metric;
+  $('search').value = state.query;
+  $('log-sort').value = state.sort;
 }
-function load(data, local = false) {
-  const validated = validate(data);
-  reports = validated;
-  $('vod').replaceChildren(new Option('All VODs', 'all'));
-  reports.forEach((r, i) => $('vod').add(new Option(r.title, String(i))));
-  $('reason').value = 'all';
-  $('notice').dataset.local = local ? 'true' : 'false';
-  render();
+function switchMode(mode) {
+  state.mode = mode; state.vod = 'all'; state.reason = 'all'; state.query = '';
+  notice(); render();
 }
+function importReport(data) {
+  const reports = A.validate(data);
+  const real = reports.filter(report => !report.is_demo);
+  state.imported = real.length ? real : reports;
+  switchMode(reports.length && !real.length ? 'demo-import' : 'import');
+}
+
 function render() {
-  const selected = reports.filter((_, i) => $('vod').value === 'all' || $('vod').value === String(i));
-  const entries = selected.flatMap(r => r.breaks.map(b => ({...b, report: r, seconds: b.end_seconds - b.start_seconds}))).filter(b => $('reason').value === 'all' || b.reason === $('reason').value);
-  const total = entries.reduce((sum, b) => sum + b.seconds, 0);
-  const vodTime = selected.reduce((sum, r) => sum + r.duration_seconds, 0);
-  const counts = allowedReasons.map(reason => ({reason, entries: entries.filter(b => b.reason === reason)})).filter(g => g.entries.length).sort((a, b) => b.entries.length - a.entries.length);
-  $('total').textContent = duration(total);
-  $('count').textContent = String(entries.length).padStart(2, '0');
-  $('away-share').textContent = `${vodTime ? (100 * total / vodTime).toFixed(1) : '0.0'}% of ${duration(vodTime)} in selected VODs`;
-  $('average').textContent = duration(entries.length ? total / entries.length : 0);
-  $('longest').textContent = `Longest: ${duration(Math.max(0, ...entries.map(b => b.seconds)))}`;
-  $('reviewed').textContent = `${entries.filter(b => b.reviewed === true).length} reviewed · ${entries.filter(b => b.reviewed !== true).length} need review`;
-  const leaders = counts.filter(g => g.entries.length === counts[0]?.entries.length);
-  $('common').textContent = leaders.length > 1 ? 'Tied' : leaders[0]?.reason || '—';
-  $('common-detail').textContent = leaders.length > 1 ? leaders.map(g => g.reason).join(' / ') : entries.length ? `${counts[0].entries.length} of ${entries.length} breaks · ${(100 * counts[0].entries.length / entries.length).toFixed(0)}%` : 'No breaks in view';
-  const demo = selected.some(r => r.is_demo);
-  $('notice').textContent = `${demo ? 'SAMPLE DATA — Invented for demonstration; not Gamin4Hope’s actual activity.' : 'Imported analysis — reason suggestions require review.'}${$('notice').dataset.local === 'true' ? ' Local view only; nothing uploaded.' : ''}`;
+  updateOptions();
+  const source = activeReports();
+  const selected = source.filter(report => state.vod === 'all' || A.key(report) === state.vod);
+  const stats = A.compute(selected, state.reason);
+  const hasReports = selected.length > 0;
+  $('empty-board').hidden = hasReports || state.loading;
+  $('analytics-board').hidden = !hasReports;
+  const labels = {published: 'Published VODs', demo: 'Demo round', import: 'Your import', 'demo-import': 'Demo import'};
+  $('data-mode').textContent = labels[state.mode];
+  $('data-mode').classList.toggle('demo', state.mode.startsWith('demo'));
+  $('scope-summary').textContent = state.loading ? 'Checking the receipts…' : `${selected.length} VOD${selected.length === 1 ? '' : 's'} · ${duration(stats.duration)} clocked`;
+  $('demo-toggle').textContent = state.mode === 'published' ? 'Try the demo' : 'Published VODs';
+  $('demo-toggle').disabled = state.mode === 'published' && !state.demo.length;
+  $('refresh').disabled = state.loading || state.mode !== 'published';
+  $('total').textContent = hasReports ? duration(stats.away) : '—';
+  $('one-secs').textContent = hasReports ? `${integer(stats.away)} “one secs” and counting.` : 'Waiting for the first “one sec.”';
+  $('share-fill').style.width = `${stats.percent}%`;
+  const otherName = state.reason === 'all' ? 'Not BRB' : 'Everything else';
+  const awayName = state.reason === 'all' ? 'BRB' : state.reason;
+  $('other-label').textContent = `${otherName}${hasReports ? ' ' + fixed(stats.duration ? 100 - stats.percent : 0) + '%' : ''}`;
+  $('away-label').textContent = `${awayName}${hasReports ? ' ' + fixed(stats.percent) + '%' : ''}`;
+  $('count').textContent = integer(stats.count);
+  $('away-percent').textContent = `${fixed(stats.percent)}%`;
+  $('away-metric-label').textContent = state.reason === 'all' ? 'STREAM SPENT BRB' : `STREAM SPENT ON ${state.reason.toUpperCase()}`;
+  $('average').textContent = duration(stats.average);
+  $('median').textContent = duration(stats.median);
+  $('rate').textContent = fixed(stats.rate, 2);
+  renderReasons(stats);
+  renderColumns('distribution', stats.distribution);
+  renderColumns('phases', stats.phases, true);
+  renderRecord('longest', stats.longest);
+  renderRecord('shortest', stats.shortest);
+  renderRecord('streak', stats.longestStreak, true);
+  $('gap-mean').textContent = stats.meanGap == null ? '' : `Back at the desk for ${duration(stats.meanGap)} on average between breaks. A heroic effort. (All excuses.)`;
+  renderVods(stats);
+  renderTimeline(stats);
+  renderLog(stats);
+}
+
+function renderReasons(stats) {
+  const groups = [...stats.groups].sort((a, b) => b[state.metric] - a[state.metric] || A.reasons.indexOf(a.reason) - A.reasons.indexOf(b.reason));
   $('reasons').replaceChildren();
-  if (!counts.length) $('reasons').append(element('p', 'No breaks in this selection.', 'muted'));
-  for (const group of counts) {
-    const row = element('div', null, 'reason-row');
-    const track = element('div', null, 'track');
-    const fill = element('div', null, 'fill'); fill.style.width = `${100 * group.entries.length / counts[0].entries.length}%`; track.append(fill);
-    row.append(element('span', group.reason), track, element('small', `${group.entries.length} · ${duration(group.entries.reduce((s, b) => s + b.seconds, 0))}`));
-    $('reasons').append(row);
+  if (!groups.length) {
+    $('leaderboard-note').textContent = 'A spotless excuse sheet. For now.';
+    $('reasons').append(node('p', 'No matching side quests.', 'chart-empty'));
+    return;
   }
+  const max = groups[0][state.metric];
+  const tied = groups.filter(group => Math.abs(group[state.metric] - max) < 0.000001);
+  $('leaderboard-note').textContent = tied.length > 1
+    ? `${tied.map(group => reasonNames[group.reason]).join(' / ')} are sharing the podium.`
+    : state.metric === 'seconds'
+      ? `Most expensive excuse: ${reasonNames[groups[0].reason].toLowerCase()}.`
+      : `${reasonNames[groups[0].reason]} takes it: ${groups[0].count} of ${stats.count} breaks.`;
+  groups.forEach((group, index) => {
+    const button = node('button', null, 'reason-row'); button.type = 'button';
+    button.setAttribute('aria-pressed', String(state.reason === group.reason));
+    button.title = `Filter ${group.reason} · ${group.count} breaks · ${duration(group.seconds)}`;
+    const middle = node('span');
+    const track = node('span', null, 'reason-track');
+    const fill = node('span', null, 'reason-fill');
+    fill.style.width = `${max ? group[state.metric] / max * 100 : 0}%`; fill.style.backgroundColor = colors[group.reason];
+    track.append(fill); middle.append(node('span', reasonNames[group.reason], 'reason-name'), track);
+    const values = node('span', state.metric === 'count' ? String(group.count) : duration(group.seconds), 'reason-values');
+    values.append(node('small', state.metric === 'count' ? duration(group.seconds) : `${group.count} breaks`));
+    button.append(node('span', String(index + 1).padStart(2, '0'), 'reason-position'), middle, values);
+    button.onclick = () => { state.reason = state.reason === group.reason ? 'all' : group.reason; render(); };
+    $('reasons').append(button);
+  });
+}
+function renderColumns(id, groups, phases = false) {
+  const container = $(id); container.replaceChildren();
+  const max = Math.max(1, ...groups.map(group => group.count));
+  groups.forEach(group => {
+    const column = node('div', null, `column${group.count ? '' : ' zero'}`);
+    column.setAttribute('role', 'img');
+    column.setAttribute('aria-label', `${group.label}: ${group.count} break${group.count === 1 ? '' : 's'}${phases ? ', ' + fixed(group.rate, 2) + ' per stream hour' : ''}`);
+    column.title = column.getAttribute('aria-label');
+    const space = node('div', null, 'column-space');
+    const bar = node('div', null, 'column-bar'); bar.style.height = `${group.count / max * 100}%`;
+    bar.append(node('span', group.count)); space.append(bar);
+    column.append(space, node('div', group.label, 'column-label')); container.append(column);
+  });
+}
+
+function renderRecord(id, item, streak = false) {
+  const container = $(id); container.replaceChildren();
+  container.append(node('strong', item ? duration(item.seconds) + (!streak && item.truncated ? '+' : '') : '—', 'record-value'));
+  if (!item) { container.append(node('span', 'No contender on file.', 'record-title')); return; }
+  container.append(node('span', streak ? item.report.title : reasonNames[item.reason], 'record-title'));
+  const button = node('button', streak ? `From ${stamp(item.start_seconds)} ↗` : 'Show receipt ↗', 'record-link');
+  button.onclick = () => {
+    if (!streak) { openReceipt(item); return; }
+    state.vod = A.key(item.report); render();
+    $('timeline').scrollIntoView?.({behavior: 'smooth', block: 'center'});
+  };
+  container.append(button);
+}
+function renderVods(stats) {
+  $('vod-table').replaceChildren();
+  stats.vods.forEach((row, index) => {
+    const tr = node('tr');
+    const title = node('td');
+    const button = node('button', row.report.title, 'vod-name');
+    button.onclick = () => { state.vod = A.key(row.report); render(); };
+    title.append(node('span', String(index + 1).padStart(2, '0'), 'vod-rank'), button);
+    tr.append(title, node('td', duration(row.report.duration_seconds)), node('td', row.count), node('td', duration(row.seconds)), node('td', `${fixed(row.percent)}%`, 'share-number'), node('td', fixed(row.rate, 2)));
+    $('vod-table').append(tr);
+  });
+}
+function renderTimeline(stats) {
   $('timeline').replaceChildren();
-  for (const r of selected) {
-    const row = element('div', null, 'timeline-row');
-    const track = element('div', null, 'timeline-track');
-    for (const b of entries.filter(b => b.report === r)) {
-      const mark = element('span', null, 'break-mark');
-      mark.style.left = `${r.duration_seconds ? 100 * b.start_seconds / r.duration_seconds : 0}%`;
-      mark.style.width = `${r.duration_seconds ? 100 * b.seconds / r.duration_seconds : 0}%`;
-      mark.title = `${b.reason} · ${stamp(b.start_seconds)} · ${duration(b.seconds)}`;
+  for (const report of stats.reports) {
+    const row = node('div', null, 'timeline-row');
+    const track = node('div', null, 'timeline-track');
+    for (const item of stats.entries.filter(entry => entry.report === report)) {
+      const mark = node('button', null, 'break-mark');
+      mark.style.left = `${report.duration_seconds ? item.start_seconds / report.duration_seconds * 100 : 0}%`;
+      mark.style.width = `${report.duration_seconds ? item.seconds / report.duration_seconds * 100 : 0}%`;
+      mark.style.backgroundColor = colors[item.reason];
+      mark.setAttribute('aria-label', `${item.reason}, ${stamp(item.start_seconds)}, ${duration(item.seconds)}`);
+      mark.title = mark.getAttribute('aria-label'); mark.onclick = () => openReceipt(item);
       track.append(mark);
     }
-    const axis = element('div', null, 'axis'); axis.append(element('span', '0:00'), element('span', stamp(r.duration_seconds)));
-    row.append(element('p', r.title, 'timeline-name'), track, axis); $('timeline').append(row);
+    const axis = node('div', null, 'timeline-axis'); axis.append(node('span', '0:00'), node('span', stamp(report.duration_seconds)));
+    row.append(node('p', report.title, 'timeline-name'), track, axis); $('timeline').append(row);
   }
+}
+function renderLog(stats) {
+  const query = state.query.trim().toLocaleLowerCase();
+  const entries = stats.entries.filter(item => !query || `${item.report.title} ${item.reason} ${reasonNames[item.reason]} ${item.evidence}`.toLocaleLowerCase().includes(query));
+  if (state.sort !== 'stream') entries.sort((a, b) => state.sort === 'longest' ? b.seconds - a.seconds : a.seconds - b.seconds);
+  state.logEntries = entries;
   $('breaks').replaceChildren();
-  for (const b of entries) {
-    const row = element('tr');
-    const source = element('td');
-    if (b.report.video_id) {
-      const link = element('a', `${stamp(b.start_seconds)} ↗`); link.href = `https://www.youtube.com/watch?v=${b.report.video_id}&t=${Math.floor(b.start_seconds)}s`; link.target = '_blank'; link.rel = 'noopener noreferrer'; source.append(link);
-    } else source.append(element('span', stamp(b.start_seconds)));
-    source.append(element('small', b.report.title));
-    const time = element('td', duration(b.seconds)); if (b.truncated) time.append(element('small', 'Still BRB at VOD end'));
-    const reason = element('td'); reason.append(element('span', b.reason, `badge${b.reason === 'Unknown' ? ' unknown' : ''}`), element('small', b.reviewed === true ? 'Manually reviewed' : 'Unverified suggestion'));
-    row.append(source, time, reason, element('td', b.evidence ? `“${b.evidence}”` : 'No preceding transcript available.'));
+  $('log-count').textContent = query ? `${entries.length} / ${stats.count}` : `(${entries.length})`;
+  $('empty').hidden = entries.length > 0;
+  for (const item of entries) {
+    const row = node('tr');
+    const source = node('td'); source.append(node('strong', item.report.title), node('small', `${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}`));
+    const reason = node('td'); reason.append(node('span', reasonNames[item.reason], 'reason-tag'));
+    if (item.reviewed) { const checked = node('span', '✓', 'reviewed'); checked.title = 'Checked in the app'; reason.append(checked); }
+    const quote = node('td'); quote.append(node('div', item.evidence ? `“${item.evidence}”` : 'No quote on file.', 'quote-preview'));
+    const action = node('td'); const button = node('button', '↗', 'receipt-open'); button.setAttribute('aria-label', `Open ${item.reason} receipt at ${stamp(item.start_seconds)}`); button.onclick = () => openReceipt(item); action.append(button);
+    row.append(source, node('td', duration(item.seconds) + (item.truncated ? '+' : '')), reason, quote, action);
     $('breaks').append(row);
   }
-  $('log-count').textContent = `(${entries.length})`; $('empty').hidden = entries.length > 0;
-  const list = element('ul'); for (const warning of new Set(selected.flatMap(r => r.warnings || []))) list.append(element('li', warning));
-  $('warnings').replaceChildren(list);
 }
+function openReceipt(item) {
+  $('receipt-title').textContent = `${reasonNames[item.reason]} · ${duration(item.seconds)}${item.truncated ? '+' : ''}`;
+  $('receipt-meta').textContent = `${item.report.title} · ${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}${item.truncated ? ' · Still BRB when the VOD ends.' : ''}`;
+  $('receipt-quote').textContent = item.evidence || 'No quote on file.';
+  $('receipt-review').textContent = item.reviewed ? 'Checked in the app.' : '';
+  $('receipt-review').hidden = !item.reviewed;
+  const url = watchURL(item);
+  $('receipt-watch').hidden = !url;
+  if (url) $('receipt-watch').href = url; else $('receipt-watch').removeAttribute('href');
+  $('receipt-dialog').showModal();
+}
+
 function importText(text) {
-  try { load(JSON.parse(text), true); $('import-dialog').close(); $('import-error').textContent = ''; }
-  catch (e) { $('import-error').textContent = e.message; }
+  try { importReport(JSON.parse(text)); $('import-dialog').close(); $('import-error').textContent = ''; }
+  catch (error) { $('import-error').textContent = error.message; }
 }
-$('vod').addEventListener('change', render); $('reason').addEventListener('change', render);
-$('import-open').onclick = () => $('import-dialog').showModal();
-$('file').onchange = async (event) => { const file = event.target.files[0]; if (!file) return; if (file.size > 10 * 1024 * 1024) { $('import-error').textContent = 'Use a report smaller than 10 MB.'; return; } importText(await file.text()); event.target.value = ''; };
-$('import-paste').onclick = () => importText($('paste').value);
-$('export').onclick = () => {
-  const url = URL.createObjectURL(new Blob([JSON.stringify({schema_version: 1, reports}, null, 2)], {type: 'application/json'}));
-  const link = element('a'); link.href = url; link.download = 'brb-reports.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+function download(value, type, filename) {
+  const url = URL.createObjectURL(new Blob([value], {type}));
+  const anchor = node('a'); anchor.href = url; anchor.download = filename; anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+async function fetchReports(path) {
+  const response = await fetch(path, {cache: 'no-store'});
+  if (!response.ok) throw Error('The receipts didn’t arrive. Try Refresh or import a report.');
+  return A.validate(await response.json());
+}
+async function initialize() {
+  const results = await Promise.allSettled([fetchReports('data/reports.json'), fetchReports('data/demo.json')]);
+  const published = results[0], demo = results[1];
+  if (published.status === 'fulfilled') state.published = published.value.filter(report => !report.is_demo);
+  if (demo.status === 'fulfilled') state.demo = demo.value.filter(report => report.is_demo);
+  else if (published.status === 'fulfilled') state.demo = published.value.filter(report => report.is_demo);
+  state.loading = false;
+  if (published.status === 'rejected') notice(published.reason.message);
+  render();
+}
+$('vod').onchange = event => { state.vod = event.target.value; render(); };
+$('reason').onchange = event => { state.reason = event.target.value; render(); };
+$('reason-metric').onchange = event => { state.metric = event.target.value; render(); };
+$('search').oninput = event => { state.query = event.target.value; renderLog(A.compute(activeReports().filter(report => state.vod === 'all' || A.key(report) === state.vod), state.reason)); };
+$('log-sort').onchange = event => { state.sort = event.target.value; render(); };
+$('demo-toggle').onclick = () => switchMode(state.mode === 'published' ? 'demo' : 'published');
+$('demo-empty').onclick = () => switchMode('demo');
+$('refresh').onclick = async () => {
+  state.loading = true; render();
+  try { const reports = await fetchReports('data/reports.json'); state.published = reports.filter(report => !report.is_demo); notice('Fresh receipts. Board updated.'); }
+  catch (error) { notice(error.message); }
+  finally { state.loading = false; render(); }
 };
-fetch('data/reports.json').then(response => { if (!response.ok) throw Error('Report data could not be loaded.'); return response.json(); }).then(data => load(data)).catch(e => { $('notice').textContent = `${e.message} Import a JSON report to get started.`; });
+$('import-open').onclick = () => $('import-dialog').showModal();
+$('file').onchange = async event => {
+  const file = event.target.files[0]; if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { $('import-error').textContent = 'Use a JSON report smaller than 10 MB.'; return; }
+  try { importText(await file.text()); } catch (error) { $('import-error').textContent = error.message; }
+  event.target.value = '';
+};
+$('import-paste').onclick = () => importText($('paste').value);
+$('export').title = 'Download the full current dataset as JSON';
+$('export').onclick = () => download(JSON.stringify({schema_version: 1, reports: activeReports()}, null, 2), 'application/json', 'gone4hope-reports.json');
+$('csv-export').title = 'Download the receipts matching the current filters and search';
+$('csv-export').onclick = () => download(A.csv(state.logEntries), 'text/csv;charset=utf-8', 'gone4hope-receipts.csv');
+initialize();

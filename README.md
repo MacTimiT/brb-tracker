@@ -141,7 +141,7 @@ brb-tracker export --data-dir data --output docs/data/reports.json
 python -m http.server 8080 --directory docs
 ```
 
-Open `http://localhost:8080`. The dashboard shows total time away, break count, average/longest break, most common reason (including ties), reason distribution, per-VOD timelines, timestamps and transcript evidence. Filter by VOD and reason; import JSON from a file or the app clipboard. Imports replace the view locally, without uploading or saving it. Reloading restores the published dataset. Export JSON downloads the full loaded dataset, regardless of filters. Export deduplicates repeated analyses by YouTube video ID; imports reject duplicate VODs to avoid inflated totals.
+Open `http://localhost:8080`. The GONE4HOPE dashboard shows total time away, break count, average and median duration, breaks per stream hour, count/time reason rankings, break-length distributions, stream-quarter patterns, longest/shortest breaks, uninterrupted stretches and per-VOD BRB-percentage rankings. Timelines and searchable receipts open transcript quotes and YouTube timestamps. CSV exports the filtered receipt list; JSON exports the active dataset. The default board uses published real reports; invented demo data is available only through an explicit demo control. Filter by VOD and reason; import JSON from a file or the app clipboard. Imports replace the view locally, without uploading or saving it. Reloading restores the published dataset. Export JSON downloads the full loaded dataset, regardless of filters. Export deduplicates repeated analyses by YouTube video ID; imports reject duplicate VODs to avoid inflated totals.
 
 To publish on GitHub:
 

@@ -1,29 +1,65 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="VOD break durations, reasons, and transcript evidence for Gamin4Hope.">
-  <title>BRB Tracker · Stream insights</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="app.js" defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#252b2e">
+  <meta name="description" content="GONE4HOPE: a very unnecessary scoreboard for Gamin4Hope’s BRB breaks. The excuses, the times, the receipts.">
+  <title>GONE4HOPE · The BRB department</title>
+  <link rel="icon" href="assets/gamin4hope-profile.jpg">
+  <link rel="preload" href="assets/fonts/barlow-condensed-extrabold.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="style.css?v=gone4hope-1">
+  <script src="analytics.js?v=gone4hope-1" defer></script>
+  <script src="app.js?v=gone4hope-1" defer></script>
 </head>
 <body>
-  <header><a class="brand" href="./"><span class="brand-icon">Ⅱ</span> BRB<span>TRACKER</span></a><span class="header-note">STREAM INSIGHTS / 01</span><a class="download-app" href="https://github.com/MacTimiT/brb-tracker/releases/download/v0.2.1-preview/brb-tracker-0.2.1-android.apk">Android ↓</a><a href="https://github.com/MacTimiT/brb-tracker">Source ↗</a></header>
-  <main>
-    <div class="intro"><div><div class="eyebrow"><span class="dot"></span> GAMIN4HOPE · VOD ANALYTICS</div><h1>Every break.<br><span>The bigger picture.</span></h1><p>A little time away adds up. Explore the pauses, the reasons,<br class="wide"> and the moments just before “be right back.”</p></div><div class="intro-mark" aria-hidden="true">be<br>right<br><em>back.</em></div></div>
-    <div class="toolbar"><div class="select-group"><label for="vod">VOD</label><select id="vod"><option value="all">All VODs</option></select></div><div class="select-group"><label for="reason">Reason</label><select id="reason"><option value="all">All reasons</option><option>Pee</option><option>Snack</option><option>Drink</option><option>Stretch</option><option>Technical</option><option>Other</option><option>Unknown</option></select></div><div class="toolbar-actions"><button id="import-open">↑ Import report</button><button id="export">↓ Export JSON</button></div></div>
-    <div id="notice" role="status">Loading reports…</div>
-    <section class="stats" aria-label="Break statistics">
-      <article><div class="stat-label">TOTAL TIME AWAY <span>↗</span></div><strong id="total">—</strong><small id="away-share">Across selected VODs</small></article>
-      <article><div class="stat-label">BREAKS DETECTED <span>Ⅱ</span></div><strong id="count">—</strong><small id="reviewed">Waiting for data</small></article>
-      <article><div class="stat-label">AVERAGE BREAK <span>◷</span></div><strong id="average">—</strong><small id="longest">Longest: —</small></article>
-      <article class="accent-card"><div class="stat-label">MOST COMMON REASON <span>↗</span></div><strong id="common">—</strong><small id="common-detail">By number of breaks</small></article>
+  <header class="masthead wrap">
+    <a class="brand" href="./" aria-label="GONE4HOPE home"><img src="assets/gamin4hope-profile.jpg" width="44" height="44" alt="Gamin4Hope"><span>GONE<span class="red">4</span>HOPE<small>THE BRB DEPARTMENT</small></span></a>
+    <nav aria-label="Main navigation"><a href="#excuses">The excuses</a><a href="#receipts">The receipts</a><a class="app-link" href="https://github.com/MacTimiT/brb-tracker/releases/download/v0.2.1-preview/brb-tracker-0.2.1-android.apk">Get the app <span aria-hidden="true">↓</span></a></nav>
+  </header>
+  <main class="wrap">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy"><p class="eyebrow">GAMIN4HOPE’S MOST CONSISTENT ABILITY</p><h1 id="hero-title">BE RIGHT<br><span>BACK.</span></h1><p class="hero-line">Chat kept the seat warm.<br>We kept the times.</p></div>
+      <div class="punch-clock"><div class="clock-heading"><span>TIME ON SIDE QUESTS</span><span class="clock-icon" aria-hidden="true">Ⅱ</span></div><strong id="total">—</strong><p id="one-secs">Waiting for the first “one sec.”</p><div class="occupancy" aria-hidden="true"><span id="share-fill"></span></div><div class="occupancy-labels"><span id="other-label">Not BRB</span><span id="away-label">BRB</span></div><div class="clock-bottom"><span>THE CHAIR’S DOING OVERTIME</span><span aria-hidden="true">↗</span></div></div>
     </section>
-    <section class="charts"><article class="panel"><div class="panel-heading"><h2>What’s the reason?</h2><span>BREAK COUNT / TIME AWAY</span></div><div id="reasons" class="reason-bars"></div></article><article class="panel"><div class="panel-heading"><h2>A stream in pauses</h2><span>VOD TIMELINE</span></div><div id="timeline"></div><p class="muted">Each mark is a detected break. Select a VOD for a closer look.</p></article></section>
-    <section class="panel log"><div class="panel-heading"><h2>The break log <span id="log-count"></span></h2><span>TRANSCRIPT EVIDENCE INCLUDED</span></div><div class="table-wrap"><table><thead><tr><th>VOD / TIMESTAMP</th><th>TIME AWAY</th><th>REASON</th><th>BEFORE THE BREAK</th></tr></thead><tbody id="breaks"></tbody></table></div><p id="empty" hidden>No breaks match these filters.</p></section>
-    <section class="method"><h2>A note on the numbers.</h2><p>OCR finds “Be Right Back” on sampled video frames. Durations are estimates; very short screens and OCR failures can be missed. Reason suggestions come from the preceding transcript and remain unverified until reviewed. A BRB screen measures screen time, not proof of physical absence.</p><div id="warnings"></div></section>
-    <footer><span>BRB TRACKER <span class="dot"></span> ANDROID FIRST. BUILT TO GROW.</span><span>Take a break. We’ll keep count.</span></footer>
+
+    <section class="controls" aria-label="Scoreboard filters">
+      <div class="data-state"><span class="mode" id="data-mode">Published VODs</span><span id="scope-summary">Checking the receipts…</span></div>
+      <div class="filter-row"><label>Stream<select id="vod"><option value="all">All streams</option></select></label><label>Excuse<select id="reason"><option value="all">All excuses</option><option value="Pee">Pee</option><option value="Snack">Snack</option><option value="Drink">Drink</option><option value="Stretch">Stretch</option><option value="Technical">Technical</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select></label><div class="control-buttons"><button id="refresh" title="Refresh published reports">↻ <span>Refresh</span></button><button id="demo-toggle">Try the demo</button><button id="import-open">＋ Import report</button></div></div>
+      <p id="notice" role="status" hidden></p>
+    </section>
+
+    <section id="empty-board" class="empty-board" hidden>
+      <svg viewBox="0 0 100 110" width="90" height="99" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="28" y="8" width="44" height="44" rx="10"/><path d="M20 70h60M28 52v18m44-18v18M50 71v25m-27 9 27-9 27 9M12 48v22m76-22v22M7 48h12m62 0h12"/></g></svg>
+      <div><p class="eyebrow">NO RECEIPTS. YET.</p><h2>The chair is waiting<br>for its first shift.</h2><p>Scan a VOD in the Android app, hit Publish,<br>and let the deeply unnecessary bookkeeping begin.</p><div class="empty-actions"><button class="primary" id="demo-empty">Take a demo lap →</button><a href="https://github.com/MacTimiT/brb-tracker/releases/download/v0.2.1-preview/brb-tracker-0.2.1-android.apk">Get the Android app ↗</a></div></div>
+    </section>
+
+    <div id="analytics-board" hidden>
+      <section class="score-strip" aria-label="Break statistics">
+        <div><span>TACTICAL RETREATS</span><strong id="count">—</strong></div>
+        <div><span id="away-metric-label">STREAM SPENT BRB</span><strong id="away-percent">—</strong></div>
+        <div><span>AVERAGE BREAK</span><strong id="average">—</strong></div>
+        <div><span>MEDIAN BREAK</span><strong id="median">—</strong></div>
+        <div><span>BREAKS / STREAM HOUR</span><strong id="rate">—</strong></div>
+      </section>
+
+      <div class="split">
+        <section class="panel" id="excuses"><div class="section-heading"><div><p class="eyebrow">WHERE DID HE GO?</p><h2>The excuse leaderboard.</h2></div><label class="compact-label">Rank by<select id="reason-metric"><option value="count">Break count</option><option value="seconds">Time away</option></select></label></div><p class="panel-note" id="leaderboard-note"></p><div id="reasons" class="reasons"></div></section>
+        <section class="panel"><div class="section-heading"><div><p class="eyebrow">DEFINE “QUICK”</p><h2>How long was he gone?</h2></div></div><div id="distribution" class="column-chart" aria-label="Break length distribution"></div><p class="chart-caption">Break count by duration</p></section>
+      </div>
+
+      <section class="records" aria-labelledby="records-title"><div class="section-heading"><div><p class="eyebrow">PLEASE ACCEPT THIS VERY SMALL TROPHY</p><h2 id="records-title">The hall of gone.</h2></div></div><div class="record-grid"><article><span class="record-label">01 / LONGEST SIDE QUEST</span><div id="longest"></div></article><article><span class="record-label">02 / QUICKEST COMEBACK</span><div id="shortest"></div></article><article><span class="record-label">03 / LONGEST WITHOUT A BRB</span><div id="streak"></div><small>Across all excuses in these VODs</small></article></div><p id="gap-mean" class="gap-note"></p></section>
+
+      <section class="panel vod-panel"><div class="section-heading"><div><p class="eyebrow">A LEAGUE OF HIS OWN</p><h2>Streams, ranked by chair time.</h2></div><span class="section-side">Most BRB → least BRB</span></div><div class="table-scroll"><table class="vod-table"><thead><tr><th>STREAM</th><th>LENGTH</th><th>BREAKS</th><th>TIME AWAY</th><th>BRB SHARE</th><th>BREAKS / H</th></tr></thead><tbody id="vod-table"></tbody></table></div></section>
+
+      <div class="split bottom-charts"><section class="panel"><div class="section-heading"><div><p class="eyebrow">EARLY EXIT OR LATE GAME?</p><h2>When he vanishes.</h2></div></div><div id="phases" class="column-chart phase-chart" aria-label="Break starts by stream quarter"></div><p class="chart-caption">Break starts, grouped by how far into the VOD they happen</p></section><section class="panel"><div class="section-heading"><div><p class="eyebrow">RED MEANS THE CHAIR’S IN CHARGE</p><h2>The escape timeline.</h2></div></div><div id="timeline"></div></section></div>
+
+      <section class="panel receipt-panel" id="receipts"><div class="section-heading"><div><p class="eyebrow">CHAT, ROLL THE TAPE</p><h2>The receipts. <span id="log-count"></span></h2></div><div class="exports"><button id="csv-export">↓ CSV</button><button id="export">↓ JSON</button></div></div><div class="log-controls"><label class="search-label"><span class="sr-only">Search receipts</span><input id="search" type="search" placeholder="Find a stream, excuse, or suspicious quote…"></label><label>Order<select id="log-sort"><option value="longest">Longest first</option><option value="shortest">Shortest first</option><option value="stream">Stream order</option></select></label></div><div class="table-scroll"><table class="receipt-table"><thead><tr><th>CLOCKED OUT</th><th>GONE FOR</th><th>EXCUSE</th><th>FAMOUS LAST WORDS</th><th><span class="sr-only">Open receipt</span></th></tr></thead><tbody id="breaks"></tbody></table></div><p id="empty" class="no-results" hidden>No receipts match. He’s escaped the filter.</p></section>
+    </div>
+    <footer><strong>THANKS FOR HOLDING, CHAT.</strong><nav aria-label="More links"><a href="https://www.twitch.tv/gamin4hope" target="_blank" rel="noopener noreferrer">Watch Hope ↗</a><a href="https://linktr.ee/gamin4hope" target="_blank" rel="noopener noreferrer">His links ↗</a><a href="https://github.com/MacTimiT/brb-tracker">The code ↗</a></nav></footer>
   </main>
-  <dialog id="import-dialog"><form method="dialog"><button class="close" aria-label="Close import">×</button></form><h2>Bring your own report</h2><p>Import an analyzer export, or paste JSON copied from the Android app. This replaces the current view locally; nothing is uploaded.</p><label for="file">JSON file</label><input id="file" type="file" accept=".json,application/json"><label for="paste">Or paste report JSON</label><textarea id="paste" rows="7" placeholder='{"schema_version":1,"reports":[…]}'></textarea><p id="import-error" role="alert"></p><button id="import-paste">Load pasted report</button></dialog>
+
+  <dialog id="import-dialog" aria-labelledby="import-title"><form method="dialog"><button class="close" aria-label="Close import">×</button></form><p class="eyebrow">MORE FUEL FOR THE SPREADSHEET</p><h2 id="import-title">Got receipts?</h2><p>Load a report from the Android app or analyzer.</p><label for="file">Choose a JSON file</label><input id="file" type="file" accept=".json,application/json"><label for="paste">Or paste report JSON</label><textarea id="paste" rows="7" placeholder='{"schema_version":1,"reports":[…]}'></textarea><p id="import-error" role="alert"></p><button class="primary" id="import-paste">Put it on the board →</button></dialog>
+  <dialog id="receipt-dialog" aria-labelledby="receipt-title"><form method="dialog"><button class="close" aria-label="Close receipt">×</button></form><p class="eyebrow">EXHIBIT BRB</p><h2 id="receipt-title"></h2><p id="receipt-meta"></p><blockquote id="receipt-quote"></blockquote><p id="receipt-review"></p><a class="primary watch-link" id="receipt-watch" target="_blank" rel="noopener noreferrer">Roll the tape ↗</a></dialog>
 </body>
 </html>
