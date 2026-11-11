@@ -1,5 +1,7 @@
 # BRB Tracker
 
+**[Download Android v0.2.1 preview](https://github.com/MacTimiT/brb-tracker/releases/download/v0.2.1-preview/brb-tracker-0.2.1-android.apk)** · [Release notes](https://github.com/MacTimiT/brb-tracker/releases/tag/v0.2.1-preview)
+
 An Android-first tool for locally finding **“Be Right Back”** screens in Gamin4Hope’s YouTube VODs, estimating their duration, and suggesting a reason from the preceding transcript. Includes a Flutter Android app, a Python analysis service/CLI, and a static dashboard ready for GitHub Pages.
 
 **Status: on-device Android prototype.** Android now includes native VOD downloading, video decoding, OCR, break timing, transcript classification, local corrections and direct GitHub publication. CI builds the APK and runs native unit tests plus an Android emulator test using generated footage. The example Gamin4Hope VOD still needs a real-network/device validation: development access returned HTTP 403. Bundled dashboard sample statistics are invented, not measured activity.
