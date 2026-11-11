@@ -43,6 +43,7 @@ class AnalysisService : Service() {
     }
     private val worker = Executors.newSingleThreadExecutor()
     @Volatile private var cancelled = false
+    @Volatile private var timedOut = false
     private var wakeLock: PowerManager.WakeLock? = null
     private lateinit var store: JobStore
     private var lastPercent = -1
@@ -173,8 +174,8 @@ class AnalysisService : Service() {
         } catch (e: Exception) {
             val wasCancelled = cancelled || e is CancellationException || e is YoutubeDL.CanceledException
             store.update(id) {
-                it.put("status", if (wasCancelled) "cancelled" else "failed").put("stage", if (wasCancelled) "Cancelled" else "Failed")
-                    .put("error", if (wasCancelled) "Analysis cancelled. No results were published." else (e.message ?: "Local analysis failed").takeLast(1200))
+                it.put("status", if (wasCancelled && !timedOut) "cancelled" else "failed").put("stage", if (wasCancelled && !timedOut) "Cancelled" else "Failed")
+                    .put("error", if (timedOut) "Android's background processing time limit was reached. Keep the app open or analyze a shorter VOD." else if (wasCancelled) "Analysis cancelled. No results were published." else (e.message ?: "Local analysis failed").takeLast(1200))
             }
         } finally {
             work.deleteRecursively()
@@ -186,6 +187,7 @@ class AnalysisService : Service() {
     }
     private fun checkCancelled() { if (cancelled) throw CancellationException("Analysis cancelled") }
     override fun onTimeout(startId: Int, fgsType: Int) {
+        timedOut = true
         cancelled = true
         activeId?.let { id ->
             YoutubeDL.destroyProcessById(id)

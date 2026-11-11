@@ -21,9 +21,14 @@ class LocalAnalyzer(private val context: Context) {
         require(interval.isFinite() && interval in 1.0..30.0)
         val tessRoot = File(context.noBackupFilesDir, "tesseract")
         val model = File(tessRoot, "tessdata/eng.traineddata")
-        if (!model.exists()) {
+        if (model.length() != 4_113_088L) {
             model.parentFile!!.mkdirs()
-            context.assets.open("tessdata/eng.traineddata").use { source -> model.outputStream().use { source.copyTo(it) } }
+            val atomic = android.util.AtomicFile(model)
+            val output = atomic.startWrite()
+            try {
+                context.assets.open("tessdata/eng.traineddata").use { source -> source.copyTo(output) }
+                atomic.finishWrite(output)
+            } catch (e: Exception) { atomic.failWrite(output); throw e }
         }
         val decoder = MediaMetadataRetriever()
         val tess = TessBaseAPI()

@@ -14,7 +14,11 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val store = JobStore(this)
-        if (AnalysisService.activeId == null) store.recoverInterrupted()
+        if (AnalysisService.activeId == null) {
+            store.recoverInterrupted()
+            // Only scratch downloads owned by stopped jobs; never selected originals.
+            java.io.File(noBackupFilesDir, "brb-work").deleteRecursively()
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.mactimit.brb_tracker/local").setMethodCallHandler { call, result ->
             try {
                 when (call.method) {

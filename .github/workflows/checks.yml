@@ -27,6 +27,7 @@ jobs:
       - run: npm ci && npm test
   android:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: apps/mobile
@@ -41,12 +42,13 @@ jobs:
           flutter-version: '3.50.0'
           channel: stable
           cache: true
+      - uses: gradle/actions/setup-gradle@v4
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
       - run: flutter build apk --debug
       - name: Native Android unit tests
-        run: cd android && ./gradlew testDebugUnitTest
+        run: cd android && ./gradlew :app:testDebugUnitTest
       - uses: actions/upload-artifact@v4
         with:
           name: brb-tracker-android-local-debug
@@ -66,7 +68,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           working-directory: apps/mobile/android
-          script: ./gradlew connectedDebugAndroidTest
+          script: ./gradlew :app:connectedDebugAndroidTest
       - name: Android native test reports
         if: always()
         uses: actions/upload-artifact@v4

@@ -66,7 +66,7 @@ This downloads a `base.en` speech model on first use and may take considerable C
 
 Version **0.2.0** moves video parsing onto Android. The phone downloads a low-resolution MP4 and available English captions with a bundled yt-dlp/Python/QuickJS runtime, samples video using Android's media decoder, runs bundled English Tesseract OCR, detects/times BRB screens, and categorizes the preceding transcript locally. The Python service is now optional and is not used by the app.
 
-Use Android **8.0+ (API 26)** on a **64-bit ARM phone**; x86_64 is also built for emulator testing. CI creates a sideloadable development APK under **Actions → Checks and Android APK → Artifacts → brb-tracker-android-local-debug**. This is a debug build, not a Play Store release. Install it over the previous debug APK to update.
+Use Android **8.0+ (API 26)** on a **64-bit ARM phone**; x86_64 is also built for emulator testing. CI creates a sideloadable development APK under **Actions → Checks and Android APK → Artifacts → brb-tracker-android-local-debug**. This is a debug build, not a Play Store release. CI development signing keys are not stable between runs: if Android rejects an update because signatures differ, uninstall the previous debug app before installing. Uninstalling deletes its local reports and saved token; publish or copy any reports you want to keep first.
 
 ### Use only your phone
 
@@ -97,8 +97,8 @@ flutter analyze
 flutter test
 flutter build apk --debug
 cd android
-./gradlew testDebugUnitTest
-./gradlew connectedDebugAndroidTest
+./gradlew :app:testDebugUnitTest
+./gradlew :app:connectedDebugAndroidTest
 ```
 
 The Android client is GPL-3.0 because it incorporates the GPL-3.0 native downloader. See [Android dependency notices](apps/mobile/THIRD_PARTY_NOTICES.md) and [license](apps/mobile/LICENSE). OCR language data is bundled, so analyzing imported video with a transcript does not require network access. Network access is used for YouTube downloads/extractor updates and when you publish to GitHub.
