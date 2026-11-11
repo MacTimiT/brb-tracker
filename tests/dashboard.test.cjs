@@ -1,0 +1,70 @@
+const {test} = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const {JSDOM} = require('jsdom');
+const sample = JSON.parse(fs.readFileSync('docs/data/reports.json', 'utf8'));
+async function page() {
+  const dom = new JSDOM(fs.readFileSync('docs/index.html', 'utf8'), {url: 'http://localhost/', runScripts: 'outside-only'});
+  dom.window.fetch = async () => ({ok: true, json: async () => structuredClone(sample)});
+  dom.window.eval(fs.readFileSync('docs/app.js', 'utf8'));
+  await new Promise(resolve => setImmediate(resolve));
+  dom.window.document.getElementById('import-dialog').close = () => {};
+  return dom;
+}
+test('aggregates sample data and filters reasons without changing VOD denominator', async () => {
+  const dom = await page();
+  const d = dom.window.document;
+  assert.equal(d.getElementById('count').textContent, '06');
+  assert.equal(d.getElementById('total').textContent, '22m 0s');
+  assert.equal(d.getElementById('average').textContent, '3m 40s');
+  assert.equal(d.getElementById('common').textContent, 'Pee');
+  assert.match(d.getElementById('notice').textContent, /SAMPLE DATA/);
+  d.getElementById('reason').value = 'Pee';
+  d.getElementById('reason').dispatchEvent(new dom.window.Event('change'));
+  assert.equal(d.getElementById('count').textContent, '03');
+  assert.equal(d.getElementById('total').textContent, '9m 0s');
+  assert.equal(d.querySelectorAll('tbody tr').length, 3);
+  dom.window.close();
+});
+test('empty reports render safely and import text cannot become HTML', async () => {
+  const dom = await page();
+  const d = dom.window.document;
+  const report = structuredClone(sample.reports[0]);
+  report.title = '<img src=x onerror=alert(1)>';
+  report.is_demo = false;
+  report.breaks = [];
+  d.getElementById('paste').value = JSON.stringify(report);
+  d.getElementById('import-paste').click();
+  assert.equal(d.getElementById('count').textContent, '00');
+  assert.equal(d.getElementById('empty').hidden, false);
+  assert.equal(d.querySelectorAll('img').length, 0);
+  assert.match(d.getElementById('timeline').textContent, /<img/);
+  assert.match(d.getElementById('notice').textContent, /Local view only/);
+  dom.window.close();
+});
+test('bad timelines and duplicate VODs are rejected without replacing the report', async () => {
+  const dom = await page();
+  const d = dom.window.document;
+  const report = structuredClone(sample.reports[0]);
+  report.breaks[0].end_seconds = -1;
+  d.getElementById('paste').value = JSON.stringify(report);
+  d.getElementById('import-paste').click();
+  assert.match(d.getElementById('import-error').textContent, /Invalid break/);
+  assert.equal(d.getElementById('count').textContent, '06');
+  d.getElementById('paste').value = JSON.stringify({reports: [sample.reports[0], sample.reports[0]]});
+  d.getElementById('import-paste').click();
+  assert.match(d.getElementById('import-error').textContent, /Duplicate VODs/);
+  dom.window.close();
+});
+test('ties are explicit and timestamp links use a validated YouTube ID', async () => {
+  const dom = await page();
+  const d = dom.window.document;
+  const report = structuredClone(sample.reports[0]);
+  report.breaks = report.breaks.slice(0, 2);
+  report.video_id = 'IW2rEIuKGSs';
+  d.getElementById('paste').value = JSON.stringify(report);
+  d.getElementById('import-paste').click();
+  assert.equal(d.getElementById('common').textContent, 'Tied');
+  assert.equal(d.querySelector('tbody a').href, 'https://www.youtube.com/watch?v=IW2rEIuKGSs&t=1800s');
+  dom.window.close();
+});

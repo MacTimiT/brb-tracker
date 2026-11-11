@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="VOD break durations, reasons, and transcript evidence for Gamin4Hope.">
+  <title>BRB Tracker · Stream insights</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="./"><span class="brand-icon">Ⅱ</span> BRB<span>TRACKER</span></a><span class="header-note">STREAM INSIGHTS / 01</span><a href="https://github.com/MacTimiT/brb-tracker">Source ↗</a></header>
+  <main>
+    <div class="intro"><div><div class="eyebrow"><span class="dot"></span> GAMIN4HOPE · VOD ANALYTICS</div><h1>Every break.<br><span>The bigger picture.</span></h1><p>A little time away adds up. Explore the pauses, the reasons,<br class="wide"> and the moments just before “be right back.”</p></div><div class="intro-mark" aria-hidden="true">be<br>right<br><em>back.</em></div></div>
+    <div class="toolbar"><div class="select-group"><label for="vod">VOD</label><select id="vod"><option value="all">All VODs</option></select></div><div class="select-group"><label for="reason">Reason</label><select id="reason"><option value="all">All reasons</option><option>Pee</option><option>Snack</option><option>Drink</option><option>Stretch</option><option>Technical</option><option>Other</option><option>Unknown</option></select></div><div class="toolbar-actions"><button id="import-open">↑ Import report</button><button id="export">↓ Export JSON</button></div></div>
+    <div id="notice" role="status">Loading reports…</div>
+    <section class="stats" aria-label="Break statistics">
+      <article><div class="stat-label">TOTAL TIME AWAY <span>↗</span></div><strong id="total">—</strong><small id="away-share">Across selected VODs</small></article>
+      <article><div class="stat-label">BREAKS DETECTED <span>Ⅱ</span></div><strong id="count">—</strong><small id="reviewed">Waiting for data</small></article>
+      <article><div class="stat-label">AVERAGE BREAK <span>◷</span></div><strong id="average">—</strong><small id="longest">Longest: —</small></article>
+      <article class="accent-card"><div class="stat-label">MOST COMMON REASON <span>↗</span></div><strong id="common">—</strong><small id="common-detail">By number of breaks</small></article>
+    </section>
+    <section class="charts"><article class="panel"><div class="panel-heading"><h2>What’s the reason?</h2><span>BREAK COUNT / TIME AWAY</span></div><div id="reasons" class="reason-bars"></div></article><article class="panel"><div class="panel-heading"><h2>A stream in pauses</h2><span>VOD TIMELINE</span></div><div id="timeline"></div><p class="muted">Each mark is a detected break. Select a VOD for a closer look.</p></article></section>
+    <section class="panel log"><div class="panel-heading"><h2>The break log <span id="log-count"></span></h2><span>TRANSCRIPT EVIDENCE INCLUDED</span></div><div class="table-wrap"><table><thead><tr><th>VOD / TIMESTAMP</th><th>TIME AWAY</th><th>REASON</th><th>BEFORE THE BREAK</th></tr></thead><tbody id="breaks"></tbody></table></div><p id="empty" hidden>No breaks match these filters.</p></section>
+    <section class="method"><h2>A note on the numbers.</h2><p>OCR finds “Be Right Back” on sampled video frames. Durations are estimates; very short screens and OCR failures can be missed. Reason suggestions come from the preceding transcript and remain unverified until reviewed. A BRB screen measures screen time, not proof of physical absence.</p><div id="warnings"></div></section>
+    <footer><span>BRB TRACKER <span class="dot"></span> ANDROID FIRST. BUILT TO GROW.</span><span>Take a break. We’ll keep count.</span></footer>
+  </main>
+  <dialog id="import-dialog"><form method="dialog"><button class="close" aria-label="Close import">×</button></form><h2>Bring your own report</h2><p>Import an analyzer export, or paste JSON copied from the Android app. This replaces the current view locally; nothing is uploaded.</p><label for="file">JSON file</label><input id="file" type="file" accept=".json,application/json"><label for="paste">Or paste report JSON</label><textarea id="paste" rows="7" placeholder='{"schema_version":1,"reports":[…]}'></textarea><p id="import-error" role="alert"></p><button id="import-paste">Load pasted report</button></dialog>
+</body>
+</html>
