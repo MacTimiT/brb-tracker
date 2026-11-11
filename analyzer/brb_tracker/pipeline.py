@@ -7,6 +7,7 @@ from typing import Callable
 
 from .detection import annotate, find_breaks, is_brb
 from .models import Cue, Report
+from .screen import PROFILES, prepare_screen
 from .transcript import read_transcript
 
 
@@ -15,13 +16,16 @@ def analyze(
     source_url: str = "", identifier: str | None = None, streamer: str = "Gamin4Hope",
     interval: float = 2, min_hits: int = 2, end_misses: int = 2,
     lookback: float = 60, phrase: str = "be right back", whisper: bool = False,
+    profile: str = "full_frame",
     progress: Callable[[float], None] = lambda _: None,
 ) -> Report:
-    from PIL import Image, ImageOps
+    from PIL import Image
     import pytesseract
 
     if not math.isfinite(interval) or not 0.25 <= interval <= 30:
         raise ValueError("Sampling interval must be between 0.25 and 30 seconds")
+    if profile not in PROFILES:
+        raise ValueError("Unknown screen detector profile")
     video = video.resolve(strict=True)
     info = json.loads(subprocess.check_output([
         "ffprobe", "-v", "error", "-show_format", "-show_streams", "-of", "json", str(video)
@@ -53,8 +57,8 @@ def analyze(
                 if timestamp >= duration:
                     continue
                 image = Image.frombytes("RGB", (width, height), frame)
-                image = ImageOps.autocontrast(ImageOps.grayscale(image))
-                text = pytesseract.image_to_string(image, config="--psm 11", timeout=20)
+                image = prepare_screen(image, profile)
+                text = pytesseract.image_to_string(image, config="--psm 11", timeout=20) if image is not None else ""
                 progress(min(timestamp / duration, 0.99))
                 yield timestamp, is_brb(text, (phrase,))
         breaks = find_breaks(observations(), duration, min_hits, end_misses)
@@ -79,10 +83,13 @@ def analyze(
     if not cues:
         warnings.append("No usable transcript: all reasons need manual review.")
     warnings.append(f"Sampled every {interval:g}s; boundaries are estimates. Short breaks and OCR failures can be missed.")
+    if profile == "gamin4hope":
+        warnings.append("Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.")
     progress(1)
     return Report(
         id=identifier or str(uuid.uuid4()), title=title, streamer=streamer,
         video_id=identifier, source_url=source_url, duration_seconds=duration,
         sample_interval_seconds=interval, transcript_source=transcript_source,
+        detector_profile=profile,
         warnings=warnings, breaks=annotate(breaks, cues, lookback),
     )

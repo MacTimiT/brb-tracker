@@ -57,6 +57,7 @@ class Report(BaseModel):
     duration_seconds: float = Field(ge=0)
     sample_interval_seconds: float = Field(gt=0)
     transcript_source: str = "none"
+    detector_profile: Literal["full_frame", "gamin4hope"] = "full_frame"
     is_demo: bool = False
     warnings: list[str] = Field(default_factory=list)
     breaks: list[Break] = Field(default_factory=list)

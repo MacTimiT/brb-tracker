@@ -15,6 +15,16 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class LocalAnalysisTest {
+    @Test fun bannerProfileRecognizesRedBannerAndRejectsChatOnlyPhrase() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        ScreenOcr(instrumentation.targetContext).use { ocr ->
+            for ((name, expected) in listOf("banner.png" to true, "chat-only.png" to false)) {
+                val bitmap = instrumentation.context.assets.open(name).use { android.graphics.BitmapFactory.decodeStream(it) }
+                try { assertEquals(name, expected, ocr.isBrb(bitmap, "gamin4hope")) }
+                finally { bitmap.recycle() }
+            }
+        }
+    }
     @Test fun bundledDownloaderRunsOnAndroid() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         YoutubeDL.init(context)
@@ -33,7 +43,7 @@ class LocalAnalysisTest {
         ActivityScenario.launch(MainActivity::class.java).use {
             instrumentation.waitForIdleSync()
             val input = JSONObject().put("video_uri", Uri.fromFile(video).toString()).put("transcript_uri", Uri.fromFile(transcript).toString())
-                .put("url", "").put("interval", 2.0).put("title", "Generated Android OCR test")
+                .put("url", "").put("interval", 2.0).put("detector_profile", "full_frame").put("title", "Generated Android OCR test")
             val job = AnalysisService.launch(context, input)
             val id = job.getString("id")
             val store = JobStore(context)

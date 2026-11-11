@@ -64,7 +64,7 @@ This downloads a `base.en` speech model on first use and may take considerable C
 
 ## Android app: no PC or server required
 
-Version **0.2.0** moves video parsing onto Android. The phone downloads a low-resolution MP4 and available English captions with a bundled yt-dlp/Python/QuickJS runtime, samples video using Android's media decoder, runs bundled English Tesseract OCR, detects/times BRB screens, and categorizes the preceding transcript locally. The Python service is now optional and is not used by the app.
+Version **0.2.1** parses video on Android and adds a Gamin4Hope banner profile calibrated against the supplied reference. The phone downloads a low-resolution MP4 and available English captions with a bundled yt-dlp/Python/QuickJS runtime, samples video using Android's media decoder, runs bundled English Tesseract OCR, detects/times BRB screens, and categorizes the preceding transcript locally. The Python service is now optional and is not used by the app.
 
 Use Android **8.0+ (API 26)** on a **64-bit ARM phone**; x86_64 is also built for emulator testing. CI creates a sideloadable development APK under **Actions → Checks and Android APK → Artifacts → brb-tracker-android-local-debug**. This is a debug build, not a Play Store release. CI development signing keys are not stable between runs: if Android rejects an update because signatures differ, uninstall the previous debug app before installing. Uninstalling deletes its local reports and saved token; publish or copy any reports you want to keep first.
 
@@ -102,6 +102,16 @@ cd android
 ```
 
 The Android client is GPL-3.0 because it incorporates the GPL-3.0 native downloader. See [Android dependency notices](apps/mobile/THIRD_PARTY_NOTICES.md) and [license](apps/mobile/LICENSE). OCR language data is bundled, so analyzing imported video with a transcript does not require network access. Network access is used for YouTube downloads/extractor updates and when you publish to GitHub.
+
+### Gamin4Hope banner detection
+
+The Android default is **Gamin4Hope banner**: it looks for the red “Be Right Back” lettering in the lower-left area and excludes the right-hand chat column. It crops the decoded frame to x=5–68%, y=68–100%, normalizes that region to 960 pixels wide, isolates red lettering, and runs OCR on the resulting black-on-white text. A region without enough red pixels is rejected before OCR. Lighting, faces, the microphone and chat content are not used as break reasons.
+
+The supplied reference screenshot was recognized at frame widths of **1280, 960, 480 and 360 pixels** using this profile. This validates that single visual reference, not detection accuracy across a full VOD. Automated fixtures are generated images: tests include a red lower-left banner and the same words appearing only in the chat column. The uploaded reference screenshot is not a repository fixture.
+
+Choose **Full frame · other layouts** if the banner moves or changes color. That mode retains generic whole-frame OCR. Reports retain `detector_profile` so their detection settings remain visible in exports. The optional Python CLI keeps its full-frame default and supports the calibrated profile with `--profile gamin4hope`.
+
+Reason suggestions continue to use the preceding streamer transcript. Chat messages mentioning food, drinks or bathroom breaks are not transcript evidence.
 
 ### Processing limits
 

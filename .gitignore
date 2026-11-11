@@ -16,6 +16,7 @@ data/
 *.sqlite*
 *.log
 .dart_tool/
+.kotlin/
 .flutter-plugins-dependencies
 build/
 node_modules/

@@ -55,6 +55,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Map<String, String>? video;
   Map<String, String>? transcript;
   double interval = 2;
+  String detectorProfile = 'gamin4hope';
   List<dynamic> jobs = [];
   bool busy = false;
   bool refreshing = false;
@@ -136,6 +137,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       await api.start({
         'url': url.text.trim(),
         'interval': interval,
+        'detector_profile': detectorProfile,
         if (video != null) 'video_uri': video!['uri'],
         'title': video?['name'] ?? 'YouTube VOD',
         if (transcript != null) 'transcript_uri': transcript!['uri'],
@@ -240,7 +242,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 showLicensePage(
                   context: context,
                   applicationName: 'BRB Tracker',
-                  applicationVersion: '0.2.0',
+                  applicationVersion: '0.2.1',
                 );
               }
             },
@@ -311,6 +313,32 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               onPressed: () => setState(() => transcript = null),
               child: const Text('Clear transcript'),
             ),
+          DropdownButtonFormField<String>(
+            initialValue: detectorProfile,
+            decoration: const InputDecoration(labelText: 'BRB detection mode'),
+            items: const [
+              DropdownMenuItem(
+                value: 'gamin4hope',
+                child: Text('Gamin4Hope banner'),
+              ),
+              DropdownMenuItem(
+                value: 'full_frame',
+                child: Text('Full frame · other layouts'),
+              ),
+            ],
+            onChanged: busy || running
+                ? null
+                : (value) => setState(() => detectorProfile = value!),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              detectorProfile == 'gamin4hope'
+                  ? 'Looks for the red bottom-left BRB banner and excludes the right-side chat.'
+                  : 'Reads the whole frame. Use when the BRB banner has moved or changed color.',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ),
           Row(
             children: [
               const Expanded(child: Text('Sample a frame every')),

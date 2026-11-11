@@ -8,3 +8,5 @@
 - Keep video, transcript downloads, SQLite databases, tokens and signing keys out of Git.
 - Verify relevant changes with `pytest -q`, `flutter analyze`, `flutter test`, `npm test`, and `node --check docs/app.js`. The OCR integration test needs FFmpeg, Tesseract English and DejaVu fonts.
 - Publish dashboard exports intentionally; do not change repository visibility implicitly.
+
+- Default Android detection uses the Gamin4Hope red bottom-left banner profile and excludes right-side chat. Preserve the explicit full-frame fallback. Reasons come from streamer transcripts, never chat OCR.

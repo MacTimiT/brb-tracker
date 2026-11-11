@@ -31,6 +31,7 @@ def main():
     scan.add_argument("--min-hits", type=int, default=2)
     scan.add_argument("--end-misses", type=int, default=2)
     scan.add_argument("--phrase", default="be right back")
+    scan.add_argument("--profile", choices=["full_frame", "gamin4hope"], default="full_frame")
     scan.add_argument("--whisper", action="store_true", help="Use optional local ASR if captions are absent")
     serve = commands.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
@@ -59,7 +60,7 @@ def main():
         print(f"Exported {len(unique)} VOD(s) to {args.output}")
     else:
         options = dict(interval=args.interval, lookback=args.lookback, min_hits=args.min_hits,
-                       end_misses=args.end_misses, phrase=args.phrase, whisper=args.whisper, streamer=args.streamer)
+                       end_misses=args.end_misses, phrase=args.phrase, whisper=args.whisper, streamer=args.streamer, profile=args.profile)
         if args.url:
             with tempfile.TemporaryDirectory(prefix="brb-") as tmp:
                 video, captions, metadata = download(args.url, Path(tmp))

@@ -1,40 +1,26 @@
 package dev.mactimit.brb_tracker
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
-import com.googlecode.tesseract.android.TessBaseAPI
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 import java.util.concurrent.CancellationException
 
 class LocalAnalyzer(private val context: Context) {
     fun analyze(uri: Uri, input: JSONObject, id: String, cues: List<Cue>, cancelled: () -> Boolean, progress: (Double) -> Unit): JSONObject {
         val interval = input.optDouble("interval", 2.0)
         require(interval.isFinite() && interval in 1.0..30.0)
-        val tessRoot = File(context.noBackupFilesDir, "tesseract")
-        val model = File(tessRoot, "tessdata/eng.traineddata")
-        if (model.length() != 4_113_088L) {
-            model.parentFile!!.mkdirs()
-            val atomic = android.util.AtomicFile(model)
-            val output = atomic.startWrite()
-            try {
-                context.assets.open("tessdata/eng.traineddata").use { source -> source.copyTo(output) }
-                atomic.finishWrite(output)
-            } catch (e: Exception) { atomic.failWrite(output); throw e }
-        }
+        val profile = input.optString("detector_profile", "gamin4hope")
+        require(profile in BannerProfile.names) { "Unknown detector profile" }
         val decoder = MediaMetadataRetriever()
-        val tess = TessBaseAPI()
+        var screenOcr: ScreenOcr? = null
         var decoded = 0
         var failedFrames = 0
         try {
+            val ocr = ScreenOcr(context)
+            screenOcr = ocr
             decoder.setDataSource(context, uri)
             val duration = decoder.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)!!.toDouble() / 1000
             require(duration.isFinite() && duration > 0) { "The video has no usable duration" }
@@ -42,10 +28,7 @@ class LocalAnalyzer(private val context: Context) {
             val originalHeight = decoder.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 540
             val width = minOf(originalWidth, 960)
             val height = maxOf(1, (originalHeight.toDouble() * width / originalWidth).toInt())
-            check(tess.init(tessRoot.absolutePath, "eng")) { "Could not initialize the bundled OCR model" }
-            tess.pageSegMode = TessBaseAPI.PageSegMode.PSM_SPARSE_TEXT
             val detector = BreakDetector()
-            val paint = Paint().apply { colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) }) }
             var timestamp = 0.0
             var consecutiveFailures = 0
             while (timestamp < duration) {
@@ -60,14 +43,10 @@ class LocalAnalyzer(private val context: Context) {
                     // A decode failure is not evidence the BRB screen disappeared.
                 } else {
                     consecutiveFailures = 0
-                    val gray = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                     try {
-                        Canvas(gray).drawBitmap(bitmap, null, android.graphics.Rect(0, 0, width, height), paint)
-                        tess.setImage(gray)
-                        detector.sample(timestamp, Detection.isBrb(tess.utF8Text.orEmpty()))
-                        tess.clear()
+                        detector.sample(timestamp, ocr.isBrb(bitmap, profile))
                         decoded++
-                    } finally { gray.recycle(); bitmap.recycle() }
+                    } finally { bitmap.recycle() }
                 }
                 progress(timestamp / duration)
                 timestamp += interval
@@ -81,6 +60,7 @@ class LocalAnalyzer(private val context: Context) {
                     .put("reviewed", false).put("truncated", item.truncated)
             }
             val warnings = mutableListOf("Analyzed on Android every ${interval}s. Boundaries are estimates; short screens and OCR failures can be missed.")
+            if (profile == "gamin4hope") warnings.add("Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.")
             if (cues.isEmpty()) warnings.add("No usable transcript. Reasons are Unknown until manually reviewed; local speech transcription is not included.")
             if (failedFrames > 0) warnings.add("Android could not decode $failedFrames sampled frames; inspect break boundaries.")
             val sourceUrl = input.optString("url")
@@ -89,7 +69,8 @@ class LocalAnalyzer(private val context: Context) {
                 .put("streamer", "Gamin4Hope").put("source_url", sourceUrl).put("video_id", videoId ?: JSONObject.NULL)
                 .put("duration_seconds", duration).put("sample_interval_seconds", interval)
                 .put("transcript_source", if (cues.isEmpty()) "none" else "android-captions")
+                .put("detector_profile", profile)
                 .put("is_demo", false).put("warnings", JSONArray(warnings)).put("breaks", JSONArray(breaks))
-        } finally { tess.recycle(); decoder.release() }
+        } finally { screenOcr?.close(); decoder.release() }
     }
 }
