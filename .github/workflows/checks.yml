@@ -49,11 +49,6 @@ jobs:
       - run: flutter build apk --debug
       - name: Native Android unit tests
         run: cd android && ./gradlew :app:testDebugUnitTest
-      - uses: actions/upload-artifact@v4
-        with:
-          name: brb-tracker-android-local-debug
-          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 14
       - name: Enable Android emulator acceleration
         working-directory: .
         run: |
@@ -69,6 +64,14 @@ jobs:
           disable-animations: true
           working-directory: apps/mobile/android
           script: ./gradlew :app:connectedDebugAndroidTest
+      - name: Upload phone-only APK
+        uses: actions/upload-artifact@v4
+        timeout-minutes: 5
+        with:
+          name: brb-tracker-android-local-debug
+          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+          compression-level: 0
       - name: Android native test reports
         if: always()
         uses: actions/upload-artifact@v4
