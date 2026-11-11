@@ -1,55 +1,28 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-void main() => runApp(const BrbApp());
-const reasons = [
-  'Pee',
-  'Snack',
-  'Drink',
-  'Stretch',
-  'Technical',
-  'Other',
-  'Unknown',
-];
-String timeLabel(num seconds) {
-  final s = seconds.round();
-  return '${s ~/ 3600}:${(s ~/ 60 % 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
-}
+import 'local_api.dart';
+import 'publishing_ui.dart';
+import 'report_screen.dart';
 
-class Api {
-  Api(this.baseUrl, this.token, {http.Client? client})
-    : client = client ?? http.Client();
-  final String baseUrl;
-  final String token;
-  final http.Client client;
-  Future<dynamic> request(
-    String path, {
-    String method = 'GET',
-    Object? body,
-  }) async {
-    final request = http.Request(method, Uri.parse('$baseUrl$path'))
-      ..headers.addAll({
-        'Content-Type': 'application/json',
-        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-      });
-    if (body != null) request.body = jsonEncode(body);
-    final response = await http.Response.fromStream(
-      await client.send(request).timeout(const Duration(seconds: 25)),
-    );
-    if (response.statusCode >= 400) {
-      throw Exception(
-        'Service returned ${response.statusCode}. Check the URL, token, and service logs.',
-      );
-    }
-    return jsonDecode(response.body);
-  }
-
-  void close() => client.close();
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks([
+      'BRB Tracker Android',
+      'youtubedl-android',
+    ], await rootBundle.loadString('assets/licenses/GPL-3.0.txt'));
+    yield LicenseEntryWithLineBreaks([
+      'Tesseract4Android',
+      'tessdata_fast',
+    ], await rootBundle.loadString('assets/licenses/Apache-2.0.txt'));
+  });
+  runApp(const BrbApp());
 }
 
 class BrbApp extends StatelessWidget {
@@ -75,30 +48,30 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> with WidgetsBindingObserver {
-  final server = TextEditingController(text: 'http://10.0.2.2:8000');
-  final token = TextEditingController();
+  final api = LocalApi();
   final url = TextEditingController(
     text: 'https://www.youtube.com/live/IW2rEIuKGSs',
   );
-  Api? api;
-  Timer? timer;
+  Map<String, String>? video;
+  Map<String, String>? transcript;
+  double interval = 2;
   List<dynamic> jobs = [];
-  String? error;
   bool busy = false;
   bool refreshing = false;
+  String? error;
+  Timer? timer;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    refresh();
+    startPolling();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     timer?.cancel();
-    api?.close();
-    server.dispose();
-    token.dispose();
     url.dispose();
     super.dispose();
   }
@@ -106,7 +79,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     timer?.cancel();
-    if (state == AppLifecycleState.resumed && api != null) {
+    if (state == AppLifecycleState.resumed) {
       refresh();
       startPolling();
     }
@@ -114,75 +87,59 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   void startPolling() {
     timer?.cancel();
-    timer = Timer.periodic(const Duration(seconds: 5), (_) => refresh());
+    timer = Timer.periodic(const Duration(seconds: 3), (_) => refresh());
   }
 
   Future<void> refresh() async {
-    if (api == null || refreshing) return;
+    if (refreshing) return;
     refreshing = true;
     try {
-      final result = await api!.request('/jobs');
+      final result = await api.list();
       if (mounted) {
         setState(() {
-          jobs = result as List<dynamic>;
+          jobs = result;
           error = null;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      if (mounted) setState(() => error = 'Could not read phone analyses: $e');
     } finally {
       refreshing = false;
     }
   }
 
-  Future<void> connect() async {
-    setState(() {
-      busy = true;
-      error = null;
-    });
-    Api? candidate;
+  Future<void> pick(String kind) async {
     try {
-      final value = server.text.trim().replaceAll(RegExp(r'/+$'), '');
-      final uri = Uri.parse(value);
-      if (!['http', 'https'].contains(uri.scheme) ||
-          uri.host.isEmpty ||
-          uri.userInfo.isNotEmpty ||
-          uri.path.isNotEmpty ||
-          uri.hasQuery ||
-          uri.hasFragment) {
-        throw Exception(
-          'Enter the service origin, for example https://brb.example.com',
-        );
+      final value = await api.pick(kind);
+      if (value != null && mounted) {
+        setState(() {
+          if (kind == 'video') {
+            video = value;
+            url.clear();
+          } else {
+            transcript = value;
+          }
+          error = null;
+        });
       }
-      candidate = Api(value, token.text.trim());
-      final result = await candidate.request('/jobs');
-      if (!mounted) {
-        candidate.close();
-        return;
-      }
-      api?.close();
-      api = candidate;
-      setState(() => jobs = result as List<dynamic>);
-      startPolling();
     } catch (e) {
-      candidate?.close();
       if (mounted) setState(() => error = '$e');
-    } finally {
-      if (mounted) setState(() => busy = false);
     }
   }
 
-  Future<void> submit() async {
+  Future<void> start() async {
     setState(() {
       busy = true;
       error = null;
     });
     try {
-      await api!.request(
-        '/jobs',
-        method: 'POST',
-        body: {'url': url.text.trim()},
-      );
+      await api.start({
+        'url': url.text.trim(),
+        'interval': interval,
+        if (video != null) 'video_uri': video!['uri'],
+        'title': video?['name'] ?? 'YouTube VOD',
+        if (transcript != null) 'transcript_uri': transcript!['uri'],
+      });
       await refresh();
     } catch (e) {
       if (mounted) setState(() => error = '$e');
@@ -201,313 +158,259 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     );
   }
 
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('BRB Tracker'),
-      actions: [
-        IconButton(
-          onPressed: api == null ? null : refresh,
-          tooltip: 'Refresh jobs',
-          icon: const Icon(Icons.refresh),
-        ),
-      ],
-    ),
-    body: ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const Text(
-          'Every break, accounted for.',
-          style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Find BRB screens, measure time away, and review the reason with transcript evidence.',
-        ),
-        const SizedBox(height: 20),
-        OutlinedButton.icon(
-          onPressed: demo,
-          icon: const Icon(Icons.insights),
-          label: const Text('Explore sample report'),
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          'CONNECT YOUR ANALYSIS SERVICE',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: server,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(
-            labelText: 'Service URL',
-            helperText: 'HTTPS remotely. Android emulator: 10.0.2.2',
-          ),
-        ),
-        TextField(
-          controller: token,
-          obscureText: true,
-          autocorrect: false,
-          enableSuggestions: false,
-          decoration: const InputDecoration(
-            labelText: 'API token',
-            helperText: 'Kept in memory for this session only.',
-          ),
-        ),
-        const SizedBox(height: 12),
-        FilledButton(
-          onPressed: busy ? null : connect,
-          child: Text(api == null ? 'Connect' : 'Reconnect'),
-        ),
-        if (busy) const LinearProgressIndicator(),
-        if (error != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
-        if (api != null) ...[
-          const SizedBox(height: 24),
-          TextField(
-            controller: url,
-            keyboardType: TextInputType.url,
-            decoration: const InputDecoration(labelText: 'YouTube VOD URL'),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: busy ? null : submit,
-            icon: const Icon(Icons.add),
-            label: const Text('Analyze VOD'),
-          ),
-          const SizedBox(height: 20),
-          const Text('ANALYSES', style: TextStyle(fontWeight: FontWeight.bold)),
-          if (jobs.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('No VODs yet. Submit one above.'),
-            ),
-          for (final job in jobs)
-            Card(
-              child: ListTile(
-                title: Text(
-                  job['url'] as String,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  '${job['status']} · ${((job['progress'] as num) * 100).round()}%${job['error'] == null ? '' : '\n${job['error']}'}',
-                ),
-                trailing: job['status'] == 'completed'
-                    ? const Icon(Icons.chevron_right)
-                    : null,
-                onTap: job['status'] != 'completed'
-                    ? null
-                    : () async {
-                        try {
-                          final result = await api!.request(
-                            '/jobs/${job['id']}',
-                          );
-                          if (!context.mounted) return;
-                          await Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => ReportScreen(
-                                initial:
-                                    result['report'] as Map<String, dynamic>,
-                                api: api,
-                                jobId: job['id'] as String,
-                              ),
-                            ),
-                          );
-                        } catch (e) {
-                          if (mounted) setState(() => error = '$e');
-                        }
-                      },
-              ),
-            ),
-        ],
-        const SizedBox(height: 24),
-        const Text(
-          'VOD processing runs on your computer or server. GitHub Pages displays exported reports; it does not process video.',
-          style: TextStyle(color: Colors.grey),
-        ),
-      ],
-    ),
-  );
-}
-
-class ReportScreen extends StatefulWidget {
-  const ReportScreen({super.key, required this.initial, this.api, this.jobId});
-  final Map<String, dynamic> initial;
-  final Api? api;
-  final String? jobId;
-  @override
-  State<ReportScreen> createState() => _ReportScreenState();
-}
-
-class _ReportScreenState extends State<ReportScreen> {
-  late Map<String, dynamic> report = widget.initial;
-  bool saving = false;
-  Future<void> review(int index, String reason) async {
-    setState(() => saving = true);
+  Future<void> openJob(Map<String, dynamic> job) async {
     try {
-      final updated = await widget.api!.request(
-        '/jobs/${widget.jobId}/breaks/$index',
-        method: 'PATCH',
-        body: {'reason': reason},
+      final details = await api.get(job['id'] as String);
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ReportScreen(
+            initial: details['report'] as Map<String, dynamic>,
+            api: api,
+            jobId: job['id'] as String,
+          ),
+        ),
       );
-      if (mounted) setState(() => report = updated as Map<String, dynamic>);
+      await refresh();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
-      }
-    } finally {
-      if (mounted) setState(() => saving = false);
+      if (mounted) setState(() => error = '$e');
+    }
+  }
+
+  Future<void> cancel(String id) async {
+    try {
+      await api.cancel(id);
+      await refresh();
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    }
+  }
+
+  Future<void> remove(String id) async {
+    final answer = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete local analysis?'),
+        content: const Text(
+          'This removes its saved report from this phone. Published GitHub reports will remain.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (answer != true) return;
+    try {
+      await api.delete(id);
+      await refresh();
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final breaks = report['breaks'] as List<dynamic>;
-    final total = breaks.fold<double>(
-      0,
-      (value, item) =>
-          value +
-          (item['end_seconds'] as num).toDouble() -
-          (item['start_seconds'] as num).toDouble(),
+    final running = jobs.any(
+      (job) => job['status'] == 'running' || job['status'] == 'queued',
     );
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Break report'),
+        title: const Text('BRB Tracker'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.copy),
-            tooltip: 'Copy report JSON for dashboard import',
-            onPressed: () async {
-              await Clipboard.setData(
-                ClipboardData(
-                  text: const JsonEncoder.withIndent('  ').convert(report),
-                ),
-              );
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Report JSON copied. Paste into the dashboard or save as .json.',
-                    ),
-                  ),
+            icon: const Icon(Icons.cloud_upload_outlined),
+            tooltip: 'GitHub publishing settings',
+            onPressed: () => showPublishingSettings(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh local analyses',
+            onPressed: refresh,
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'licenses') {
+                showLicensePage(
+                  context: context,
+                  applicationName: 'BRB Tracker',
+                  applicationVersion: '0.2.0',
                 );
               }
             },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'licenses',
+                child: Text('Open-source licenses'),
+              ),
+            ],
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          if (report['is_demo'] == true)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'SAMPLE DATA · Invented for demonstration. These are not Gamin4Hope’s actual breaks.',
-                ),
-              ),
+          const Text(
+            'Your phone. The whole pipeline.',
+            style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Download a VOD, scan BRB screens and classify breaks locally. Review the results, then publish them to your GitHub dashboard.',
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: demo,
+            icon: const Icon(Icons.insights),
+            label: const Text('Explore sample report'),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'ANALYZE ON THIS PHONE',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: url,
+            keyboardType: TextInputType.url,
+            decoration: InputDecoration(
+              labelText: video == null
+                  ? 'YouTube VOD URL'
+                  : 'YouTube source URL (optional)',
+              helperText: video == null
+                  ? 'Downloads a low-resolution MP4 and available English captions.'
+                  : 'Used for timestamp links when valid; the selected file is analyzed.',
             ),
-          Text(
-            report['title'] as String,
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: busy || running ? null : () => pick('video'),
+            icon: const Icon(Icons.video_file_outlined),
+            label: Text(video?['name'] ?? 'Or choose a video on this phone'),
+          ),
+          if (video != null)
+            TextButton(
+              onPressed: () => setState(() => video = null),
+              child: const Text('Use YouTube download instead'),
+            ),
+          OutlinedButton.icon(
+            onPressed: busy || running ? null : () => pick('transcript'),
+            icon: const Icon(Icons.subtitles_outlined),
+            label: Text(
+              transcript?['name'] ?? 'Optional transcript · JSON / VTT',
+            ),
+          ),
+          if (transcript != null)
+            TextButton(
+              onPressed: () => setState(() => transcript = null),
+              child: const Text('Clear transcript'),
+            ),
+          Row(
+            children: [
+              const Expanded(child: Text('Sample a frame every')),
+              DropdownButton<double>(
+                value: interval,
+                items: [2.0, 5.0, 10.0]
+                    .map(
+                      (v) => DropdownMenuItem(
+                        value: v,
+                        child: Text('${v.toInt()} seconds'),
+                      ),
+                    )
+                    .toList(),
+                onChanged: busy || running
+                    ? null
+                    : (value) => setState(() => interval = value!),
+              ),
+            ],
+          ),
+          const Text(
+            'Long VODs can use several GB and take a long time. Use Wi-Fi and a charger. Reasons need captions or an imported transcript; speech-to-text is not bundled.',
+            style: TextStyle(color: Colors.grey, fontSize: 12),
           ),
           const SizedBox(height: 12),
-          Text(
-            '${breaks.length} breaks · ${timeLabel(total)} away · ${breaks.isEmpty ? '0:00:00' : timeLabel(total / breaks.length)} average',
+          FilledButton.icon(
+            onPressed: busy || running ? null : start,
+            icon: const Icon(Icons.play_arrow),
+            label: Text(
+              running ? 'Analysis running on this phone' : 'Analyze locally',
+            ),
           ),
-          const SizedBox(height: 12),
-          for (final warning in (report['warnings'] as List<dynamic>? ?? []))
+          if (busy) const LinearProgressIndicator(),
+          if (error != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                '$warning',
-                style: const TextStyle(color: Colors.amber),
+                error!,
+                style: const TextStyle(color: Colors.redAccent),
               ),
             ),
-          for (var index = 0; index < breaks.length; index++)
-            _breakCard(breaks[index] as Map<String, dynamic>, index),
-          if (breaks.isEmpty)
+          const SizedBox(height: 24),
+          const Text(
+            'SAVED ON THIS PHONE',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          if (jobs.isEmpty)
             const Padding(
-              padding: EdgeInsets.all(20),
-              child: Text(
-                'No BRB screens detected. Short breaks or alternate screen designs may need different detector settings.',
-              ),
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Text('No analyses yet. Start one above.'),
             ),
+          for (final raw in jobs) _job(raw as Map<String, dynamic>),
+          const SizedBox(height: 24),
+          TextButton.icon(
+            onPressed: () => launchUrl(
+              Uri.https('mactimit.github.io', '/brb-tracker/'),
+              mode: LaunchMode.externalApplication,
+            ),
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Open GitHub dashboard'),
+          ),
+          const Text(
+            'Videos and OCR stay on this device. Nothing is published until you choose Publish in a completed report. Android can stop long-running work; interrupted analyses must be started again.',
+            style: TextStyle(color: Colors.grey, fontSize: 12),
+          ),
         ],
       ),
     );
   }
 
-  Widget _breakCard(Map<String, dynamic> item, int index) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
+  Widget _job(Map<String, dynamic> job) {
+    final active = job['status'] == 'running' || job['status'] == 'queued';
+    return Card(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${timeLabel(item['start_seconds'] as num)} → ${timeLabel(item['end_seconds'] as num)}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          Text(
-            '${timeLabel((item['end_seconds'] as num) - (item['start_seconds'] as num))} away${item['truncated'] == true ? ' · still BRB at end of video' : ''}',
-          ),
-          const SizedBox(height: 10),
-          Text(
-            (item['evidence'] as String).isEmpty
-                ? 'No preceding transcript available.'
-                : '“${item['evidence']}”',
-          ),
-          Text(
-            'Suggested: ${item['suggested_reason']} · ${item['reviewed'] == true ? 'Reviewed' : 'Needs review'}',
-            style: const TextStyle(color: Colors.grey),
-          ),
-          DropdownButton<String>(
-            value: item['reason'] as String,
-            isExpanded: true,
-            items: reasons
-                .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                .toList(),
-            onChanged: widget.api == null || saving
-                ? null
-                : (value) {
-                    if (value != null) review(index, value);
-                  },
-          ),
-          if (report['video_id'] != null)
-            TextButton.icon(
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Watch at timestamp'),
-              onPressed: () async {
-                try {
-                  final uri = Uri.https('www.youtube.com', '/watch', {
-                    'v': report['video_id'] as String,
-                    't': '${(item['start_seconds'] as num).floor()}s',
-                  });
-                  if (!await launchUrl(
-                    uri,
-                    mode: LaunchMode.externalApplication,
-                  )) {
-                    throw Exception('Could not open YouTube');
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(content: Text('$e')));
-                  }
-                }
-              },
+          ListTile(
+            title: Text(
+              job['title'] as String? ?? 'VOD',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
+            subtitle: Text(
+              '${job['stage']} · ${((job['progress'] as num) * 100).round()}%${job['error'] == null ? '' : '\n${job['error']}'}',
+            ),
+            onTap: job['status'] == 'completed' ? () => openJob(job) : null,
+            trailing: active
+                ? IconButton(
+                    onPressed: () => cancel(job['id'] as String),
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    tooltip: 'Cancel local analysis',
+                  )
+                : IconButton(
+                    onPressed: () => remove(job['id'] as String),
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: 'Delete local analysis',
+                  ),
+          ),
+          if (active)
+            LinearProgressIndicator(value: (job['progress'] as num).toDouble()),
         ],
       ),
-    ),
-  );
+    );
+  }
 }

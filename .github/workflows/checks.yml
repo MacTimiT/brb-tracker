@@ -2,6 +2,8 @@ name: Checks and Android APK
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/data/**'
   pull_request:
   workflow_dispatch:
 permissions:
@@ -43,8 +45,33 @@ jobs:
       - run: flutter analyze
       - run: flutter test
       - run: flutter build apk --debug
+      - name: Native Android unit tests
+        run: cd android && ./gradlew testDebugUnitTest
       - uses: actions/upload-artifact@v4
         with:
-          name: brb-tracker-android-debug
+          name: brb-tracker-android-local-debug
           path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 14
+      - name: Enable Android emulator acceleration
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Exercise local OCR and downloader on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          working-directory: apps/mobile/android
+          script: ./gradlew connectedDebugAndroidTest
+      - name: Android native test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-native-test-reports
+          path: |
+            apps/mobile/build/app/reports/androidTests/
+            apps/mobile/build/app/reports/tests/

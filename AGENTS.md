@@ -1,7 +1,7 @@
 # Project guidance
 
 - Android is the primary client. Use Flutter so desktop clients can share the UI later.
-- Keep OCR, timing and classification in the Python analyzer; GitHub Pages is static.
+- Android must download, decode, OCR, time and classify VODs locally without a PC or server. Keep the Python analyzer as an optional alternative. GitHub Pages is static and receives only report JSON published from the phone.
 - Preserve evidence and original suggestions when saving manual corrections.
 - Never label invented/demo observations as real streamer activity. Keep `is_demo` visible.
 - Avoid overclaiming detection completeness or reason confidence. Unknown is valid.

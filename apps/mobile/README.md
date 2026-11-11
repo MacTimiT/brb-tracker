@@ -1,17 +1,3 @@
 # BRB Tracker for Android
 
-Flutter client for the BRB Tracker analysis service. See the [project README](../../README.md#android-app) for setup, emulator networking, API tokens, and report review.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Version 0.2 parses VODs locally on the phone and can publish reviewed JSON directly to GitHub. No PC or analysis server is required. See the [project README](../../README.md#android-app-no-pc-or-server-required) for use, GitHub token setup, development builds and processing limits.
