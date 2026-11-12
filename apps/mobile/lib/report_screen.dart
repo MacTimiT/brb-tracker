@@ -64,7 +64,7 @@ class _ReportScreenState extends State<ReportScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.copy),
-            tooltip: 'Copy report JSON for dashboard import',
+            tooltip: 'Copy report JSON',
             onPressed: () async {
               await Clipboard.setData(
                 ClipboardData(
@@ -75,7 +75,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
-                      'Report JSON copied. Paste into the dashboard or save as .json.',
+                      'Report JSON copied. Save it as a .json file for your records.',
                     ),
                   ),
                 );

@@ -46,8 +46,7 @@ class AnalysisService : Service() {
     @Volatile private var timedOut = false
     private var wakeLock: PowerManager.WakeLock? = null
     private lateinit var store: JobStore
-    private var lastPercent = -1
-    private var currentStage = "Preparing"
+    private val jobProgress = JobProgress()
 
     override fun onCreate() {
         super.onCreate()
@@ -64,30 +63,36 @@ class AnalysisService : Service() {
         }
         val id = intent?.getStringExtra("id") ?: run { stopSelf(); return START_NOT_STICKY }
         // startForeground must happen immediately, before model extraction or downloads.
-        beginForeground("Preparing local analysis", 0, false)
+        beginForeground("Preparing VOD", null, false)
         wakeLock = (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "brb-tracker:analysis").apply { acquire(6 * 60 * 60 * 1000L) }
         worker.execute { runJob(id) }
         return START_NOT_STICKY
     }
     private fun serviceType(processing: Boolean): Int = if (Build.VERSION.SDK_INT >= 35 && processing) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING else ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-    private fun beginForeground(stage: String, percent: Int, processing: Boolean) {
+    private fun beginForeground(stage: String, percent: Int?, processing: Boolean) {
         if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIFICATION, notification(stage, percent), serviceType(processing))
         else startForeground(NOTIFICATION, notification(stage, percent))
     }
-    private fun notification(stage: String, percent: Int): Notification {
+    private fun notification(stage: String, percent: Int?): Notification {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val cancel = PendingIntent.getService(this, 1, Intent(this, AnalysisService::class.java).setAction("cancel"), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        return Notification.Builder(this, CHANNEL).setSmallIcon(applicationInfo.icon).setContentTitle("BRB Tracker · analyzing on this phone")
-            .setContentText(stage).setContentIntent(open).setOngoing(true).setProgress(100, percent, percent == 0)
+        return Notification.Builder(this, CHANNEL).setSmallIcon(applicationInfo.icon).setContentTitle("BRB Tracker")
+            .setContentText(stage).setContentIntent(open).setOngoing(true).setProgress(100, percent ?: 0, percent == null)
             .addAction(Notification.Action.Builder(null, "Cancel", cancel).build()).build()
     }
-    private fun progress(id: String, stage: String, value: Double) {
-        val percent = (value.coerceIn(0.0, 1.0) * 100).toInt()
-        if (percent == lastPercent && stage == currentStage) return
-        lastPercent = percent
-        currentStage = stage
-        store.update(id) { it.put("status", "running").put("stage", stage).put("progress", value) }
-        getSystemService(NotificationManager::class.java).notify(NOTIFICATION, notification(stage, percent))
+    @Synchronized private fun progress(id: String, phase: JobPhase, value: Double? = null) {
+        if (!jobProgress.update(phase, value)) return
+        val fraction = jobProgress.fraction
+        val overall = when (phase) {
+            JobPhase.DOWNLOAD -> (fraction ?: 0.0) * 0.3
+            JobPhase.ANALYSIS -> 0.3 + (fraction ?: 0.0) * 0.7
+            else -> 0.0
+        }
+        store.update(id) {
+            it.put("status", "running").put("stage", phase.label).put("progress", overall)
+                .put("phase", phase.name.lowercase()).put("phase_progress", fraction ?: JSONObject.NULL)
+        }
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION, notification(phase.label, fraction?.times(100)?.toInt()))
     }
     private fun readTranscript(uri: Uri): List<Cue> {
         val text = contentResolver.openInputStream(uri)?.use { stream ->
@@ -122,20 +127,20 @@ class AnalysisService : Service() {
                 val url = "https://www.youtube.com/watch?v=$videoId"
                 input.put("url", url)
                 check(work.usableSpace > 1024L * 1024 * 1024) { "Free at least 1 GB of phone storage before downloading a VOD" }
-                progress(id, "Preparing on-device downloader", 0.0)
+                progress(id, JobPhase.PREPARING)
                 YoutubeDL.init(this)
                 FFmpeg.init(this)
                 // Keep the extractor usable as YouTube changes. An update
                 // failure falls back to the bundled version, never a server.
                 runCatching { YoutubeDL.updateYoutubeDL(this, YoutubeDL.UpdateChannel.STABLE) }
                 checkCancelled()
-                progress(id, "Reading YouTube VOD details", 0.0)
+                progress(id, JobPhase.METADATA)
                 val metadataRequest = request(url).apply { addOption("--dump-single-json"); addOption("--skip-download") }
                 val metadata = JSONObject(YoutubeDL.execute(metadataRequest, id, null).out)
                 check(!metadata.optBoolean("is_live", false)) { "Wait until the livestream has ended before analyzing its VOD" }
                 input.put("title", metadata.optString("title", videoId))
                 if (cues.isEmpty()) {
-                    progress(id, "Downloading available English captions", 0.0)
+                    progress(id, JobPhase.CAPTIONS)
                     try {
                         val captions = request(url).apply {
                             addOption("--skip-download"); addOption("--write-subs"); addOption("--write-auto-subs")
@@ -147,7 +152,7 @@ class AnalysisService : Service() {
                     } catch (e: Exception) { checkCancelled(); captionWarning = "YouTube captions could not be downloaded. Import a transcript or review reasons manually." }
                 }
                 checkCancelled()
-                progress(id, "Downloading video to this phone", 0.0)
+                progress(id, JobPhase.DOWNLOAD, 0.0)
                 val media = request(url).apply {
                     addOption("-f", "best[height<=480][ext=mp4][vcodec^=avc1]/bestvideo[height<=480][ext=mp4][vcodec^=avc1]/best[height<=480][ext=mp4]")
                     addOption("--max-filesize", "4G")
@@ -158,19 +163,20 @@ class AnalysisService : Service() {
                 }
                 YoutubeDL.execute(media, id) { percent, _, _ ->
                     if (cancelled) YoutubeDL.destroyProcessById(id)
-                    progress(id, "Downloading video to this phone", (percent / 100.0 * 0.3).coerceIn(0.0, 0.3))
+                    progress(id, JobPhase.DOWNLOAD, percent / 100.0)
                 }
                 val downloaded = work.listFiles().orEmpty().firstOrNull { it.extension == "mp4" } ?: error("YouTube did not provide a downloadable MP4. Try importing a local video.")
                 video = Uri.fromFile(downloaded)
             }
             checkCancelled()
-            beginForeground("Scanning BRB screens locally", 30, true)
+            progress(id, JobPhase.ANALYSIS, 0.0)
+            beginForeground(JobPhase.ANALYSIS.label, 0, true)
             val report = LocalAnalyzer(this).analyze(video, input, id, cues, { cancelled }) {
-                progress(id, "Scanning BRB screens locally", 0.3 + it * 0.7)
+                progress(id, JobPhase.ANALYSIS, it)
             }
             checkCancelled()
             captionWarning?.let { report.getJSONArray("warnings").put(it) }
-            store.update(id) { it.put("status", "completed").put("stage", "Saved on this phone").put("progress", 1.0).put("title", report.getString("title")).put("report", report) }
+            store.update(id) { it.put("status", "completed").put("stage", "Saved on this phone").put("phase", "completed").put("phase_progress", 1.0).put("progress", 1.0).put("title", report.getString("title")).put("report", report) }
         } catch (e: Exception) {
             val wasCancelled = cancelled || e is CancellationException || e is YoutubeDL.CanceledException
             store.update(id) {

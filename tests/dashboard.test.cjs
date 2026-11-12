@@ -21,11 +21,6 @@ function change(dom, id, value, type = 'change') {
   control.value = value;
   control.dispatchEvent(new dom.window.Event(type));
 }
-function importReport(dom, report) {
-  const d = dom.window.document;
-  d.getElementById('paste').value = JSON.stringify(report);
-  d.getElementById('import-paste').click();
-}
 test('published view does not pass off invented demo numbers as real attendance', async () => {
   const dom = await page(); const d = dom.window.document;
   assert.equal(d.getElementById('total').textContent, '—');
@@ -93,21 +88,11 @@ test('receipt dialogs preserve literal quotes and validated timestamp links', as
   assert.equal(d.getElementById('receipt-watch').hidden, false);
   dom.window.close();
 });
-test('malformed imports retain the current dataset; valid imports set their own scope', async () => {
+test('public dashboard exposes no upload, editing or admin app controls', async () => {
   const dom = await page(); const d = dom.window.document;
-  d.getElementById('demo-toggle').click();
-  const bad = structuredClone(sample.reports[0]); bad.breaks[0].end_seconds = -1;
-  importReport(dom, bad);
-  assert.match(d.getElementById('import-error').textContent, /Invalid break/);
-  assert.equal(d.getElementById('count').textContent, '6');
-  importReport(dom, {schema_version: 1, reports: [sample.reports[0], sample.reports[0]]});
-  assert.match(d.getElementById('import-error').textContent, /Duplicate VODs/);
-  const r = structuredClone(sample.reports[0]); r.is_demo = false; r.breaks = [];
-  importReport(dom, r);
-  assert.equal(d.getElementById('data-mode').textContent, 'Your import');
-  assert.equal(d.getElementById('count').textContent, '0');
-  assert.equal(d.getElementById('average').textContent, '—');
-  assert.equal(d.getElementById('empty').hidden, false);
+  assert.equal(d.querySelectorAll('input[type="file"],textarea,[contenteditable],#import-open,#import-dialog').length, 0);
+  assert.doesNotMatch(d.body.textContent, /import|bring your own|Get the app|Android app|hit Publish/i);
+  assert.equal(d.querySelectorAll('a[href*=".apk"],a[href*="releases"]').length, 0);
   dom.window.close();
 });
 test('VOD ranking buttons select a stream by stable identity', async () => {

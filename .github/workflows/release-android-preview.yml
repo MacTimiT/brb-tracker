@@ -1,6 +1,11 @@
 name: Publish Android preview download
 on:
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Checks and Android APK run on main
+        required: true
+        type: string
 permissions:
   actions: read
   contents: write
@@ -9,37 +14,40 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Verify the calibrated build passed
+      - name: Verify the Android build passed
         id: source
         uses: actions/github-script@v7
+        env:
+          SOURCE_RUN_ID: ${{ inputs.run_id }}
         with:
           script: |
             const { data: run } = await github.rest.actions.getWorkflowRun({
-              ...context.repo, run_id: 43100178302
+              ...context.repo, run_id: Number(process.env.SOURCE_RUN_ID)
             });
             if (run.conclusion !== 'success' || run.head_branch !== 'main' ||
-                run.head_sha !== 'ca62fc85d24bf2cd827d4417f14eb91d58d45dc6') {
-              throw new Error('The expected calibrated Android build is not verified.');
+                run.path !== '.github/workflows/checks.yml') {
+              throw new Error('The Android checks run is not verified.');
             }
             core.setOutput('commit', run.head_sha);
       - name: Download the verified APK
         uses: actions/download-artifact@v4
         with:
           name: brb-tracker-android-local-debug
-          run-id: 43100178302
+          run-id: ${{ inputs.run_id }}
           github-token: ${{ github.token }}
           path: release
       - name: Prepare phone download
         run: |
-          mv release/app-debug.apk release/brb-tracker-0.2.1-android.apk
+          mv release/app-debug.apk release/brb-tracker-0.2.2-android.apk
           cd release
-          sha256sum brb-tracker-0.2.1-android.apk > brb-tracker-0.2.1-android.apk.sha256
+          sha256sum brb-tracker-0.2.2-android.apk > brb-tracker-0.2.2-android.apk.sha256
           cat > notes.md <<'NOTES'
-          Android v0.2.1 preview: process VODs on the phone without a PC or analysis server.
+          Android v0.2.2 preview: process VODs on the phone without a PC or analysis server.
 
           Download the .apk file under Assets below, then open it on Android to install.
 
           - On-device YouTube/local-video processing, OCR, break timing, transcript-based reason suggestions and saved corrections.
+          - Accurate download/scanning stage labels and separate percentages, including Android notifications.
           - Gamin4Hope red bottom-left BRB banner mode, with full-frame fallback.
           - Publish reviewed report JSON from the phone to the GitHub Pages dashboard.
 
@@ -57,10 +65,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
           SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
-          gh release create v0.2.1-preview \
-            release/brb-tracker-0.2.1-android.apk \
-            release/brb-tracker-0.2.1-android.apk.sha256 \
+          gh release create v0.2.2-preview \
+            release/brb-tracker-0.2.2-android.apk \
+            release/brb-tracker-0.2.2-android.apk.sha256 \
             --target "$SOURCE_COMMIT" \
             --prerelease \
-            --title 'Android v0.2.1 · On-device analysis preview' \
+            --title 'Android v0.2.2 · On-device analysis preview' \
             --notes-file release/notes.md

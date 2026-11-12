@@ -1,3 +1,5 @@
+import 'job_progress.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -242,7 +244,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 showLicensePage(
                   context: context,
                   applicationName: 'BRB Tracker',
-                  applicationVersion: '0.2.1',
+                  applicationVersion: '0.2.2',
                 );
               }
             },
@@ -367,7 +369,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             onPressed: busy || running ? null : start,
             icon: const Icon(Icons.play_arrow),
             label: Text(
-              running ? 'Analysis running on this phone' : 'Analyze locally',
+              running
+                  ? jobStage(
+                      jobs.firstWhere(
+                        (job) =>
+                            job['status'] == 'running' ||
+                            job['status'] == 'queued',
+                      ),
+                    )
+                  : 'Analyze locally',
             ),
           ),
           if (busy) const LinearProgressIndicator(),
@@ -420,7 +430,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              '${job['stage']} · ${((job['progress'] as num) * 100).round()}%${job['error'] == null ? '' : '\n${job['error']}'}',
+              '${jobStage(job)}${jobFraction(job) == null ? '' : ' · ${(jobFraction(job)! * 100).round()}%'}${job['error'] == null ? '' : '\n${job['error']}'}',
             ),
             onTap: job['status'] == 'completed' ? () => openJob(job) : null,
             trailing: active
@@ -435,8 +445,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                     tooltip: 'Delete local analysis',
                   ),
           ),
-          if (active)
-            LinearProgressIndicator(value: (job['progress'] as num).toDouble()),
+          if (active) LinearProgressIndicator(value: jobFraction(job)),
         ],
       ),
     );

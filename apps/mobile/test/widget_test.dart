@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:brb_tracker/main.dart';
 import 'package:brb_tracker/local_api.dart';
 import 'package:brb_tracker/report_screen.dart';
@@ -32,6 +34,35 @@ void main() {
     expect(find.text('Publish to GitHub dashboard'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+  testWidgets(
+    'active download is labeled as downloading in the job and button',
+    (tester) async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            channel,
+            (call) async => call.method == 'list'
+                ? jsonEncode([
+                    {
+                      'id': 'download-job',
+                      'status': 'running',
+                      'stage': 'Downloading video to this phone',
+                      'progress': 0.15,
+                      'phase_progress': 0.5,
+                    },
+                  ])
+                : null,
+          );
+      await tester.pumpWidget(const BrbApp());
+      await tester.pumpAndSettle();
+      expect(find.text('Downloading video to this phone'), findsOneWidget);
+      expect(
+        find.text('Downloading video to this phone · 50%'),
+        findsOneWidget,
+      );
+      expect(find.text('Analysis running on this phone'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
   test('Analysis is dispatched to Android with no HTTP service', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {

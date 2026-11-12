@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const A = globalThis.BRBStats;
 const reasonNames = {Pee: 'Pee breaks', Snack: 'Snack raids', Drink: 'Hydration runs', Stretch: 'Touching grass', Technical: 'Tech gremlins', Other: 'Side quests', Unknown: 'Unsolved mysteries'};
 const colors = {Pee: '#bc2028', Snack: '#985182', Drink: '#23748a', Stretch: '#527346', Technical: '#586582', Other: '#8a6842', Unknown: '#77736b'};
-const state = {published: [], demo: [], imported: [], mode: 'published', vod: 'all', reason: 'all', metric: 'count', query: '', sort: 'longest', loading: true, logEntries: []};
+const state = {published: [], demo: [], mode: 'published', vod: 'all', reason: 'all', metric: 'count', query: '', sort: 'longest', loading: true, logEntries: []};
 const integer = value => Math.round(value).toLocaleString('en-US');
 const fixed = (value, places = 1) => Number(value).toFixed(places);
 function duration(value) {
@@ -16,7 +16,7 @@ function duration(value) {
 function stamp(value) { const seconds = Math.floor(value); return `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`; }
 function node(tag, text, className) { const item = document.createElement(tag); if (text != null) item.textContent = text; if (className) item.className = className; return item; }
 function watchURL(item) { return item.report.video_id ? `https://www.youtube.com/watch?v=${item.report.video_id}&t=${Math.floor(item.start_seconds)}s` : null; }
-function activeReports() { return state.mode === 'published' ? state.published : state.mode === 'demo' ? state.demo : state.imported; }
+function activeReports() { return state.mode === 'published' ? state.published : state.demo; }
 function notice(message = '') { $('notice').textContent = message; $('notice').hidden = !message; }
 
 function updateOptions() {
@@ -34,13 +34,6 @@ function switchMode(mode) {
   state.mode = mode; state.vod = 'all'; state.reason = 'all'; state.query = '';
   notice(); render();
 }
-function importReport(data) {
-  const reports = A.validate(data);
-  const real = reports.filter(report => !report.is_demo);
-  state.imported = real.length ? real : reports;
-  switchMode(reports.length && !real.length ? 'demo-import' : 'import');
-}
-
 function render() {
   updateOptions();
   const source = activeReports();
@@ -49,7 +42,7 @@ function render() {
   const hasReports = selected.length > 0;
   $('empty-board').hidden = hasReports || state.loading;
   $('analytics-board').hidden = !hasReports;
-  const labels = {published: 'Published VODs', demo: 'Demo round', import: 'Your import', 'demo-import': 'Demo import'};
+  const labels = {published: 'Published VODs', demo: 'Demo round'};
   $('data-mode').textContent = labels[state.mode];
   $('data-mode').classList.toggle('demo', state.mode.startsWith('demo'));
   $('scope-summary').textContent = state.loading ? 'Checking the receipts…' : `${selected.length} VOD${selected.length === 1 ? '' : 's'} · ${duration(stats.duration)} clocked`;
@@ -182,7 +175,7 @@ function renderLog(stats) {
     const row = node('tr');
     const source = node('td'); source.append(node('strong', item.report.title), node('small', `${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}`));
     const reason = node('td'); reason.append(node('span', reasonNames[item.reason], 'reason-tag'));
-    if (item.reviewed) { const checked = node('span', '✓', 'reviewed'); checked.title = 'Checked in the app'; reason.append(checked); }
+    if (item.reviewed) { const checked = node('span', '✓', 'reviewed'); checked.title = 'Reviewed'; reason.append(checked); }
     const quote = node('td'); quote.append(node('div', item.evidence ? `“${item.evidence}”` : 'No quote on file.', 'quote-preview'));
     const action = node('td'); const button = node('button', '↗', 'receipt-open'); button.setAttribute('aria-label', `Open ${item.reason} receipt at ${stamp(item.start_seconds)}`); button.onclick = () => openReceipt(item); action.append(button);
     row.append(source, node('td', duration(item.seconds) + (item.truncated ? '+' : '')), reason, quote, action);
@@ -193,7 +186,7 @@ function openReceipt(item) {
   $('receipt-title').textContent = `${reasonNames[item.reason]} · ${duration(item.seconds)}${item.truncated ? '+' : ''}`;
   $('receipt-meta').textContent = `${item.report.title} · ${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}${item.truncated ? ' · Still BRB when the VOD ends.' : ''}`;
   $('receipt-quote').textContent = item.evidence || 'No quote on file.';
-  $('receipt-review').textContent = item.reviewed ? 'Checked in the app.' : '';
+  $('receipt-review').textContent = item.reviewed ? 'Reviewed.' : '';
   $('receipt-review').hidden = !item.reviewed;
   const url = watchURL(item);
   $('receipt-watch').hidden = !url;
@@ -201,10 +194,6 @@ function openReceipt(item) {
   $('receipt-dialog').showModal();
 }
 
-function importText(text) {
-  try { importReport(JSON.parse(text)); $('import-dialog').close(); $('import-error').textContent = ''; }
-  catch (error) { $('import-error').textContent = error.message; }
-}
 function download(value, type, filename) {
   const url = URL.createObjectURL(new Blob([value], {type}));
   const anchor = node('a'); anchor.href = url; anchor.download = filename; anchor.click();
@@ -212,7 +201,7 @@ function download(value, type, filename) {
 }
 async function fetchReports(path) {
   const response = await fetch(path, {cache: 'no-store'});
-  if (!response.ok) throw Error('The receipts didn’t arrive. Try Refresh or import a report.');
+  if (!response.ok) throw Error('The receipts didn’t arrive. Try Refresh.');
   return A.validate(await response.json());
 }
 async function initialize() {
@@ -238,14 +227,6 @@ $('refresh').onclick = async () => {
   catch (error) { notice(error.message); }
   finally { state.loading = false; render(); }
 };
-$('import-open').onclick = () => $('import-dialog').showModal();
-$('file').onchange = async event => {
-  const file = event.target.files[0]; if (!file) return;
-  if (file.size > 10 * 1024 * 1024) { $('import-error').textContent = 'Use a JSON report smaller than 10 MB.'; return; }
-  try { importText(await file.text()); } catch (error) { $('import-error').textContent = error.message; }
-  event.target.value = '';
-};
-$('import-paste').onclick = () => importText($('paste').value);
 $('export').title = 'Download the full current dataset as JSON';
 $('export').onclick = () => download(JSON.stringify({schema_version: 1, reports: activeReports()}, null, 2), 'application/json', 'gone4hope-reports.json');
 $('csv-export').title = 'Download the receipts matching the current filters and search';

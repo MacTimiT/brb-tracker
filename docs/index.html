@@ -8,14 +8,14 @@
   <title>GONE4HOPE · The BRB department</title>
   <link rel="icon" href="assets/gamin4hope-profile.jpg">
   <link rel="preload" href="assets/fonts/barlow-condensed-extrabold.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="style.css?v=gone4hope-1">
-  <script src="analytics.js?v=gone4hope-1" defer></script>
-  <script src="app.js?v=gone4hope-1" defer></script>
+  <link rel="stylesheet" href="style.css?v=gone4hope-2">
+  <script src="analytics.js?v=gone4hope-2" defer></script>
+  <script src="app.js?v=gone4hope-2" defer></script>
 </head>
 <body>
   <header class="masthead wrap">
     <a class="brand" href="./" aria-label="GONE4HOPE home"><img src="assets/gamin4hope-profile.jpg" width="44" height="44" alt="Gamin4Hope"><span>GONE<span class="red">4</span>HOPE<small>THE BRB DEPARTMENT</small></span></a>
-    <nav aria-label="Main navigation"><a href="#excuses">The excuses</a><a href="#receipts">The receipts</a><a class="app-link" href="https://github.com/MacTimiT/brb-tracker/releases/download/v0.2.1-preview/brb-tracker-0.2.1-android.apk">Get the app <span aria-hidden="true">↓</span></a></nav>
+    <nav aria-label="Main navigation"><a href="#excuses">The excuses</a><a href="#receipts">The receipts</a></nav>
   </header>
   <main class="wrap">
     <section class="hero" aria-labelledby="hero-title">
@@ -25,13 +25,13 @@
 
     <section class="controls" aria-label="Scoreboard filters">
       <div class="data-state"><span class="mode" id="data-mode">Published VODs</span><span id="scope-summary">Checking the receipts…</span></div>
-      <div class="filter-row"><label>Stream<select id="vod"><option value="all">All streams</option></select></label><label>Excuse<select id="reason"><option value="all">All excuses</option><option value="Pee">Pee</option><option value="Snack">Snack</option><option value="Drink">Drink</option><option value="Stretch">Stretch</option><option value="Technical">Technical</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select></label><div class="control-buttons"><button id="refresh" title="Refresh published reports">↻ <span>Refresh</span></button><button id="demo-toggle">Try the demo</button><button id="import-open">＋ Import report</button></div></div>
+      <div class="filter-row"><label>Stream<select id="vod"><option value="all">All streams</option></select></label><label>Excuse<select id="reason"><option value="all">All excuses</option><option value="Pee">Pee</option><option value="Snack">Snack</option><option value="Drink">Drink</option><option value="Stretch">Stretch</option><option value="Technical">Technical</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select></label><div class="control-buttons"><button id="refresh" title="Refresh published reports">↻ <span>Refresh</span></button><button id="demo-toggle">Try the demo</button></div></div>
       <p id="notice" role="status" hidden></p>
     </section>
 
     <section id="empty-board" class="empty-board" hidden>
       <svg viewBox="0 0 100 110" width="90" height="99" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="28" y="8" width="44" height="44" rx="10"/><path d="M20 70h60M28 52v18m44-18v18M50 71v25m-27 9 27-9 27 9M12 48v22m76-22v22M7 48h12m62 0h12"/></g></svg>
-      <div><p class="eyebrow">NO RECEIPTS. YET.</p><h2>The chair is waiting<br>for its first shift.</h2><p>Scan a VOD in the Android app, hit Publish,<br>and let the deeply unnecessary bookkeeping begin.</p><div class="empty-actions"><button class="primary" id="demo-empty">Take a demo lap →</button><a href="https://github.com/MacTimiT/brb-tracker/releases/download/v0.2.1-preview/brb-tracker-0.2.1-android.apk">Get the Android app ↗</a></div></div>
+      <div><p class="eyebrow">NO RECEIPTS. YET.</p><h2>The chair is waiting<br>for its first shift.</h2><p>The BRB department is waiting for its first batch.<br>The deeply unnecessary bookkeeping begins soon.</p><div class="empty-actions"><button class="primary" id="demo-empty">Take a demo lap →</button></div></div>
     </section>
 
     <div id="analytics-board" hidden>
@@ -59,7 +59,6 @@
     <footer><strong>THANKS FOR HOLDING, CHAT.</strong><nav aria-label="More links"><a href="https://www.twitch.tv/gamin4hope" target="_blank" rel="noopener noreferrer">Watch Hope ↗</a><a href="https://linktr.ee/gamin4hope" target="_blank" rel="noopener noreferrer">His links ↗</a><a href="https://github.com/MacTimiT/brb-tracker">The code ↗</a></nav></footer>
   </main>
 
-  <dialog id="import-dialog" aria-labelledby="import-title"><form method="dialog"><button class="close" aria-label="Close import">×</button></form><p class="eyebrow">MORE FUEL FOR THE SPREADSHEET</p><h2 id="import-title">Got receipts?</h2><p>Load a report from the Android app or analyzer.</p><label for="file">Choose a JSON file</label><input id="file" type="file" accept=".json,application/json"><label for="paste">Or paste report JSON</label><textarea id="paste" rows="7" placeholder='{"schema_version":1,"reports":[…]}'></textarea><p id="import-error" role="alert"></p><button class="primary" id="import-paste">Put it on the board →</button></dialog>
   <dialog id="receipt-dialog" aria-labelledby="receipt-title"><form method="dialog"><button class="close" aria-label="Close receipt">×</button></form><p class="eyebrow">EXHIBIT BRB</p><h2 id="receipt-title"></h2><p id="receipt-meta"></p><blockquote id="receipt-quote"></blockquote><p id="receipt-review"></p><a class="primary watch-link" id="receipt-watch" target="_blank" rel="noopener noreferrer">Roll the tape ↗</a></dialog>
 </body>
 </html>
