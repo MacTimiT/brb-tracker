@@ -327,6 +327,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<bool>(
+            isExpanded: true,
             initialValue: fastScan,
             decoration: const InputDecoration(labelText: 'Scan mode'),
             items: const [
@@ -345,6 +346,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<int>(
+            isExpanded: true,
             initialValue: downloadHeight,
             decoration: const InputDecoration(labelText: 'Download quality'),
             items: const [
@@ -394,6 +396,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: detectorProfile,
                 decoration: const InputDecoration(labelText: 'BRB banner'),
                 items: const [

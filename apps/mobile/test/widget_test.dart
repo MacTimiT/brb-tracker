@@ -24,6 +24,10 @@ void main() {
   testWidgets(
     'admin entry has real scan controls and no demo or promotional copy',
     (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(const BrbApp());
       expect(find.text('GONE4HOPE'), findsOneWidget);
       expect(find.text('NEW SCAN.'), findsOneWidget);
