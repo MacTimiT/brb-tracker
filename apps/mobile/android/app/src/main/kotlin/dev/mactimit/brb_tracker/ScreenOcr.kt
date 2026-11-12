@@ -14,6 +14,10 @@ import java.io.File
 
 class ScreenOcr(context: Context) : Closeable {
     private val tess = TessBaseAPI()
+    private val cache = BannerCache()
+    var calls = 0
+        private set
+    val cacheHits: Int get() = cache.hits
     init {
         try {
             val root = File(context.noBackupFilesDir, "tesseract")
@@ -36,8 +40,16 @@ class ScreenOcr(context: Context) : Closeable {
         val prepared = if (profile == "gamin4hope") redBanner(frame) else grayscale(frame)
         if (prepared == null) return false
         return try {
-            tess.setImage(prepared)
-            Detection.isBrb(tess.utF8Text.orEmpty())
+            val read = {
+                calls++
+                tess.setImage(prepared)
+                Detection.isBrb(tess.utF8Text.orEmpty())
+            }
+            if (profile == "gamin4hope") {
+                val pixels = IntArray(prepared.width * prepared.height)
+                prepared.getPixels(pixels, 0, prepared.width, 0, 0, prepared.width, prepared.height)
+                cache.recognize(pixels, prepared.width, read)
+            } else read()
         } finally { tess.clear(); prepared.recycle() }
     }
     private fun grayscale(frame: Bitmap): Bitmap {

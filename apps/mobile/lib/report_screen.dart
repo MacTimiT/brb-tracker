@@ -73,11 +73,7 @@ class _ReportScreenState extends State<ReportScreen> {
               );
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Report JSON copied. Save it as a .json file for your records.',
-                    ),
-                  ),
+                  const SnackBar(content: Text('Report JSON copied.')),
                 );
               }
             },
@@ -100,42 +96,55 @@ class _ReportScreenState extends State<ReportScreen> {
                       }
                     },
               icon: const Icon(Icons.cloud_upload),
-              label: const Text('Publish to GitHub dashboard'),
-            ),
-          if (report['is_demo'] == true)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'SAMPLE DATA · Invented for demonstration. These are not Gamin4Hope’s actual breaks.',
-                ),
-              ),
+              label: const Text('Publish to dashboard'),
             ),
           Text(
             report['title'] as String,
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontFamily: 'Barlow', fontSize: 36),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'VOD date: ${report['vod_date'] ?? 'Unknown'}',
+            style: const TextStyle(fontFamily: 'Plex', fontSize: 12),
           ),
           const SizedBox(height: 12),
           Text(
             '${breaks.length} breaks · ${timeLabel(total)} away · ${breaks.isEmpty ? '0:00:00' : timeLabel(total / breaks.length)} average',
           ),
           const SizedBox(height: 12),
-          for (final warning in (report['warnings'] as List<dynamic>? ?? []))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                '$warning',
-                style: const TextStyle(color: Colors.amber),
+          if (report['transcript_source'] == 'none')
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('No captions found · review reasons manually.'),
               ),
             ),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Scan details'),
+            children: [
+              Text(
+                'Date source: ${dateSourceLabel(report['vod_date_source'])}',
+              ),
+              Text('Scanned: ${report['analyzed_at'] ?? 'Unknown'}'),
+              if (report['frames_checked'] != null)
+                Text(
+                  '${report['frames_checked']} frames · ${report['ocr_calls']} OCR reads · ${report['banner_cache_hits']} cached',
+                ),
+              for (final warning
+                  in (report['warnings'] as List<dynamic>? ?? []))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('$warning'),
+                ),
+            ],
+          ),
           for (var index = 0; index < breaks.length; index++)
             _breakCard(breaks[index] as Map<String, dynamic>, index),
           if (breaks.isEmpty)
             const Padding(
               padding: EdgeInsets.all(20),
-              child: Text(
-                'No BRB screens detected. Short breaks or alternate screen designs may need different detector settings.',
-              ),
+              child: Text('No BRB screens detected.'),
             ),
         ],
       ),
@@ -158,7 +167,7 @@ class _ReportScreenState extends State<ReportScreen> {
           const SizedBox(height: 10),
           Text(
             (item['evidence'] as String).isEmpty
-                ? 'No preceding transcript available.'
+                ? 'No transcript quote.'
                 : '“${item['evidence']}”',
           ),
           Text(
@@ -206,3 +215,12 @@ class _ReportScreenState extends State<ReportScreen> {
     ),
   );
 }
+
+String dateSourceLabel(dynamic source) => switch (source) {
+  'live_start_timestamp' => 'YouTube stream start (UTC)',
+  'release_timestamp' => 'YouTube release time (UTC)',
+  'release_date' => 'YouTube release date',
+  'timestamp' => 'YouTube upload time (UTC)',
+  'upload_date' => 'YouTube upload date',
+  _ => 'Unknown',
+};

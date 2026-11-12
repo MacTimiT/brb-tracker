@@ -1,7 +1,6 @@
 import 'job_progress.dart';
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -34,10 +33,42 @@ class BrbApp extends StatelessWidget {
     title: 'BRB Tracker',
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
-      brightness: Brightness.dark,
-      colorSchemeSeed: const Color(0xFFB7F36B),
-      scaffoldBackgroundColor: const Color(0xFF101513),
       useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFFBC2028),
+        brightness: Brightness.light,
+        primary: const Color(0xFFBC2028),
+        surface: const Color(0xFFF5F2EB),
+      ),
+      scaffoldBackgroundColor: const Color(0xFFF5F2EB),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF252B2E),
+        foregroundColor: Color(0xFFF5F2EB),
+        titleTextStyle: TextStyle(fontFamily: 'Barlow', fontSize: 28),
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      ),
+      cardTheme: const CardThemeData(
+        elevation: 0,
+        color: Color(0xFFFFFDFA),
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: Color(0xFFD8D4CB)),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: const RoundedRectangleBorder(),
+          minimumSize: const Size(0, 52),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          shape: const RoundedRectangleBorder(),
+          minimumSize: const Size(0, 48),
+        ),
+      ),
     ),
     home: const Home(),
   );
@@ -51,12 +82,11 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> with WidgetsBindingObserver {
   final api = LocalApi();
-  final url = TextEditingController(
-    text: 'https://www.youtube.com/live/IW2rEIuKGSs',
-  );
+  final url = TextEditingController();
   Map<String, String>? video;
   Map<String, String>? transcript;
-  double interval = 2;
+  bool fastScan = true;
+  int downloadHeight = 480;
   String detectorProfile = 'gamin4hope';
   List<dynamic> jobs = [];
   bool busy = false;
@@ -138,7 +168,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     try {
       await api.start({
         'url': url.text.trim(),
-        'interval': interval,
+        'interval': fastScan ? 5.0 : 2.0,
+        'adaptive_scan': fastScan,
+        'download_height': downloadHeight,
         'detector_profile': detectorProfile,
         if (video != null) 'video_uri': video!['uri'],
         'title': video?['name'] ?? 'YouTube VOD',
@@ -150,16 +182,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     } finally {
       if (mounted) setState(() => busy = false);
     }
-  }
-
-  Future<void> demo() async {
-    final report = jsonDecode(
-      await rootBundle.loadString('assets/demo-report.json'),
-    ) as Map<String, dynamic>;
-    if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => ReportScreen(initial: report)),
-    );
   }
 
   Future<void> openJob(Map<String, dynamic> job) async {
@@ -226,7 +248,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     );
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BRB Tracker'),
+        title: const Text('GONE4HOPE'),
         actions: [
           IconButton(
             icon: const Icon(Icons.cloud_upload_outlined),
@@ -244,7 +266,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 showLicensePage(
                   context: context,
                   applicationName: 'BRB Tracker',
-                  applicationVersion: '0.2.2',
+                  applicationVersion: '0.3.0',
                 );
               }
             },
@@ -260,111 +282,138 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text(
-            'Your phone. The whole pipeline.',
-            style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Download a VOD, scan BRB screens and classify breaks locally. Review the results, then publish them to your GitHub dashboard.',
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: demo,
-            icon: const Icon(Icons.insights),
-            label: const Text('Explore sample report'),
+          Container(
+            padding: const EdgeInsets.all(24),
+            color: const Color(0xFF252B2E),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ADMIN / GAMIN4HOPE',
+                  style: TextStyle(
+                    fontFamily: 'Plex',
+                    fontSize: 11,
+                    color: Color(0xFFF5F2EB),
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'NEW SCAN.',
+                  style: TextStyle(
+                    fontFamily: 'Barlow',
+                    fontSize: 56,
+                    height: 1,
+                    color: Color(0xFFF5F2EB),
+                  ),
+                ),
+                SizedBox(height: 12),
+                SizedBox(
+                  width: 48,
+                  child: Divider(color: Color(0xFFBC2028), thickness: 4),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'ANALYZE ON THIS PHONE',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
           TextField(
             controller: url,
+            enabled: !busy && !running,
             keyboardType: TextInputType.url,
             decoration: InputDecoration(
               labelText: video == null
                   ? 'YouTube VOD URL'
                   : 'YouTube source URL (optional)',
-              helperText: video == null
-                  ? 'Downloads a low-resolution MP4 and available English captions.'
-                  : 'Used for timestamp links when valid; the selected file is analyzed.',
             ),
           ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: busy || running ? null : () => pick('video'),
-            icon: const Icon(Icons.video_file_outlined),
-            label: Text(video?['name'] ?? 'Or choose a video on this phone'),
-          ),
-          if (video != null)
-            TextButton(
-              onPressed: () => setState(() => video = null),
-              child: const Text('Use YouTube download instead'),
-            ),
-          OutlinedButton.icon(
-            onPressed: busy || running ? null : () => pick('transcript'),
-            icon: const Icon(Icons.subtitles_outlined),
-            label: Text(
-              transcript?['name'] ?? 'Optional transcript · JSON / VTT',
-            ),
-          ),
-          if (transcript != null)
-            TextButton(
-              onPressed: () => setState(() => transcript = null),
-              child: const Text('Clear transcript'),
-            ),
-          DropdownButtonFormField<String>(
-            initialValue: detectorProfile,
-            decoration: const InputDecoration(labelText: 'BRB detection mode'),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<bool>(
+            initialValue: fastScan,
+            decoration: const InputDecoration(labelText: 'Scan mode'),
             items: const [
               DropdownMenuItem(
-                value: 'gamin4hope',
-                child: Text('Gamin4Hope banner'),
+                value: true,
+                child: Text('Fast · 5s scan, 1s edges'),
               ),
               DropdownMenuItem(
-                value: 'full_frame',
-                child: Text('Full frame · other layouts'),
+                value: false,
+                child: Text('Detailed · every 2s'),
               ),
             ],
             onChanged: busy || running
                 ? null
-                : (value) => setState(() => detectorProfile = value!),
+                : (value) => setState(() => fastScan = value!),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              detectorProfile == 'gamin4hope'
-                  ? 'Looks for the red bottom-left BRB banner and excludes the right-side chat.'
-                  : 'Reads the whole frame. Use when the BRB banner has moved or changed color.',
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ),
-          Row(
-            children: [
-              const Expanded(child: Text('Sample a frame every')),
-              DropdownButton<double>(
-                value: interval,
-                items: [2.0, 5.0, 10.0]
-                    .map(
-                      (v) => DropdownMenuItem(
-                        value: v,
-                        child: Text('${v.toInt()} seconds'),
-                      ),
-                    )
-                    .toList(),
-                onChanged: busy || running
-                    ? null
-                    : (value) => setState(() => interval = value!),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<int>(
+            initialValue: downloadHeight,
+            decoration: const InputDecoration(labelText: 'Download quality'),
+            items: const [
+              DropdownMenuItem(
+                value: 480,
+                child: Text('480p · clearer banner'),
+              ),
+              DropdownMenuItem(
+                value: 360,
+                child: Text('360p · smaller download'),
               ),
             ],
-          ),
-          const Text(
-            'Long VODs can use several GB and take a long time. Use Wi-Fi and a charger. Reasons need captions or an imported transcript; speech-to-text is not bundled.',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            onChanged: busy || running || video != null
+                ? null
+                : (value) => setState(() => downloadHeight = value!),
           ),
           const SizedBox(height: 12),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Files & detection settings'),
+            children: [
+              OutlinedButton.icon(
+                onPressed: busy || running ? null : () => pick('video'),
+                icon: const Icon(Icons.video_file_outlined),
+                label: Text(video?['name'] ?? 'Choose local video'),
+              ),
+              if (video != null)
+                TextButton(
+                  onPressed: busy || running
+                      ? null
+                      : () => setState(() => video = null),
+                  child: const Text('Use YouTube instead'),
+                ),
+              OutlinedButton.icon(
+                onPressed: busy || running ? null : () => pick('transcript'),
+                icon: const Icon(Icons.subtitles_outlined),
+                label: Text(
+                  transcript?['name'] ?? 'Choose transcript · optional',
+                ),
+              ),
+              if (transcript != null)
+                TextButton(
+                  onPressed: busy || running
+                      ? null
+                      : () => setState(() => transcript = null),
+                  child: const Text('Clear transcript'),
+                ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: detectorProfile,
+                decoration: const InputDecoration(labelText: 'BRB banner'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'gamin4hope',
+                    child: Text('Gamin4Hope · red banner'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'full_frame',
+                    child: Text('Full frame · other layouts'),
+                  ),
+                ],
+                onChanged: busy || running
+                    ? null
+                    : (value) => setState(() => detectorProfile = value!),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+          const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: busy || running ? null : start,
             icon: const Icon(Icons.play_arrow),
@@ -377,7 +426,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                             job['status'] == 'queued',
                       ),
                     )
-                  : 'Analyze locally',
+                  : 'Scan VOD',
             ),
           ),
           if (busy) const LinearProgressIndicator(),
@@ -391,13 +440,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ),
           const SizedBox(height: 24),
           const Text(
-            'SAVED ON THIS PHONE',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            'SAVED SCANS',
+            style: TextStyle(
+              fontFamily: 'Plex',
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           if (jobs.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text('No analyses yet. Start one above.'),
+              child: Text('No scans yet.'),
             ),
           for (final raw in jobs) _job(raw as Map<String, dynamic>),
           const SizedBox(height: 24),
@@ -407,11 +460,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               mode: LaunchMode.externalApplication,
             ),
             icon: const Icon(Icons.open_in_new),
-            label: const Text('Open GitHub dashboard'),
-          ),
-          const Text(
-            'Videos and OCR stay on this device. Nothing is published until you choose Publish in a completed report. Android can stop long-running work; interrupted analyses must be started again.',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+            label: const Text('Open dashboard'),
           ),
         ],
       ),

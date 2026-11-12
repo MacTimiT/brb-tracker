@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const A = globalThis.BRBStats;
 const reasonNames = {Pee: 'Pee breaks', Snack: 'Snack raids', Drink: 'Hydration runs', Stretch: 'Touching grass', Technical: 'Tech gremlins', Other: 'Side quests', Unknown: 'Unsolved mysteries'};
 const colors = {Pee: '#bc2028', Snack: '#985182', Drink: '#23748a', Stretch: '#527346', Technical: '#586582', Other: '#8a6842', Unknown: '#77736b'};
-const state = {published: [], demo: [], mode: 'published', vod: 'all', reason: 'all', metric: 'count', query: '', sort: 'longest', loading: true, logEntries: []};
+const state = {published: [], demo: [], mode: 'published', vod: 'all', month: 'all', reason: 'all', metric: 'count', query: '', sort: 'longest', loading: true, logEntries: []};
 const integer = value => Math.round(value).toLocaleString('en-US');
 const fixed = (value, places = 1) => Number(value).toFixed(places);
 function duration(value) {
@@ -17,10 +17,17 @@ function stamp(value) { const seconds = Math.floor(value); return `${Math.floor(
 function node(tag, text, className) { const item = document.createElement(tag); if (text != null) item.textContent = text; if (className) item.className = className; return item; }
 function watchURL(item) { return item.report.video_id ? `https://www.youtube.com/watch?v=${item.report.video_id}&t=${Math.floor(item.start_seconds)}s` : null; }
 function activeReports() { return state.mode === 'published' ? state.published : state.demo; }
+function selectedReports() { return activeReports().filter(report => (state.month === 'all' || A.month(report) === state.month) && (state.vod === 'all' || A.key(report) === state.vod)); }
 function notice(message = '') { $('notice').textContent = message; $('notice').hidden = !message; }
 
 function updateOptions() {
-  const reports = activeReports();
+  const source = activeReports();
+  const months = [...new Set(source.map(A.month))].sort().reverse();
+  if (!months.includes(state.month)) state.month = 'all';
+  $('month').replaceChildren(new Option('All dates', 'all'));
+  for (const month of months) $('month').add(new Option(month === 'unknown' ? 'Date unknown' : month, month));
+  $('month').value = state.month;
+  const reports = source.filter(report => state.month === 'all' || A.month(report) === state.month);
   if (!reports.some(report => A.key(report) === state.vod)) state.vod = 'all';
   $('vod').replaceChildren(new Option('All streams', 'all'));
   for (const report of reports) $('vod').add(new Option(report.title, A.key(report)));
@@ -31,13 +38,12 @@ function updateOptions() {
   $('log-sort').value = state.sort;
 }
 function switchMode(mode) {
-  state.mode = mode; state.vod = 'all'; state.reason = 'all'; state.query = '';
+  state.mode = mode; state.vod = 'all'; state.month = 'all'; state.reason = 'all'; state.query = '';
   notice(); render();
 }
 function render() {
   updateOptions();
-  const source = activeReports();
-  const selected = source.filter(report => state.vod === 'all' || A.key(report) === state.vod);
+  const selected = selectedReports();
   const stats = A.compute(selected, state.reason);
   const hasReports = selected.length > 0;
   $('empty-board').hidden = hasReports || state.loading;
@@ -141,7 +147,7 @@ function renderVods(stats) {
     const button = node('button', row.report.title, 'vod-name');
     button.onclick = () => { state.vod = A.key(row.report); render(); };
     title.append(node('span', String(index + 1).padStart(2, '0'), 'vod-rank'), button);
-    tr.append(title, node('td', duration(row.report.duration_seconds)), node('td', row.count), node('td', duration(row.seconds)), node('td', `${fixed(row.percent)}%`, 'share-number'), node('td', fixed(row.rate, 2)));
+    tr.append(title, node('td', row.report.vod_date || 'Unknown'), node('td', duration(row.report.duration_seconds)), node('td', row.count), node('td', duration(row.seconds)), node('td', `${fixed(row.percent)}%`, 'share-number'), node('td', fixed(row.rate, 2)));
     $('vod-table').append(tr);
   });
 }
@@ -173,7 +179,7 @@ function renderLog(stats) {
   $('empty').hidden = entries.length > 0;
   for (const item of entries) {
     const row = node('tr');
-    const source = node('td'); source.append(node('strong', item.report.title), node('small', `${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}`));
+    const source = node('td'); source.append(node('strong', item.report.title), node('small', item.report.vod_date || 'Date unknown'), node('small', `${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}`));
     const reason = node('td'); reason.append(node('span', reasonNames[item.reason], 'reason-tag'));
     if (item.reviewed) { const checked = node('span', '✓', 'reviewed'); checked.title = 'Reviewed'; reason.append(checked); }
     const quote = node('td'); quote.append(node('div', item.evidence ? `“${item.evidence}”` : 'No quote on file.', 'quote-preview'));
@@ -184,7 +190,7 @@ function renderLog(stats) {
 }
 function openReceipt(item) {
   $('receipt-title').textContent = `${reasonNames[item.reason]} · ${duration(item.seconds)}${item.truncated ? '+' : ''}`;
-  $('receipt-meta').textContent = `${item.report.title} · ${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}${item.truncated ? ' · Still BRB when the VOD ends.' : ''}`;
+  $('receipt-meta').textContent = `${item.report.title} · ${item.report.vod_date || 'Date unknown'} · ${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}${item.truncated ? ' · Still BRB when the VOD ends.' : ''}`;
   $('receipt-quote').textContent = item.evidence || 'No quote on file.';
   $('receipt-review').textContent = item.reviewed ? 'Reviewed.' : '';
   $('receipt-review').hidden = !item.reviewed;
@@ -215,9 +221,10 @@ async function initialize() {
   render();
 }
 $('vod').onchange = event => { state.vod = event.target.value; render(); };
+$('month').onchange = event => { state.month = event.target.value; state.vod = 'all'; render(); };
 $('reason').onchange = event => { state.reason = event.target.value; render(); };
 $('reason-metric').onchange = event => { state.metric = event.target.value; render(); };
-$('search').oninput = event => { state.query = event.target.value; renderLog(A.compute(activeReports().filter(report => state.vod === 'all' || A.key(report) === state.vod), state.reason)); };
+$('search').oninput = event => { state.query = event.target.value; renderLog(A.compute(selectedReports(), state.reason)); };
 $('log-sort').onchange = event => { state.sort = event.target.value; render(); };
 $('demo-toggle').onclick = () => switchMode(state.mode === 'published' ? 'demo' : 'published');
 $('demo-empty').onclick = () => switchMode('demo');
@@ -227,8 +234,8 @@ $('refresh').onclick = async () => {
   catch (error) { notice(error.message); }
   finally { state.loading = false; render(); }
 };
-$('export').title = 'Download the full current dataset as JSON';
-$('export').onclick = () => download(JSON.stringify({schema_version: 1, reports: activeReports()}, null, 2), 'application/json', 'gone4hope-reports.json');
+$('export').title = 'Download reports in the current month and stream filters as JSON';
+$('export').onclick = () => download(JSON.stringify({schema_version: 1, reports: selectedReports()}, null, 2), 'application/json', 'gone4hope-reports.json');
 $('csv-export').title = 'Download the receipts matching the current filters and search';
 $('csv-export').onclick = () => download(A.csv(state.logEntries), 'text/csv;charset=utf-8', 'gone4hope-receipts.csv');
 initialize();

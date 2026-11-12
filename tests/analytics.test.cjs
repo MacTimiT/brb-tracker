@@ -77,7 +77,7 @@ test('CSV preserves quotes/newlines and treats spreadsheet formulas as text', ()
   r.title = '=1+1';
   r.breaks[0].evidence = 'He said "water",\nthen left.';
   const text = A.csv(A.compute([r]).entries);
-  assert.ok(text.startsWith('"VOD","Start seconds"'));
+  assert.ok(text.startsWith('"VOD","VOD date"'));
   assert.ok(text.includes('"\'=1+1"'));
   assert.ok(text.includes('"He said ""water"",\nthen left."'));
   assert.equal(r.title, '=1+1');
@@ -86,4 +86,13 @@ test('median does not mutate its source and handles fractional even-count median
   const values = [8, 1, 6, 3];
   assert.equal(A.median(values), 4.5);
   assert.deepEqual(values, [8, 1, 6, 3]);
+});
+
+test('original VOD date is exported separately from scan date; invalid dates are rejected', () => {
+  const r = {...report('old-stream', 100, [[10, 20]]), vod_date: '2026-10-22', vod_date_source: 'release_timestamp', analyzed_at: '2026-11-12T15:00:00Z'};
+  assert.equal(A.month(r), '2026-10');
+  assert.equal(A.month(report('legacy', 100)), 'unknown');
+  const csv = A.csv(A.compute(A.validate(r)).entries);
+  assert.ok(csv.includes('"2026-10-22","release_timestamp","2026-11-12T15:00:00Z"'));
+  for (const value of ['2026-02-30', 'today', 123]) assert.throws(() => A.validate({...r, vod_date: value}), /Invalid VOD date/);
 });

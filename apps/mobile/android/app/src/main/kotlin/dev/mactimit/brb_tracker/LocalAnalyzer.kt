@@ -7,6 +7,7 @@ import android.os.Build
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.CancellationException
+import java.time.Instant
 
 class LocalAnalyzer(private val context: Context) {
     fun analyze(uri: Uri, input: JSONObject, id: String, cues: List<Cue>, cancelled: () -> Boolean, progress: (Double) -> Unit): JSONObject {
@@ -28,10 +29,10 @@ class LocalAnalyzer(private val context: Context) {
             val originalHeight = decoder.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt() ?: 540
             val width = minOf(originalWidth, 960)
             val height = maxOf(1, (originalHeight.toDouble() * width / originalWidth).toInt())
-            val detector = BreakDetector()
-            var timestamp = 0.0
+            val adaptive = input.optBoolean("adaptive_scan", false)
+            val samples = sortedMapOf<Double, Boolean?>()
             var consecutiveFailures = 0
-            while (timestamp < duration) {
+            fun sample(timestamp: Double): Boolean? {
                 if (cancelled()) throw CancellationException("Analysis cancelled")
                 val micros = (timestamp * 1_000_000).toLong()
                 val bitmap = if (Build.VERSION.SDK_INT >= 27) decoder.getScaledFrameAtTime(micros, MediaMetadataRetriever.OPTION_CLOSEST, width, height)
@@ -40,17 +41,33 @@ class LocalAnalyzer(private val context: Context) {
                     failedFrames++
                     consecutiveFailures++
                     check(consecutiveFailures < 3) { "Android could not decode consecutive video frames; try a different MP4 file" }
-                    // A decode failure is not evidence the BRB screen disappeared.
+                    return null // Unknown is never evidence the screen disappeared.
                 } else {
                     consecutiveFailures = 0
                     try {
-                        detector.sample(timestamp, ocr.isBrb(bitmap, profile))
                         decoded++
+                        return ocr.isBrb(bitmap, profile)
                     } finally { bitmap.recycle() }
                 }
-                progress(timestamp / duration)
+            }
+            var timestamp = 0.0
+            while (timestamp < duration) {
+                samples[timestamp] = sample(timestamp)
+                progress(timestamp / duration * if (adaptive) 0.85 else 0.99)
                 timestamp += interval
             }
+            if (adaptive) {
+                // Include the tail so an exit in the final coarse interval can be refined.
+                val tail = maxOf(0.0, duration - 0.001)
+                if (!samples.containsKey(tail)) samples[tail] = sample(tail)
+                val refine = ScanPlan.refine(samples)
+                refine.forEachIndexed { index, time ->
+                    samples[time] = sample(time)
+                    progress(0.85 + 0.14 * (index + 1) / maxOf(1, refine.size))
+                }
+            }
+            val detector = BreakDetector()
+            samples.forEach { (time, present) -> if (present != null) detector.sample(time, present) }
             check(decoded > 0) { "No video frames could be decoded" }
             val breaks = detector.finish(duration).map { item ->
                 val (reason, evidence) = Detection.reason(cues, item.start)
@@ -59,7 +76,7 @@ class LocalAnalyzer(private val context: Context) {
                     .put("confidence", if (reason == "Unknown") "unknown" else "keyword")
                     .put("reviewed", false).put("truncated", item.truncated)
             }
-            val warnings = mutableListOf("Analyzed on Android every ${interval}s. Boundaries are estimates; short screens and OCR failures can be missed.")
+            val warnings = mutableListOf("Sampled every ${interval}s${if (adaptive) " with 1s transition refinement" else ""}. Short screens between samples can be missed.")
             if (profile == "gamin4hope") warnings.add("Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.")
             if (cues.isEmpty()) warnings.add("No usable transcript. Reasons are Unknown until manually reviewed; local speech transcription is not included.")
             if (failedFrames > 0) warnings.add("Android could not decode $failedFrames sampled frames; inspect break boundaries.")
@@ -68,7 +85,11 @@ class LocalAnalyzer(private val context: Context) {
             return JSONObject().put("schema_version", 1).put("id", id).put("title", input.optString("title", "Local VOD"))
                 .put("streamer", "Gamin4Hope").put("source_url", sourceUrl).put("video_id", videoId ?: JSONObject.NULL)
                 .put("duration_seconds", duration).put("sample_interval_seconds", interval)
-                .put("transcript_source", if (cues.isEmpty()) "none" else "android-captions")
+                .put("vod_date", input.opt("vod_date") ?: JSONObject.NULL).put("vod_date_source", input.optString("vod_date_source", "unknown"))
+                .put("stream_started_at", input.opt("stream_started_at") ?: JSONObject.NULL).put("analyzed_at", Instant.now().toString())
+                .put("adaptive_scan", adaptive).put("boundary_refinement_seconds", if (adaptive) 1 else JSONObject.NULL)
+                .put("frames_checked", decoded).put("ocr_calls", ocr.calls).put("banner_cache_hits", ocr.cacheHits)
+                .put("transcript_source", if (cues.isEmpty()) "none" else input.optString("transcript_source", "imported"))
                 .put("detector_profile", profile)
                 .put("is_demo", false).put("warnings", JSONArray(warnings)).put("breaks", JSONArray(breaks))
         } finally { screenOcr?.close(); decoder.release() }

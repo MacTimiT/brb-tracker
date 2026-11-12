@@ -29,7 +29,7 @@ Future<void> publishReport(
     builder: (dialogContext) => AlertDialog(
       title: const Text('Publish this report?'),
       content: Text(
-        'Upload ${(report['breaks'] as List).length} breaks and their transcript evidence to $owner/$repo. The dashboard will rebuild automatically. Review the suggested reasons first. Other real VOD reports will be kept; sample data will be removed.',
+        'Publish ${(report['breaks'] as List).length} breaks and transcript quotes to $owner/$repo? Other VODs will be kept.',
       ),
       actions: [
         TextButton(
@@ -55,9 +55,7 @@ Future<void> publishReport(
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'Report uploaded. GitHub Pages is rebuilding; allow a minute, then refresh the dashboard.',
-        ),
+        content: const Text('Published. Dashboard updating.'),
         duration: const Duration(seconds: 8),
         action: SnackBarAction(
           label: 'Commit',
@@ -154,10 +152,6 @@ class _PublishingSettingsState extends State<PublishingSettings> {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const Text(
-          'Your phone publishes report JSON directly to GitHub. No analysis server or PC is involved.',
-        ),
-        const SizedBox(height: 16),
         TextField(
           controller: owner,
           decoration: const InputDecoration(labelText: 'Repository owner'),
@@ -177,13 +171,11 @@ class _PublishingSettingsState extends State<PublishingSettings> {
                 : 'GitHub token',
             helperText: savedToken
                 ? 'A token is saved securely on this device.'
-                : 'Stored in Android secure storage. Never uploaded with reports.',
+                : 'Stored securely on this phone.',
           ),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Create a fine-grained personal access token for this repository only, with Contents: read and write. Metadata: read is included automatically. Pages must already use GitHub Actions. Never paste the token into a chat or commit it to Git.',
-        ),
+        const Text('Token permission: Contents → Read and write.'),
         TextButton(
           onPressed: () => launchUrl(
             Uri.https('github.com', '/settings/personal-access-tokens/new'),

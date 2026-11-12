@@ -117,6 +117,7 @@ class AnalysisService : Service() {
         try {
             val input = store.get(id).getJSONObject("input")
             var cues = if (input.optString("transcript_uri").isNotBlank()) readTranscript(Uri.parse(input.getString("transcript_uri"))) else emptyList()
+            input.put("transcript_source", if (cues.isEmpty()) "none" else "imported")
             var captionWarning: String? = null
             val localUri = input.optString("video_uri")
             val video: Uri
@@ -139,23 +140,27 @@ class AnalysisService : Service() {
                 val metadata = JSONObject(YoutubeDL.execute(metadataRequest, id, null).out)
                 check(!metadata.optBoolean("is_live", false)) { "Wait until the livestream has ended before analyzing its VOD" }
                 input.put("title", metadata.optString("title", videoId))
+                val dates = VodMetadata.date(metadata)
+                for (field in listOf("vod_date", "vod_date_source", "stream_started_at")) input.put(field, dates.get(field))
+                store.update(id) { it.put("title", input.getString("title")).put("vod_date", dates.get("vod_date")) }
                 if (cues.isEmpty()) {
                     progress(id, JobPhase.CAPTIONS)
                     try {
                         val captions = request(url).apply {
                             addOption("--skip-download"); addOption("--write-subs"); addOption("--write-auto-subs")
-                            addOption("--sub-langs", "en,en-orig"); addOption("--sub-format", "json3")
+                            addOption("--sub-langs", "en.*"); addOption("--sub-format", "json3")
                             addOption("-o", File(work, "vod.%(ext)s").absolutePath)
                         }
                         YoutubeDL.execute(captions, id, null)
-                        work.listFiles().orEmpty().firstOrNull { it.extension == "json3" }?.let { cues = Detection.parseTranscript(it.readText()) }
+                        work.listFiles().orEmpty().firstOrNull { it.extension == "json3" }?.let { cues = Detection.parseTranscript(it.readText()); if (cues.isNotEmpty()) input.put("transcript_source", "youtube-captions") }
                     } catch (e: Exception) { checkCancelled(); captionWarning = "YouTube captions could not be downloaded. Import a transcript or review reasons manually." }
                 }
                 checkCancelled()
                 progress(id, JobPhase.DOWNLOAD, 0.0)
                 val media = request(url).apply {
-                    addOption("-f", "best[height<=480][ext=mp4][vcodec^=avc1]/bestvideo[height<=480][ext=mp4][vcodec^=avc1]/best[height<=480][ext=mp4]")
+                    addOption("-f", VodMetadata.format(input.optInt("download_height", 480)))
                     addOption("--max-filesize", "4G")
+                    addOption("--concurrent-fragments", 4)
                     addOption("--match-filter", "!is_live")
                     addOption("-o", File(work, "vod.%(ext)s").absolutePath)
                     addOption("--newline")

@@ -32,6 +32,13 @@ class GitHubPublisher {
         'Invalid version 1 report. Nothing was published.',
       );
     }
+    final date = report['vod_date'];
+    if (date != null) {
+      final parsed = date is String ? DateTime.tryParse(date) : null;
+      if (parsed == null || parsed.toIso8601String().substring(0, 10) != date) {
+        throw const FormatException('Invalid VOD date.');
+      }
+    }
     final videoId = report['video_id'];
     if (videoId != null &&
         (videoId is! String ||

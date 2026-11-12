@@ -10,6 +10,8 @@
     return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
   };
 
+  const month = report => report.vod_date ? report.vod_date.slice(0, 7) : 'unknown';
+  function validDate(value) { return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value; }
   function validate(data) {
     if (!data || typeof data !== 'object' || data.schema_version !== 1) throw Error('Use a version 1 BRB report.');
     const list = Array.isArray(data.reports) ? data.reports : [data];
@@ -17,6 +19,7 @@
     const seen = new Set();
     for (const report of list) {
       if (!report || report.schema_version !== 1 || typeof report.id !== 'string' || !report.id || typeof report.title !== 'string' || !Number.isFinite(report.duration_seconds) || report.duration_seconds < 0 || !Number.isFinite(report.sample_interval_seconds) || report.sample_interval_seconds <= 0 || !Array.isArray(report.breaks)) throw Error('That VOD report is missing its title, timing, or breaks.');
+      if (report.vod_date != null && !validDate(report.vod_date)) throw Error('Invalid VOD date.');
       if (report.video_id != null && (typeof report.video_id !== 'string' || !/^[A-Za-z0-9_-]{11}$/.test(report.video_id))) throw Error('Invalid YouTube video ID.');
       if (seen.has(key(report))) throw Error('Duplicate VODs would count the same escape twice.');
       seen.add(key(report));
@@ -94,11 +97,11 @@
       if (/^[\s]*[=+@-]/.test(text)) text = "'" + text;
       return '"' + text.replaceAll('"', '""') + '"';
     };
-    const rows = [['VOD', 'Start seconds', 'End seconds', 'Duration seconds', 'Reason', 'Quote', 'YouTube URL']];
-    for (const item of entries) rows.push([item.report.title, item.start_seconds, item.end_seconds, item.seconds, item.reason, item.evidence, item.report.video_id ? `https://www.youtube.com/watch?v=${item.report.video_id}&t=${Math.floor(item.start_seconds)}s` : '']);
+    const rows = [['VOD', 'VOD date', 'Date source', 'Analyzed at', 'Start seconds', 'End seconds', 'Duration seconds', 'Reason', 'Quote', 'YouTube URL']];
+    for (const item of entries) rows.push([item.report.title, item.report.vod_date, item.report.vod_date_source, item.report.analyzed_at, item.start_seconds, item.end_seconds, item.seconds, item.reason, item.evidence, item.report.video_id ? `https://www.youtube.com/watch?v=${item.report.video_id}&t=${Math.floor(item.start_seconds)}s` : '']);
     return rows.map(row => row.map(cell).join(',')).join('\r\n') + '\r\n';
   }
-  const api = {reasons, key, median, validate, compute, csv};
+  const api = {reasons, key, month, validDate, median, validate, compute, csv};
   root.BRBStats = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(globalThis);

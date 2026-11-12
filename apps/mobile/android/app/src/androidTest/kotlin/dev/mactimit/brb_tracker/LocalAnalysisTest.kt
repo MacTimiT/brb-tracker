@@ -20,7 +20,15 @@ class LocalAnalysisTest {
         ScreenOcr(instrumentation.targetContext).use { ocr ->
             for ((name, expected) in listOf("banner.png" to true, "chat-only.png" to false)) {
                 val bitmap = checkNotNull(instrumentation.context.assets.open(name).use { android.graphics.BitmapFactory.decodeStream(it) }) { "Could not decode test fixture $name" }
-                try { assertEquals(name, expected, ocr.isBrb(bitmap, "gamin4hope")) }
+                try {
+                    assertEquals(name, expected, ocr.isBrb(bitmap, "gamin4hope"))
+                    if (expected) {
+                        val calls = ocr.calls
+                        assertTrue(ocr.isBrb(bitmap, "gamin4hope"))
+                        assertEquals(calls, ocr.calls)
+                        assertTrue(ocr.cacheHits > 0)
+                    }
+                }
                 finally { bitmap.recycle() }
             }
         }
@@ -33,7 +41,10 @@ class LocalAnalysisTest {
         assertTrue("Bundled Python and yt-dlp did not run: $output", Regex("20\\d{2}\\.\\d{2}\\.\\d{2}").containsMatchIn(output))
     }
 
-    @Test fun foregroundServiceDecodesOcrClassifiesAndPersistsWithoutServer() {
+    @Test fun foregroundServiceDecodesOcrClassifiesAndPersistsWithoutServer() = scan(false)
+    @Test fun fastScanRefinesEdgesAndPreservesHistoricalDateAndReasons() = scan(true)
+
+    private fun scan(adaptive: Boolean) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val video = File(context.cacheDir, "synthetic-test.mp4")
@@ -43,7 +54,8 @@ class LocalAnalysisTest {
         ActivityScenario.launch(MainActivity::class.java).use {
             instrumentation.waitForIdleSync()
             val input = JSONObject().put("video_uri", Uri.fromFile(video).toString()).put("transcript_uri", Uri.fromFile(transcript).toString())
-                .put("url", "").put("interval", 2.0).put("detector_profile", "full_frame").put("title", "Generated Android OCR test")
+                .put("vod_date", "2026-10-22").put("vod_date_source", "release_date").put("adaptive_scan", adaptive)
+                .put("url", "").put("interval", if (adaptive) 5.0 else 2.0).put("detector_profile", "full_frame").put("title", "Generated Android OCR test")
             val job = AnalysisService.launch(context, input)
             val id = job.getString("id")
             val store = JobStore(context)
@@ -54,6 +66,10 @@ class LocalAnalysisTest {
                 assertEquals("Native analysis failed: $completed", "completed", completed.getString("status"))
                 val report = completed.getJSONObject("report")
                 assertFalse(report.getBoolean("is_demo"))
+                assertEquals("2026-10-22", report.getString("vod_date"))
+                assertEquals("imported", report.getString("transcript_source"))
+                assertTrue(report.has("analyzed_at"))
+                assertEquals(adaptive, report.getBoolean("adaptive_scan"))
                 val breaks = report.getJSONArray("breaks")
                 assertEquals(2, breaks.length())
                 assertEquals(6.0, breaks.getJSONObject(0).getDouble("start_seconds"), 2.0)

@@ -1,7 +1,7 @@
 name: brb_tracker
 description: Android-first VOD break analysis and review.
 publish_to: none
-version: 0.2.2+4
+version: 0.3.0+5
 environment:
   sdk: ^3.14.0
 dependencies:
@@ -18,5 +18,14 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/demo-report.json
     - assets/licenses/
+    - assets/fonts/barlow-OFL.txt
+    - assets/fonts/plex-OFL.txt
+  fonts:
+    - family: Barlow
+      fonts:
+        - asset: assets/fonts/barlow-condensed-extrabold.ttf
+          weight: 800
+    - family: Plex
+      fonts:
+        - asset: assets/fonts/plex-mono.ttf

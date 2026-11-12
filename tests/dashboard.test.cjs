@@ -131,3 +131,18 @@ test('new stylesheet parses and every local page/font asset exists', async () =>
   for (const match of css.matchAll(/url\(['"]?([^'"\)]+)['"]?\)/g)) assert.ok(fs.existsSync(path.join('docs', match[1])), match[1]);
   dom.window.close();
 });
+
+test('month filter uses original VOD date and keeps undated legacy reports separate', async () => {
+  const old = {...structuredClone(sample.reports[0]), is_demo: false, id: 'old', vod_date: '2026-10-22', analyzed_at: '2026-11-12T15:00:00Z'};
+  const recent = {...structuredClone(old), id: 'recent', vod_date: '2026-11-01'};
+  const legacy = {...structuredClone(old), id: 'legacy', vod_date: null};
+  const dom = await page({schema_version: 1, reports: [old, recent, legacy]}); const d = dom.window.document;
+  change(dom, 'month', '2026-10');
+  assert.equal(d.querySelectorAll('#vod-table tr').length, 1);
+  assert.match(d.getElementById('vod-table').textContent, /2026-10-22/);
+  assert.equal(d.getElementById('count').textContent, '6');
+  change(dom, 'month', 'unknown');
+  assert.equal(d.querySelectorAll('#vod-table tr').length, 1);
+  assert.match(d.getElementById('vod-table').textContent, /Unknown/);
+  dom.window.close();
+});

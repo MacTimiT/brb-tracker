@@ -37,6 +37,26 @@ Map<String, dynamic> remote(List<Map<String, dynamic>> reports, String sha) => {
 
 void main() {
   test(
+    'publishing preserves original stream date separately from analysis time',
+    () {
+      final historical = {
+        ...report('old'),
+        'vod_date': '2026-10-22',
+        'vod_date_source': 'release_timestamp',
+        'analyzed_at': '2026-11-12T12:00:00Z',
+      };
+      final merged = GitHubPublisher.merge([], historical).single;
+      expect(merged['vod_date'], '2026-10-22');
+      expect(merged['analyzed_at'], '2026-11-12T12:00:00Z');
+      expect(
+        () =>
+            GitHubPublisher.validate({...historical, 'vod_date': '2026-02-30'}),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test(
     'Merging keeps other VODs, replaces same VOD and removes invented samples',
     () {
       final merged = GitHubPublisher.merge([

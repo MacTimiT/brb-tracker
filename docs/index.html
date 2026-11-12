@@ -8,9 +8,9 @@
   <title>GONE4HOPE · The BRB department</title>
   <link rel="icon" href="assets/gamin4hope-profile.jpg">
   <link rel="preload" href="assets/fonts/barlow-condensed-extrabold.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="style.css?v=gone4hope-2">
-  <script src="analytics.js?v=gone4hope-2" defer></script>
-  <script src="app.js?v=gone4hope-2" defer></script>
+  <link rel="stylesheet" href="style.css?v=gone4hope-3">
+  <script src="analytics.js?v=gone4hope-3" defer></script>
+  <script src="app.js?v=gone4hope-3" defer></script>
 </head>
 <body>
   <header class="masthead wrap">
@@ -25,7 +25,7 @@
 
     <section class="controls" aria-label="Scoreboard filters">
       <div class="data-state"><span class="mode" id="data-mode">Published VODs</span><span id="scope-summary">Checking the receipts…</span></div>
-      <div class="filter-row"><label>Stream<select id="vod"><option value="all">All streams</option></select></label><label>Excuse<select id="reason"><option value="all">All excuses</option><option value="Pee">Pee</option><option value="Snack">Snack</option><option value="Drink">Drink</option><option value="Stretch">Stretch</option><option value="Technical">Technical</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select></label><div class="control-buttons"><button id="refresh" title="Refresh published reports">↻ <span>Refresh</span></button><button id="demo-toggle">Try the demo</button></div></div>
+      <div class="filter-row"><label>Stream<select id="vod"><option value="all">All streams</option></select></label><label>Month<select id="month"><option value="all">All dates</option></select></label><label>Excuse<select id="reason"><option value="all">All excuses</option><option value="Pee">Pee</option><option value="Snack">Snack</option><option value="Drink">Drink</option><option value="Stretch">Stretch</option><option value="Technical">Technical</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select></label><div class="control-buttons"><button id="refresh" title="Refresh published reports">↻ <span>Refresh</span></button><button id="demo-toggle">Try the demo</button></div></div>
       <p id="notice" role="status" hidden></p>
     </section>
 
@@ -50,7 +50,7 @@
 
       <section class="records" aria-labelledby="records-title"><div class="section-heading"><div><p class="eyebrow">PLEASE ACCEPT THIS VERY SMALL TROPHY</p><h2 id="records-title">The hall of gone.</h2></div></div><div class="record-grid"><article><span class="record-label">01 / LONGEST SIDE QUEST</span><div id="longest"></div></article><article><span class="record-label">02 / QUICKEST COMEBACK</span><div id="shortest"></div></article><article><span class="record-label">03 / LONGEST WITHOUT A BRB</span><div id="streak"></div><small>Across all excuses in these VODs</small></article></div><p id="gap-mean" class="gap-note"></p></section>
 
-      <section class="panel vod-panel"><div class="section-heading"><div><p class="eyebrow">A LEAGUE OF HIS OWN</p><h2>Streams, ranked by chair time.</h2></div><span class="section-side">Most BRB → least BRB</span></div><div class="table-scroll"><table class="vod-table"><thead><tr><th>STREAM</th><th>LENGTH</th><th>BREAKS</th><th>TIME AWAY</th><th>BRB SHARE</th><th>BREAKS / H</th></tr></thead><tbody id="vod-table"></tbody></table></div></section>
+      <section class="panel vod-panel"><div class="section-heading"><div><p class="eyebrow">A LEAGUE OF HIS OWN</p><h2>Streams, ranked by chair time.</h2></div><span class="section-side">Most BRB → least BRB</span></div><div class="table-scroll"><table class="vod-table"><thead><tr><th>STREAM</th><th>VOD DATE</th><th>LENGTH</th><th>BREAKS</th><th>TIME AWAY</th><th>BRB SHARE</th><th>BREAKS / H</th></tr></thead><tbody id="vod-table"></tbody></table></div></section>
 
       <div class="split bottom-charts"><section class="panel"><div class="section-heading"><div><p class="eyebrow">EARLY EXIT OR LATE GAME?</p><h2>When he vanishes.</h2></div></div><div id="phases" class="column-chart phase-chart" aria-label="Break starts by stream quarter"></div><p class="chart-caption">Break starts, grouped by how far into the VOD they happen</p></section><section class="panel"><div class="section-heading"><div><p class="eyebrow">RED MEANS THE CHAIR’S IN CHARGE</p><h2>The escape timeline.</h2></div></div><div id="timeline"></div></section></div>
 

@@ -66,13 +66,13 @@ This downloads a `base.en` speech model on first use and may take considerable C
 
 ## Android app: no PC or server required
 
-Version **0.2.1** parses video on Android and adds a Gamin4Hope banner profile calibrated against the supplied reference. The phone downloads a low-resolution MP4 and available English captions with a bundled yt-dlp/Python/QuickJS runtime, samples video using Android's media decoder, runs bundled English Tesseract OCR, detects/times BRB screens, and categorizes the preceding transcript locally. The Python service is now optional and is not used by the app.
+Version **0.3.0** parses video on Android and adds a Gamin4Hope banner profile calibrated against the supplied reference. The phone downloads a low-resolution MP4 and available English captions with a bundled yt-dlp/Python/QuickJS runtime, samples video using Android's media decoder, runs bundled English Tesseract OCR, detects/times BRB screens, and categorizes the preceding transcript locally. The Python service is now optional and is not used by the app.
 
 Use Android **8.0+ (API 26)** on a **64-bit ARM phone**; x86_64 is also built for emulator testing. CI creates a sideloadable development APK under **Actions → Checks and Android APK → Artifacts → brb-tracker-android-local-debug**. This is a debug build, not a Play Store release. CI development signing keys are not stable between runs: if Android rejects an update because signatures differ, uninstall the previous debug app before installing. Uninstalling deletes its local reports and saved token; publish or copy any reports you want to keep first.
 
 ### Use only your phone
 
-1. Enter the YouTube VOD URL and tap **Analyze locally**. Use Wi-Fi and a charger. The first run initializes the native downloader/OCR runtime. The app attempts to update yt-dlp before downloading, falling back to the bundled version if the update fails.
+1. Enter the YouTube VOD URL and tap **Scan VOD**. Use Wi-Fi and a charger. The first run initializes the native downloader/OCR runtime. The app attempts to update yt-dlp before downloading, falling back to the bundled version if the update fails.
 2. Alternatively, choose an MP4 already on the phone. You can attach a `.json`, `.json3`, or `.vtt` transcript using the document picker. For local videos, add the matching YouTube source URL if you want timestamp links.
 3. A foreground notification shows progress and has a Cancel action. Downloads and scanning run on the phone, even when you leave the screen, subject to Android's background limits. The app can process one VOD at a time.
 4. Open the completed report, inspect transcript evidence and correct reasons with the dropdown. Reports and corrections persist in app-private storage. The downloaded video/captions are deleted after completion, cancellation or failure; imported original files remain where you selected them.
@@ -117,7 +117,7 @@ Reason suggestions continue to use the preceding streamer transcript. Chat messa
 
 ### Processing limits
 
-Long VODs can take a long time, heat the phone and consume substantial battery/storage. Downloads use MP4 at up to 480p, require at least 1 GB free before starting and reject a single file larger than 4 GB; some downloads can still exhaust free space. The 2-second default sampling interval is adjustable to 5 or 10 seconds for speed, with lower timing precision and more missed short screens.
+Long VODs can take a long time, heat the phone and consume substantial battery/storage. Downloads prefer AVC video-only MP4 at up to 480p, with an optional 360p setting and combined-video fallback. Fragmented downloads use up to four concurrent fragments. They require at least 1 GB free and reject a single file larger than 4 GB; some downloads can still exhaust free space. Android defaults to Fast mode: sample every 5 seconds, then sample every 1 second around changed/unknown spans. Detailed mode samples every 2 seconds. Fast mode can miss a short screen entirely between coarse samples; edge refinement only helps discovered candidates. Exact matching binary banner masks reuse the previous OCR result. Reports include frame/OCR/cache counts so performance can be inspected. Real-device speed depends on the phone, encoding and network.
 
 Android can kill the app or impose foreground-service time limits (including six-hour limits on recent Android versions). The service stops on timeout, cancellation and errors. An interrupted job is marked failed when the app reopens and must be started again; scans are not resumable yet. Keep the app available and analyze shorter files if necessary. Reports are stored privately and excluded from Android backup, and the GitHub token is never included in report JSON.
 
@@ -132,6 +132,8 @@ brb-tracker serve --host 0.0.0.0 --port 8000 --data-dir data
 
 The service has authenticated job submission/status/reason-review endpoints and API docs at `/docs`. It keeps completed reports in SQLite, processes one job at a time, bounds the queue to eight active jobs, and marks interrupted jobs failed after a restart. Use one process per data directory, HTTPS for remote access, and never commit the token.
 
+Reports save `vod_date` separately from `analyzed_at`. YouTube metadata priority is live start timestamp, release timestamp, release date, upload timestamp, then upload date. Timestamp-derived calendar dates use UTC. `vod_date_source` records which value was used; an upload fallback is not claimed to be the original broadcast start. Missing metadata and local videos remain undated rather than being assigned the scan day. The dashboard displays unknown legacy dates separately. Earlier reports need a new scan to gain automatic dates.
+
 ## Dashboard and GitHub Pages
 
 ```sh
@@ -141,7 +143,7 @@ brb-tracker export --data-dir data --output docs/data/reports.json
 python -m http.server 8080 --directory docs
 ```
 
-Open `http://localhost:8080`. The GONE4HOPE dashboard shows total time away, break count, average and median duration, breaks per stream hour, count/time reason rankings, break-length distributions, stream-quarter patterns, longest/shortest breaks, uninterrupted stretches and per-VOD BRB-percentage rankings. Timelines and searchable receipts open transcript quotes and YouTube timestamps. CSV exports the filtered receipt list; JSON exports the active dataset. The default board uses published real reports; invented demo data is available only through an explicit demo control. Filter by VOD and reason. The public dashboard only reads published reports and the separate demo dataset; visitors cannot upload or edit reports. Administration and publishing happen in the Android app. Export JSON downloads the full displayed dataset, regardless of filters. Publishing deduplicates repeated analyses by YouTube video ID.
+Open `http://localhost:8080`. The GONE4HOPE dashboard shows total time away, break count, average and median duration, breaks per stream hour, count/time reason rankings, break-length distributions, stream-quarter patterns, longest/shortest breaks, uninterrupted stretches and per-VOD BRB-percentage rankings. Timelines and searchable receipts open transcript quotes and YouTube timestamps. CSV exports the filtered receipt list; JSON exports the active dataset. The default board uses published real reports; invented demo data is available only through an explicit demo control. Filter by VOD, original VOD month and reason. The public dashboard only reads published reports and the separate demo dataset; visitors cannot upload or edit reports. Administration and publishing happen in the Android app. Export JSON downloads reports in the current month/VOD scope; CSV also follows the reason and receipt-search filters. Publishing deduplicates repeated analyses by YouTube video ID.
 
 To publish on GitHub:
 
@@ -153,7 +155,7 @@ The intended URL is `https://mactimit.github.io/brb-tracker/` after successful p
 
 ## Detection and interpretation
 
-- Default: sample a frame every **2 seconds**, scale to at most 960 pixels wide, and OCR English text with bundled Tesseract on Android (FFmpeg/Tesseract in the optional Python CLI). A match requires the normalized words `be right back`; `BRB` is not enabled by default. Override with `--phrase 'brb'` for a known screen design.
+- Python default: sample a frame every **2 seconds**, scale to at most 960 pixels wide, and OCR English text with bundled Tesseract on Android (FFmpeg/Tesseract in the optional Python CLI). A match requires the normalized words `be right back`; `BRB` is not enabled by default. Override with `--phrase 'brb'` for a known screen design.
 - Two consecutive positive samples confirm a break. Two negative samples confirm its end; a single missing OCR match is tolerated. Timing uses the first positive sample and first negative sample in a confirmed run. An active screen at EOF is marked `truncated` and its observed duration ends at the video boundary.
 - Sampling alone introduces up to about one interval of uncertainty at each boundary. OCR errors, transitions and tolerated gaps can add more error. Very brief screens can be missed. A small “be right back” chat message or overlay can create a false positive; full-frame OCR needs validation against the real BRB screen before trusting totals.
 - Reasons use the last **five complete transcript cues within 60 seconds before the detected start**. A cue crossing the detected start is excluded. `--lookback`, `--interval`, `--min-hits` and `--end-misses` can be adjusted in the CLI.

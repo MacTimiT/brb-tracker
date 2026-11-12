@@ -1,4 +1,5 @@
 from enum import StrEnum
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -54,6 +55,10 @@ class Report(BaseModel):
     streamer: str = "Gamin4Hope"
     source_url: str = ""
     video_id: str | None = None
+    vod_date: date | None = None
+    vod_date_source: str = "unknown"
+    stream_started_at: datetime | None = None
+    analyzed_at: datetime | None = None
     duration_seconds: float = Field(ge=0)
     sample_interval_seconds: float = Field(gt=0)
     transcript_source: str = "none"

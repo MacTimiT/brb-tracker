@@ -18,3 +18,15 @@ def test_real_ocr_pipeline(tmp_path):
     assert first.reason == Reason.PEE
     assert last.reason == Reason.SNACK and last.truncated
     assert abs(last.end_seconds - 24) < 0.2
+
+
+def test_report_preserves_original_vod_date_separately_from_scan_timestamp():
+    from brb_tracker.models import Report
+    report = Report(id="historical", title="Historical VOD", duration_seconds=100,
+                    sample_interval_seconds=5, vod_date="2026-10-22",
+                    vod_date_source="release_timestamp", analyzed_at="2026-11-12T12:00:00Z")
+    exported = report.model_dump(mode="json")
+    assert exported["vod_date"] == "2026-10-22"
+    assert exported["analyzed_at"].startswith("2026-11-12")
+    assert Report(id="legacy", title="Legacy", duration_seconds=100,
+                  sample_interval_seconds=2).vod_date is None

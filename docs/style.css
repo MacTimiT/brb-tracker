@@ -43,7 +43,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .data-state{display:flex;align-items:center;gap:12px;margin-bottom:15px;font-size:11px;color:var(--muted)}
 .mode{padding:3px 7px;border:1px solid var(--ink);color:var(--ink);font-size:9px;letter-spacing:.5px;text-transform:uppercase;font-weight:700}
 .mode.demo{border-color:var(--red);color:var(--red)}
-.filter-row{display:flex;align-items:end;gap:20px}
+.filter-row{display:flex;flex-wrap:wrap;align-items:end;gap:20px}
 label{display:block;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.3px}
 select{display:block;width:100%;border:0;border-bottom:1px solid #a39f95;background:transparent;color:var(--ink);padding:8px 25px 8px 0;border-radius:0;font-size:13px;font-weight:600;max-width:310px;min-width:130px}
 .filter-row>label:first-child{width:32%;max-width:330px}
@@ -107,8 +107,8 @@ table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}
 th{font-size:8px;letter-spacing:.8px;font-weight:700;color:var(--muted);padding:8px 10px 13px;white-space:nowrap;border-bottom:1px solid var(--ink)}
 td{padding:16px 10px;vertical-align:top;border-bottom:1px solid #e6e0d6}
 tbody tr:last-child td{border-bottom:0}
-.vod-table{min-width:670px}
-.vod-table th:first-child{width:41%}
+.vod-table{min-width:780px}
+.vod-table th:first-child{width:33%}
 .vod-table td:not(:first-child){font:11px Plex,monospace;white-space:nowrap;padding-top:19px}
 .vod-name{border:0;background:none;padding:0;text-align:left;font:700 12px var(--font);line-height:1.45;text-decoration:underline;text-underline-offset:3px}
 .vod-name:hover{color:var(--red);background:none}

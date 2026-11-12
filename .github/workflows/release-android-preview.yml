@@ -38,16 +38,18 @@ jobs:
           path: release
       - name: Prepare phone download
         run: |
-          mv release/app-debug.apk release/brb-tracker-0.2.2-android.apk
+          mv release/app-debug.apk release/brb-tracker-0.3.0-android.apk
           cd release
-          sha256sum brb-tracker-0.2.2-android.apk > brb-tracker-0.2.2-android.apk.sha256
+          sha256sum brb-tracker-0.3.0-android.apk > brb-tracker-0.3.0-android.apk.sha256
           cat > notes.md <<'NOTES'
-          Android v0.2.2 preview: process VODs on the phone without a PC or analysis server.
+          Android v0.3.0 preview: process VODs on the phone without a PC or analysis server.
 
           Download the .apk file under Assets below, then open it on Android to install.
 
           - On-device YouTube/local-video processing, OCR, break timing, transcript-based reason suggestions and saved corrections.
-          - Accurate download/scanning stage labels and separate percentages, including Android notifications.
+          - Video-only downloads, optional 360p quality, fast 5s scanning with 1s transition refinement, and exact banner OCR caching.
+          - Original VOD date and separate analysis timestamp in reports and dashboard exports.
+          - GONE4HOPE admin interface; no sample report or promotional text.
           - Gamin4Hope red bottom-left BRB banner mode, with full-frame fallback.
           - Publish reviewed report JSON from the phone to the GitHub Pages dashboard.
 
@@ -65,10 +67,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
           SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
-          gh release create v0.2.2-preview \
-            release/brb-tracker-0.2.2-android.apk \
-            release/brb-tracker-0.2.2-android.apk.sha256 \
+          gh release create v0.3.0-preview \
+            release/brb-tracker-0.3.0-android.apk \
+            release/brb-tracker-0.3.0-android.apk.sha256 \
             --target "$SOURCE_COMMIT" \
             --prerelease \
-            --title 'Android v0.2.2 · On-device analysis preview' \
+            --title 'Android v0.3.0 · On-device analysis preview' \
             --notes-file release/notes.md

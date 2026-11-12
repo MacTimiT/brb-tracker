@@ -21,19 +21,50 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
   });
-  testWidgets('Entry screen and offline report', (tester) async {
-    await tester.pumpWidget(const BrbApp());
-    expect(find.text('BRB Tracker'), findsOneWidget);
-    expect(find.text('Your phone. The whole pipeline.'), findsOneWidget);
-    expect(find.text('Connect'), findsNothing);
-    await tester.tap(find.text('Explore sample report'));
-    await tester.pumpAndSettle();
-    expect(find.text('Break report'), findsOneWidget);
-    expect(find.textContaining('Invented for demonstration'), findsOneWidget);
-    expect(find.textContaining('6 breaks'), findsOneWidget);
-    expect(find.text('Publish to GitHub dashboard'), findsNothing);
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
+  testWidgets(
+    'admin entry has real scan controls and no demo or promotional copy',
+    (tester) async {
+      await tester.pumpWidget(const BrbApp());
+      expect(find.text('GONE4HOPE'), findsOneWidget);
+      expect(find.text('NEW SCAN.'), findsOneWidget);
+      expect(find.text('Explore sample report'), findsNothing);
+      expect(find.text('Your phone. The whole pipeline.'), findsNothing);
+      expect(find.widgetWithText(TextField, 'YouTube VOD URL'), findsOneWidget);
+      expect(
+        find.text('https://www.youtube.com/live/IW2rEIuKGSs'),
+        findsNothing,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  testWidgets(
+    'report shows historical VOD date, missing captions and preserves publishing',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReportScreen(
+            initial: {
+              'schema_version': 1,
+              'id': 'old-vod',
+              'title': 'Historical stream',
+              'is_demo': false,
+              'vod_date': '2026-10-22',
+              'analyzed_at': '2026-11-12T12:00:00Z',
+              'transcript_source': 'none',
+              'breaks': <dynamic>[],
+            },
+          ),
+        ),
+      );
+      expect(find.text('VOD date: 2026-10-22'), findsOneWidget);
+      expect(
+        find.text('No captions found · review reasons manually.'),
+        findsOneWidget,
+      );
+      expect(find.text('Publish to dashboard'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
   testWidgets(
     'active download is labeled as downloading in the job and button',
     (tester) async {
