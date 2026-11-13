@@ -128,7 +128,7 @@ class AnalysisService : Service() {
         val work = File(noBackupFilesDir, "brb-work/$id").apply { mkdirs() }
         try {
             val input = store.get(id).getJSONObject("input")
-            var cues = if (input.optString("transcript_uri").isNotBlank()) readTranscript(Uri.parse(input.getString("transcript_uri"))) else emptyList()
+            var cues = if (!input.has("probe_seconds") && input.optString("transcript_uri").isNotBlank()) readTranscript(Uri.parse(input.getString("transcript_uri"))) else emptyList()
             input.put("transcript_source", if (cues.isEmpty()) "none" else "imported")
             var captionWarning: String? = null
             val localUri = input.optString("video_uri")
@@ -155,7 +155,7 @@ class AnalysisService : Service() {
                 val dates = VodMetadata.date(metadata)
                 for (field in listOf("vod_date", "vod_date_source", "stream_started_at")) input.put(field, dates.get(field))
                 store.update(id) { it.put("title", input.getString("title")).put("vod_date", dates.get("vod_date")) }
-                if (cues.isEmpty()) {
+                if (cues.isEmpty() && !input.has("probe_seconds")) {
                     progress(id, JobPhase.CAPTIONS)
                     try {
                         val captions = request(url).apply {
@@ -186,6 +186,15 @@ class AnalysisService : Service() {
                 video = Uri.fromFile(downloaded)
             }
             checkCancelled()
+            if (input.has("probe_seconds")) {
+                progress(id, JobPhase.ANALYSIS, 0.0)
+                beginForeground("Checking requested VOD frame", null, true)
+                val diagnostic = BannerDiagnostics(this).inspectVideo(video, input.getDouble("probe_seconds"))
+                checkCancelled()
+                store.update(id) { it.put("status", "completed").put("stage", "VOD frame ready")
+                    .put("progress", 1.0).put("phase_progress", 1.0).put("phase", "completed").put("diagnostic", diagnostic) }
+                return
+            }
             speechExpected = cues.isEmpty() && input.optBoolean("speech_fallback", true)
             progress(id, JobPhase.ANALYSIS, 0.0)
             beginForeground(JobPhase.ANALYSIS.label, 0, true)

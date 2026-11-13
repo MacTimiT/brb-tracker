@@ -162,7 +162,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> start() async {
+  Future<void> start({double? probeSeconds}) async {
     setState(() {
       busy = true;
       error = null;
@@ -175,6 +175,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         'speech_fallback': speechFallback,
         'download_height': downloadHeight,
         'detector_profile': detectorProfile,
+        'probe_seconds': ?probeSeconds,
         if (video != null) 'video_uri': video!['uri'],
         'title': video?['name'] ?? 'YouTube VOD',
         if (transcript != null) 'transcript_uri': transcript!['uri'],
@@ -207,10 +208,66 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> checkVodFrame() async {
+    var timestamp = '1:43:55';
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Check a VOD frame'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Uses the selected video or YouTube URL. Downloads the video if needed, then checks only this timestamp instead of scanning the full VOD.',
+            ),
+            TextFormField(
+              initialValue: timestamp,
+              onChanged: (value) => timestamp = value,
+              decoration: const InputDecoration(
+                labelText: 'Timestamp · H:MM:SS',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, timestamp),
+            child: const Text('Check frame'),
+          ),
+        ],
+      ),
+    );
+    if (value == null || !mounted) return;
+    final parts = value.trim().split(':');
+    if (!RegExp(r'^\d{1,3}:[0-5]\d:[0-5]\d$').hasMatch(value.trim())) {
+      setState(() => error = 'Enter a timestamp such as 1:43:55.');
+      return;
+    }
+    final seconds =
+        int.parse(parts[0]) * 3600 +
+        int.parse(parts[1]) * 60 +
+        int.parse(parts[2]);
+    await start(probeSeconds: seconds.toDouble());
+  }
+
   Future<void> openJob(Map<String, dynamic> job) async {
     try {
       final details = await api.get(job['id'] as String);
       if (!mounted) return;
+      if (details['diagnostic'] != null) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => BannerCheck(
+              result: details['diagnostic'] as Map<String, dynamic>,
+            ),
+          ),
+        );
+        return;
+      }
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => ReportScreen(
@@ -354,6 +411,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: busy || running ? null : checkVodFrame,
+            icon: const Icon(Icons.video_library_outlined),
+            label: const Text('Check VOD frame at timestamp'),
+          ),
           DropdownButtonFormField<bool>(
             isExpanded: true,
             initialValue: fastScan,

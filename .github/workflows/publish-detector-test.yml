@@ -44,14 +44,14 @@ jobs:
           test -n "$checks_id"
           gh run watch "$checks_id" --exit-status --interval 15
           cat > release/notes.md <<'NOTES'
-          Install the APK and open **BRB Tracker Test**. It installs alongside the existing app and keeps separate reports, so no uninstall is needed.
+          Uninstall only the previous **BRB Tracker Test** before installing this APK if Android rejects the update. Keep the original **BRB Tracker** installed with its reports. This separate test package keeps its own data.
 
-          This build adds **Check saved BRB screenshot** on the home screen. Choose the clean BRB screenshot without player controls. It displays the red mask and raw OCR text at the original and 640-pixel widths; use Copy OCR details and share a screenshot of the mask. No full VOD rescan is needed for this check. Images stay on the phone and are not added to public reports.
+          This build adds **Check VOD frame at timestamp**. Enter the VOD URL, tap that button, and use 1:43:55. The app downloads the selected video if needed, then checks only that timestamp using the same Android decoder as the full scan. It skips full-VOD analysis, captions and speech processing. Open the completed frame job to see the decoded image, red mask and raw OCR text. Share the image and copied OCR details. These images stay on the phone and are not added to public reports.
 
-          The earlier OCR retry still missed the BRB at 1:43:55 in https://www.youtube.com/live/9YP_ljMuDQM. This is a diagnostic build to establish what the phone OCR actually reads, not a claim that the VOD miss is fixed.
+          The saved screenshot was recognized correctly on the user's phone, while the full VOD scan found nothing. This diagnostic checks the actual decoded VOD frame to investigate that difference. Detection of the VOD remains unresolved.
 
           Requires 64-bit Android 8.0+. This is a temporary debug test with a separate package. Future test builds may not install as updates. Keep the original app if you need its reports. Permanent signing remains pending repository Actions secrets.
 
           Source and GPL-3.0/dependency notices are available at this tag.
           NOTES
-          gh release create v0.4.0-detector-test.2 release/brb-tracker-detector-test.apk release/brb-tracker-detector-test.apk.sha256 --target "$GITHUB_SHA" --prerelease --title 'BRB screenshot diagnostic · no full rescan needed' --notes-file release/notes.md
+          gh release create v0.4.0-detector-test.3 release/brb-tracker-detector-test.apk release/brb-tracker-detector-test.apk.sha256 --target "$GITHUB_SHA" --prerelease --title 'BRB VOD-frame diagnostic · inspect 1:43:55' --notes-file release/notes.md

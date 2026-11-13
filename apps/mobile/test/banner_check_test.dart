@@ -25,6 +25,9 @@ void main() {
         const MaterialApp(
           home: BannerCheck(
             result: {
+              'source_kind': 'video-frame',
+              'timestamp_seconds': 8,
+              'frame': null,
               'checks': [
                 {
                   'width': 640,
@@ -42,7 +45,10 @@ void main() {
       expect(find.text('Be Riqht Back'), findsOneWidget);
       await tester.tap(find.byTooltip('Copy OCR details'));
       await tester.pump();
-      final check = (jsonDecode(copied!)['checks'] as List).single as Map;
+      final copiedResult = jsonDecode(copied!) as Map;
+      expect(copiedResult.containsKey('frame'), isFalse);
+      expect(copiedResult['timestamp_seconds'], 8);
+      final check = (copiedResult['checks'] as List).single as Map;
       expect(check.containsKey('mask'), isFalse);
       expect(check['texts'], ['Be Riqht Back']);
       await tester.pumpWidget(const SizedBox.shrink());

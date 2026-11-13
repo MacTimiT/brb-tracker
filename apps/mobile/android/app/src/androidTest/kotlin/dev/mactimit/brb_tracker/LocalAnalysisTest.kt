@@ -68,6 +68,35 @@ class LocalAnalysisTest {
     @Test fun foregroundServiceDecodesOcrClassifiesAndPersistsWithoutServer() = scan(false)
     @Test fun fastScanRefinesEdgesAndPreservesHistoricalDateAndReasons() = scan(true)
 
+    @Test fun timestampProbeDecodesRequestedFrameAndKeepsImagesOutOfJobList() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val video = File(context.cacheDir, "probe-test.mp4")
+        instrumentation.context.assets.open("synthetic.mp4").use { source -> video.outputStream().use { source.copyTo(it) } }
+        ActivityScenario.launch(MainActivity::class.java).use {
+            instrumentation.waitForIdleSync()
+            val store = JobStore(context)
+            val id = AnalysisService.launch(context, JSONObject().put("video_uri", Uri.fromFile(video).toString())
+                .put("probe_seconds", 8.0).put("title", "Generated frame probe")).getString("id")
+            try {
+                val deadline = System.currentTimeMillis() + 30_000
+                while (store.get(id).getString("status") in setOf("queued", "running") && System.currentTimeMillis() < deadline) Thread.sleep(100)
+                val job = store.get(id)
+                assertEquals(job.toString(), "completed", job.getString("status"))
+                assertFalse(job.has("report"))
+                val diagnostic = job.getJSONObject("diagnostic")
+                assertEquals(8.0, diagnostic.getDouble("timestamp_seconds"), 0.001)
+                val bytes = android.util.Base64.decode(diagnostic.getString("frame"), android.util.Base64.DEFAULT)
+                val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)!!
+                try { ScreenOcr(context).use { ocr -> assertTrue(ocr.isBrb(bitmap, "full_frame")) } }
+                finally { bitmap.recycle() }
+                val jobs = store.list()
+                val summary = (0 until jobs.length()).map { jobs.getJSONObject(it) }.first { it.getString("id") == id }
+                assertFalse(summary.has("diagnostic"))
+            } finally { store.delete(id); video.delete() }
+        }
+    }
+
     private fun scan(adaptive: Boolean) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext

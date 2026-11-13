@@ -29,7 +29,7 @@ class JobStore(context: Context) {
     fun list(): JSONArray = synchronized(lock) {
         val jobs = directory.listFiles().orEmpty().filter { it.extension == "json" }.mapNotNull { runCatching { get(it.nameWithoutExtension) }.getOrNull() }
             .sortedByDescending { it.optString("created_at") }
-        JSONArray(jobs.map { JSONObject(it.toString()).apply { remove("input"); remove("report") } })
+        JSONArray(jobs.map { JSONObject(it.toString()).apply { remove("input"); remove("report"); remove("diagnostic") } })
     }
     fun review(id: String, index: Int, reason: String): JSONObject = synchronized(lock) {
         require(reason in Detection.reasons) { "Unknown reason category" }

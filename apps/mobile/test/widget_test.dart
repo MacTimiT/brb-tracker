@@ -123,4 +123,35 @@ void main() {
     expect(timeLabel(3661), '1:01:01');
     expect(timeLabel(0), '0:00:00');
   });
+  testWidgets('VOD frame check sends the entered timestamp to Android', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    Map<dynamic, dynamic>? started;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          if (call.method == 'list') return '[]';
+          if (call.method == 'start') {
+            started = call.arguments as Map;
+            return '{"id":"probe","status":"queued"}';
+          }
+          return null;
+        });
+    await tester.pumpWidget(const BrbApp());
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField),
+      'https://www.youtube.com/watch?v=9YP_ljMuDQM',
+    );
+    await tester.tap(find.text('Check VOD frame at timestamp'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Check frame'));
+    await tester.pumpAndSettle();
+    expect(started?['probe_seconds'], 6235.0);
+    expect(started?['url'], 'https://www.youtube.com/watch?v=9YP_ljMuDQM');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }
