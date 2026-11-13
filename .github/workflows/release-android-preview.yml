@@ -68,7 +68,10 @@ jobs:
           key_file="$RUNNER_TEMP/brb-release.p12"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$key_file"
           chmod 600 "$key_file"
+          expected=$(keytool -list -v -keystore "$key_file" -storepass "$KEYSTORE_PASSWORD" -alias brb-tracker | sed -n 's/^[[:space:]]*SHA256: //p' | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          test -n "$expected"
           echo "BRB_SIGNING_KEYSTORE_FILE=$key_file" >> "$GITHUB_ENV"
+          echo "BRB_EXPECTED_CERT_SHA256=$expected" >> "$GITHUB_ENV"
       - name: Build signed preview APK
         working-directory: apps/mobile
         env:
@@ -86,6 +89,7 @@ jobs:
           "$apksigner" verify --print-certs "$apk" > release/signature.txt
           fingerprint=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' release/signature.txt)
           test -n "$fingerprint"
+          test "$fingerprint" = "$BRB_EXPECTED_CERT_SHA256"
           (cd release && sha256sum "brb-tracker-${BRB_RELEASE_VERSION}-android.apk" > "brb-tracker-${BRB_RELEASE_VERSION}-android.apk.sha256")
           cat > release/notes.md <<NOTES
           Android ${BRB_RELEASE_VERSION} signed preview. Download the APK under Assets and open it on a 64-bit Android 8.0+ phone.
