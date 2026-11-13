@@ -4,6 +4,9 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseStorePath = providers.environmentVariable("BRB_SIGNING_KEYSTORE_FILE").orNull
+val releasePassword = providers.environmentVariable("BRB_SIGNING_PASSWORD").orNull
+
 android {
     namespace = "dev.mactimit.brb_tracker"
     compileSdk = flutter.compileSdkVersion
@@ -31,11 +34,27 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseStorePath != null && releasePassword != null) {
+            create("brbStable") {
+                storeFile = file(releaseStorePath)
+                storePassword = releasePassword
+                storeType = "PKCS12"
+                keyAlias = "brb-tracker"
+                keyPassword = releasePassword
+            }
+        }
+    }
     buildTypes {
+        debug {
+            // Preview builds remain debuggable so owners can use adb run-as
+            // to move local reports across the one-time signing migration.
+            signingConfigs.findByName("brbStable")?.let { signingConfig = it }
+        }
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Without signing secrets, a release build is unsigned and cannot
+            // silently fall back to the per-run Android debug certificate.
+            signingConfig = signingConfigs.findByName("brbStable")
         }
     }
     packaging {
