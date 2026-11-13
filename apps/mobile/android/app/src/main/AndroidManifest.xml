@@ -10,7 +10,7 @@
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:extractNativeLibs="true"
-        android:label="BRB Tracker"
+        android:label="${appLabel}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <service android:name=".AnalysisService" android:exported="false"

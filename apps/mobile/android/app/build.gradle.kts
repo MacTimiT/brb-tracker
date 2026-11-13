@@ -6,6 +6,7 @@ plugins {
 
 val releaseStorePath = providers.environmentVariable("BRB_SIGNING_KEYSTORE_FILE").orNull
 val releasePassword = providers.environmentVariable("BRB_SIGNING_PASSWORD").orNull
+val isolatedPreview = providers.gradleProperty("brbIsolatedPreview").orNull == "true"
 
 android {
     namespace = "dev.mactimit.brb_tracker"
@@ -19,7 +20,8 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "dev.mactimit.brb_tracker"
+        applicationId = if (isolatedPreview) "dev.mactimit.brb_tracker.test" else "dev.mactimit.brb_tracker"
+        manifestPlaceholders["appLabel"] = if (isolatedPreview) "BRB Tracker Test" else "BRB Tracker"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 26
@@ -47,6 +49,7 @@ android {
     }
     buildTypes {
         debug {
+            if (isolatedPreview) versionNameSuffix = "-detector-test"
             // Preview builds remain debuggable so owners can use adb run-as
             // to move local reports across the one-time signing migration.
             signingConfigs.findByName("brbStable")?.let { signingConfig = it }

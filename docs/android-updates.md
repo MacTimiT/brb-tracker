@@ -1,5 +1,7 @@
 # Android preview updates and signing
 
+An isolated detector test APK uses package `dev.mactimit.brb_tracker.test` and launcher name **BRB Tracker Test**. It installs alongside the existing app and keeps its own reports. This lets a phone test detection changes while persistent signing is being configured. It does not migrate existing reports or promise updates between test builds. Build it with `ORG_GRADLE_PROJECT_brbIsolatedPreview=true flutter build apk --debug`.
+
 Android installs an update only when its package ID and signing certificate match the installed app and its version code increases. The v0.2.1, v0.2.2, v0.3.0 and v0.4.0 preview APKs share `dev.mactimit.brb_tracker` and have increasing version codes, but each CI run generated a different debug signing key. Their certificates cannot be made compatible without the missing older private keys. Android will require one uninstall to move from any of those previews to the first stable-signed build.
 
 Uninstalling removes local reports and the saved GitHub token. If you have reports you need, publish reviewed reports from the old app first, or back up `no_backup/brb-jobs` with `adb run-as` while the old debug app is installed. Restore those JSON files after installing and opening the first stable-signed debug preview. The token must be entered again. Keep any backup private because report evidence can contain transcript excerpts.
