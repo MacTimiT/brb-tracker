@@ -47,6 +47,7 @@ class AnalysisService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private lateinit var store: JobStore
     private val jobProgress = JobProgress()
+    @Volatile private var speechExpected = false
 
     override fun onCreate() {
         super.onCreate()
@@ -58,7 +59,10 @@ class AnalysisService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "cancel") {
             cancelled = true
-            activeId?.let { YoutubeDL.destroyProcessById(it) }
+            activeId?.let {
+                YoutubeDL.destroyProcessById(it)
+                store.update(it) { job -> job.put("stage", "Cancelling").put("phase_progress", JSONObject.NULL) }
+            }
             return START_NOT_STICKY
         }
         val id = intent?.getStringExtra("id") ?: run { stopSelf(); return START_NOT_STICKY }
@@ -68,7 +72,11 @@ class AnalysisService : Service() {
         worker.execute { runJob(id) }
         return START_NOT_STICKY
     }
-    private fun serviceType(processing: Boolean): Int = if (Build.VERSION.SDK_INT >= 35 && processing) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING else ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+    private fun serviceType(processing: Boolean): Int = when {
+        Build.VERSION.SDK_INT < 29 -> 0
+        Build.VERSION.SDK_INT >= 35 && processing -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
+        else -> ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+    }
     private fun beginForeground(stage: String, percent: Int?, processing: Boolean) {
         if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIFICATION, notification(stage, percent), serviceType(processing))
         else startForeground(NOTIFICATION, notification(stage, percent))
@@ -81,11 +89,15 @@ class AnalysisService : Service() {
             .addAction(Notification.Action.Builder(null, "Cancel", cancel).build()).build()
     }
     @Synchronized private fun progress(id: String, phase: JobPhase, value: Double? = null) {
+        if (cancelled) return
         if (!jobProgress.update(phase, value)) return
         val fraction = jobProgress.fraction
         val overall = when (phase) {
             JobPhase.DOWNLOAD -> (fraction ?: 0.0) * 0.3
-            JobPhase.ANALYSIS -> 0.3 + (fraction ?: 0.0) * 0.7
+            JobPhase.ANALYSIS -> 0.3 + (fraction ?: 0.0) * (if (speechExpected) 0.5 else 0.7)
+            JobPhase.AUDIO -> 0.8 + (fraction ?: 0.0) * 0.1
+            JobPhase.MODEL -> 0.9 + (fraction ?: 0.0) * 0.05
+            JobPhase.SPEECH -> 0.95 + (fraction ?: 0.0) * 0.05
             else -> 0.0
         }
         store.update(id) {
@@ -174,18 +186,64 @@ class AnalysisService : Service() {
                 video = Uri.fromFile(downloaded)
             }
             checkCancelled()
+            speechExpected = cues.isEmpty() && input.optBoolean("speech_fallback", true)
             progress(id, JobPhase.ANALYSIS, 0.0)
             beginForeground(JobPhase.ANALYSIS.label, 0, true)
             val report = LocalAnalyzer(this).analyze(video, input, id, cues, { cancelled }) {
                 progress(id, JobPhase.ANALYSIS, it)
             }
             checkCancelled()
-            captionWarning?.let { report.getJSONArray("warnings").put(it) }
+            val breaks = report.getJSONArray("breaks")
+            if (cues.isEmpty() && breaks.length() > 0 && input.optBoolean("speech_fallback", true)) {
+                beginForeground("Preparing speech fallback", null, true)
+                try {
+                    var audio = video
+                    if (localUri.isBlank()) {
+                        check(work.usableSpace > 512L * 1024 * 1024) { "Free at least 512 MB for the VOD audio" }
+                        progress(id, JobPhase.AUDIO)
+                        val audioRequest = request(input.getString("url")).apply {
+                            addOption("-f", "bestaudio[abr<=64][ext=m4a]/bestaudio[abr<=64]/bestaudio[ext=m4a]/bestaudio")
+                            addOption("--max-filesize", "512M")
+                            addOption("--concurrent-fragments", 4)
+                            addOption("-o", File(work, "speech.%(ext)s").absolutePath)
+                        }
+                        YoutubeDL.execute(audioRequest, id) { percent, _, _ ->
+                            if (cancelled) YoutubeDL.destroyProcessById(id)
+                            progress(id, JobPhase.AUDIO, percent / 100.0)
+                        }
+                        audio = Uri.fromFile(work.listFiles().orEmpty().firstOrNull { it.name.startsWith("speech.") && it.isFile }
+                            ?: error("The VOD audio was not downloaded"))
+                    }
+                    val starts = (0 until breaks.length()).map { breaks.getJSONObject(it).getDouble("start_seconds") }
+                    progress(id, JobPhase.MODEL, 0.0)
+                    val spoken = SpeechTranscriber(this).transcribe(audio, starts, { cancelled },
+                        { progress(id, JobPhase.MODEL, it) }, { progress(id, JobPhase.SPEECH, it) })
+                    checkCancelled()
+                    if (spoken.isNotEmpty()) {
+                        for (index in 0 until breaks.length()) {
+                            val item = breaks.getJSONObject(index)
+                            val (reason, evidence) = Detection.reason(spoken, item.getDouble("start_seconds"))
+                            item.put("reason", reason).put("suggested_reason", reason).put("evidence", evidence)
+                                .put("confidence", if (reason == "Unknown") "unknown" else "keyword")
+                        }
+                        report.put("transcript_source", "on-device-speech")
+                        val warnings = report.getJSONArray("warnings")
+                        report.put("warnings", org.json.JSONArray((0 until warnings.length()).map { warnings.getString(it) }
+                            .filterNot { it.startsWith("No usable transcript.") }))
+                        report.getJSONArray("warnings").put("On-device speech recognition can mishear words. Review reason evidence before publishing.")
+                    }
+                } catch (e: Exception) {
+                    checkCancelled()
+                    report.getJSONArray("warnings").put("On-device speech transcription failed: ${e.message ?: "audio or model unavailable"}. Review Unknown reasons manually.")
+                }
+            }
+            if (report.getString("transcript_source") == "none") captionWarning?.let { report.getJSONArray("warnings").put(it) }
             store.update(id) { it.put("status", "completed").put("stage", "Saved on this phone").put("phase", "completed").put("phase_progress", 1.0).put("progress", 1.0).put("title", report.getString("title")).put("report", report) }
         } catch (e: Exception) {
             val wasCancelled = cancelled || e is CancellationException || e is YoutubeDL.CanceledException
             store.update(id) {
                 it.put("status", if (wasCancelled && !timedOut) "cancelled" else "failed").put("stage", if (wasCancelled && !timedOut) "Cancelled" else "Failed")
+                    .put("phase", if (wasCancelled && !timedOut) "cancelled" else "failed").put("phase_progress", JSONObject.NULL)
                     .put("error", if (timedOut) "Android's background processing time limit was reached. Keep the app open or analyze a shorter VOD." else if (wasCancelled) "Analysis cancelled. No results were published." else (e.message ?: "Local analysis failed").takeLast(1200))
             }
         } finally {
@@ -202,7 +260,8 @@ class AnalysisService : Service() {
         cancelled = true
         activeId?.let { id ->
             YoutubeDL.destroyProcessById(id)
-            store.update(id) { it.put("status", "failed").put("error", "Android's background processing time limit was reached. Keep the app open or analyze a shorter VOD.") }
+            store.update(id) { it.put("status", "failed").put("stage", "Failed").put("phase", "failed")
+                .put("phase_progress", JSONObject.NULL).put("error", "Android's background processing time limit was reached. Keep the app open or analyze a shorter VOD.") }
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()

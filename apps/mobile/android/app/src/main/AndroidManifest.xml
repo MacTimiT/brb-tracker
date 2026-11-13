@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <application
         android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:extractNativeLibs="true"
         android:label="BRB Tracker"
         android:name="${applicationName}"

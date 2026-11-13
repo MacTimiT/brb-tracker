@@ -45,7 +45,8 @@ class JobStore(context: Context) {
         for (i in 0 until jobs.length()) {
             val job = jobs.getJSONObject(i)
             if (job.optString("status") in setOf("queued", "running")) update(job.getString("id")) {
-                it.put("status", "failed").put("error", "Android stopped the analysis. Submit the VOD again.")
+                it.put("status", "failed").put("stage", "Failed").put("phase", "failed").put("phase_progress", JSONObject.NULL)
+                    .put("error", "Android stopped the analysis. Submit the VOD again.")
             }
         }
     }

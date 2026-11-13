@@ -25,4 +25,19 @@ class JobProgressTest {
         assertTrue(progress.update(JobPhase.ANALYSIS, 0.0))
         assertEquals(0.0, progress.fraction!!, 0.001)
     }
+
+    @Test fun speechStagesHaveIndependentProgressAndIgnoreStaleCallbacks() {
+        val progress = JobProgress()
+        assertTrue(progress.update(JobPhase.ANALYSIS, 0.99))
+        assertTrue(progress.update(JobPhase.AUDIO, null))
+        assertNull(progress.fraction)
+        assertTrue(progress.update(JobPhase.AUDIO, 0.5))
+        assertTrue(progress.update(JobPhase.MODEL, 0.0))
+        assertFalse(progress.update(JobPhase.AUDIO, 1.0))
+        assertTrue(progress.update(JobPhase.MODEL, 0.99))
+        assertTrue(progress.update(JobPhase.SPEECH, 0.0))
+        assertTrue(progress.update(JobPhase.SPEECH, 0.5))
+        assertFalse(progress.update(JobPhase.SPEECH, 0.4))
+        assertEquals(0.5, progress.fraction!!, 0.001)
+    }
 }

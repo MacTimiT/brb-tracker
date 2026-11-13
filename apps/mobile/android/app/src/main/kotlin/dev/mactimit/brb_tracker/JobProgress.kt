@@ -5,7 +5,10 @@ enum class JobPhase(val label: String) {
     METADATA("Reading YouTube VOD details"),
     CAPTIONS("Downloading available English captions"),
     DOWNLOAD("Downloading video to this phone"),
-    ANALYSIS("Scanning BRB screens locally")
+    ANALYSIS("Scanning BRB screens locally"),
+    AUDIO("Downloading VOD audio to this phone"),
+    MODEL("Preparing English speech model on this phone"),
+    SPEECH("Transcribing speech near breaks locally")
 }
 
 /** Reject late callbacks from an earlier phase and backwards percentage updates. */

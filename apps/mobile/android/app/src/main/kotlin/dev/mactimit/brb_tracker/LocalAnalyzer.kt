@@ -50,21 +50,30 @@ class LocalAnalyzer(private val context: Context) {
                     } finally { bitmap.recycle() }
                 }
             }
+            var previousCoarse: Pair<Double, Boolean?>? = null
+            fun scanAt(time: Double) {
+                val present = sample(time)
+                if (adaptive) {
+                    previousCoarse?.let { (lastTime, lastPresent) ->
+                        // Refine while the decoder is still near this span. A
+                        // second pass from the end would seek across the VOD.
+                        ScanPlan.refine(mapOf(lastTime to lastPresent, time to present))
+                            .forEach { samples[it] = sample(it) }
+                    }
+                }
+                samples[time] = present
+                previousCoarse = time to present
+                progress(time / duration * 0.99)
+            }
             var timestamp = 0.0
             while (timestamp < duration) {
-                samples[timestamp] = sample(timestamp)
-                progress(timestamp / duration * if (adaptive) 0.85 else 0.99)
+                scanAt(timestamp)
                 timestamp += interval
             }
             if (adaptive) {
                 // Include the tail so an exit in the final coarse interval can be refined.
                 val tail = maxOf(0.0, duration - 0.001)
-                if (!samples.containsKey(tail)) samples[tail] = sample(tail)
-                val refine = ScanPlan.refine(samples)
-                refine.forEachIndexed { index, time ->
-                    samples[time] = sample(time)
-                    progress(0.85 + 0.14 * (index + 1) / maxOf(1, refine.size))
-                }
+                if (tail > (previousCoarse?.first ?: -1.0) && !samples.containsKey(tail)) scanAt(tail)
             }
             val detector = BreakDetector()
             samples.forEach { (time, present) -> if (present != null) detector.sample(time, present) }
@@ -78,7 +87,7 @@ class LocalAnalyzer(private val context: Context) {
             }
             val warnings = mutableListOf("Sampled every ${interval}s${if (adaptive) " with 1s transition refinement" else ""}. Short screens between samples can be missed.")
             if (profile == "gamin4hope") warnings.add("Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.")
-            if (cues.isEmpty()) warnings.add("No usable transcript. Reasons are Unknown until manually reviewed; local speech transcription is not included.")
+            if (cues.isEmpty()) warnings.add("No usable transcript. Reasons are Unknown until manually reviewed.")
             if (failedFrames > 0) warnings.add("Android could not decode $failedFrames sampled frames; inspect break boundaries.")
             val sourceUrl = input.optString("url")
             val videoId = runCatching { Detection.videoId(sourceUrl) }.getOrNull()

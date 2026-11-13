@@ -17,6 +17,10 @@ void main() {
       expect(jobFraction({...download, 'phase_progress': null}), isNull);
       expect(jobFraction({'status': 'queued', 'progress': 0}), isNull);
       expect(jobFraction({'status': 'completed', 'progress': 1}), 1);
+      expect(jobStage({...download, 'status': 'failed'}), 'Failed');
+      expect(jobFraction({...download, 'status': 'failed'}), isNull);
+      expect(jobStage({...download, 'status': 'cancelled'}), 'Cancelled');
+      expect(jobFraction({...download, 'status': 'cancelled'}), isNull);
     },
   );
 }

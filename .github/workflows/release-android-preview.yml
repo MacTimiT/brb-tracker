@@ -38,16 +38,18 @@ jobs:
           path: release
       - name: Prepare phone download
         run: |
-          mv release/app-debug.apk release/brb-tracker-0.3.0-android.apk
+          mv release/app-debug.apk release/brb-tracker-0.4.0-android.apk
           cd release
-          sha256sum brb-tracker-0.3.0-android.apk > brb-tracker-0.3.0-android.apk.sha256
+          sha256sum brb-tracker-0.4.0-android.apk > brb-tracker-0.4.0-android.apk.sha256
           cat > notes.md <<'NOTES'
-          Android v0.3.0 preview: process VODs on the phone without a PC or analysis server.
+          Android v0.4.0 preview: faster local scans and English speech fallback when captions are missing.
 
           Download the .apk file under Assets below, then open it on Android to install.
 
           - On-device YouTube/local-video processing, OCR, break timing, transcript-based reason suggestions and saved corrections.
-          - Video-only downloads, optional 360p quality, fast 5s scanning with 1s transition refinement, and exact banner OCR caching.
+          - Video-only downloads, optional 360p quality, fast 5s scanning with 1s transition refinement, and exact banner OCR caching. Refinement now happens while the decoder is near each transition.
+          - When captions are unavailable, the phone can transcribe audio before detected breaks using an English Vosk model downloaded on first use. The speech fallback can be switched off.
+          - Separate progress for VOD audio, model setup and transcription; clearer cancellation and failure states.
           - Original VOD date and separate analysis timestamp in reports and dashboard exports.
           - GONE4HOPE admin interface; no sample report or promotional text.
           - Gamin4Hope red bottom-left BRB banner mode, with full-frame fallback.
@@ -55,7 +57,7 @@ jobs:
 
           Requires a 64-bit Android phone running Android 8.0 or newer. This is a debug preview, not a Play Store release. If Android refuses an update because signing keys differ, uninstall the earlier debug APK first after preserving any local reports you need.
 
-          Static checks, Python/Flutter/native unit tests, and Android emulator tests passed for the source build. Actual YouTube access and full-VOD accuracy still need validation on the user's phone. Missing captions leave reasons Unknown until manually corrected; speech-to-text is not bundled.
+          Static checks, Python/Flutter/native unit tests, and Android emulator tests passed for the source build. Actual YouTube access, speech accuracy and full-VOD accuracy still need validation on a physical phone. Speech runs on the phone, but first use downloads a 41 MB English model. If speech or audio is unavailable, reasons remain Unknown until manually corrected.
 
           GitHub publishing uses a repository-scoped personal access token with Contents read/write, entered in the app's cloud/upload settings. Never enter the token in a chat.
 
@@ -67,10 +69,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
           SOURCE_COMMIT: ${{ steps.source.outputs.commit }}
         run: |
-          gh release create v0.3.0-preview \
-            release/brb-tracker-0.3.0-android.apk \
-            release/brb-tracker-0.3.0-android.apk.sha256 \
+          gh release create v0.4.0-preview \
+            release/brb-tracker-0.4.0-android.apk \
+            release/brb-tracker-0.4.0-android.apk.sha256 \
             --target "$SOURCE_COMMIT" \
             --prerelease \
-            --title 'Android v0.3.0 · On-device analysis preview' \
+            --title 'Android v0.4.0 · Local speech preview' \
             --notes-file release/notes.md

@@ -1,6 +1,6 @@
 # BRB Tracker
 
-**[Download Android v0.2.1 preview](https://github.com/MacTimiT/brb-tracker/releases/download/v0.2.1-preview/brb-tracker-0.2.1-android.apk)** · [Release notes](https://github.com/MacTimiT/brb-tracker/releases/tag/v0.2.1-preview)
+**[Download Android v0.4.0 preview](https://github.com/MacTimiT/brb-tracker/releases/download/v0.4.0-preview/brb-tracker-0.4.0-android.apk)** · [Release notes](https://github.com/MacTimiT/brb-tracker/releases/tag/v0.4.0-preview)
 
 An Android-first tool for locally finding **“Be Right Back”** screens in Gamin4Hope’s YouTube VODs, estimating their duration, and suggesting a reason from the preceding transcript. Includes a Flutter Android app, a Python analysis service/CLI, and a static dashboard ready for GitHub Pages.
 
@@ -66,7 +66,7 @@ This downloads a `base.en` speech model on first use and may take considerable C
 
 ## Android app: no PC or server required
 
-Version **0.3.0** parses video on Android and adds a Gamin4Hope banner profile calibrated against the supplied reference. The phone downloads a low-resolution MP4 and available English captions with a bundled yt-dlp/Python/QuickJS runtime, samples video using Android's media decoder, runs bundled English Tesseract OCR, detects/times BRB screens, and categorizes the preceding transcript locally. The Python service is now optional and is not used by the app.
+The Android app parses video on the phone with a Gamin4Hope banner profile calibrated against the supplied reference. It downloads a low-resolution MP4 and available English captions with a bundled yt-dlp/Python/QuickJS runtime, samples video using Android's media decoder, runs bundled English Tesseract OCR, detects/times BRB screens, and categorizes the preceding transcript locally. When captions are missing, optional on-device speech recognition can supply transcript evidence. The Python service is optional and is not used by the app.
 
 Use Android **8.0+ (API 26)** on a **64-bit ARM phone**; x86_64 is also built for emulator testing. CI creates a sideloadable development APK under **Actions → Checks and Android APK → Artifacts → brb-tracker-android-local-debug**. This is a debug build, not a Play Store release. CI development signing keys are not stable between runs: if Android rejects an update because signatures differ, uninstall the previous debug app before installing. Uninstalling deletes its local reports and saved token; publish or copy any reports you want to keep first.
 
@@ -74,11 +74,11 @@ Use Android **8.0+ (API 26)** on a **64-bit ARM phone**; x86_64 is also built fo
 
 1. Enter the YouTube VOD URL and tap **Scan VOD**. Use Wi-Fi and a charger. The first run initializes the native downloader/OCR runtime. The app attempts to update yt-dlp before downloading, falling back to the bundled version if the update fails.
 2. Alternatively, choose an MP4 already on the phone. You can attach a `.json`, `.json3`, or `.vtt` transcript using the document picker. For local videos, add the matching YouTube source URL if you want timestamp links.
-3. A foreground notification shows progress and has a Cancel action. Downloads and scanning run on the phone, even when you leave the screen, subject to Android's background limits. The app can process one VOD at a time.
-4. Open the completed report, inspect transcript evidence and correct reasons with the dropdown. Reports and corrections persist in app-private storage. The downloaded video/captions are deleted after completion, cancellation or failure; imported original files remain where you selected them.
+3. The speech fallback switch is on by default; turn it off to skip audio and model downloads. A foreground notification shows progress and has a Cancel action. Downloads and scanning run on the phone, even when you leave the screen, subject to Android's background limits. The app can process one VOD at a time.
+4. Open the completed report, inspect transcript evidence and correct reasons with the dropdown. Reports and corrections persist in app-private storage. Downloaded video, audio and captions are deleted after completion, cancellation or failure; imported original files remain where you selected them.
 5. Configure GitHub publishing once, then tap **Publish to GitHub dashboard** in the completed report. That uploads only JSON, never the VOD, screenshots or credentials. Review the public transcript excerpts before publishing.
 
-No speech-to-text model is bundled on Android yet. If captions are unavailable and you do not import a transcript, screen timing still works and reasons stay **Unknown** until corrected manually. YouTube may block downloads or require authentication; the app does not bypass restricted videos. Local-file analysis remains available.
+If captions are unavailable and you do not import a transcript, Android can transcribe the minute before each detected break on the phone. First use downloads a 41 MB English Vosk model into app-private storage; later local-file analyses can run offline. YouTube VODs need a separate audio download. Speech suggestions can be inaccurate, so review the evidence before publishing. If audio or the model is unavailable, screen timing still works and reasons stay **Unknown** until corrected manually. YouTube may block downloads or require authentication; the app does not bypass restricted videos. Local-file analysis remains available.
 
 ### Connect GitHub from the phone
 
@@ -180,7 +180,7 @@ The Python tests cover OCR phrase normalization, debounce/dropouts, separate bre
 
 - Calibrate against the actual Gamin4Hope BRB screen; add a configurable crop/template and inspect real false positives/negatives.
 - Add boundary editing, cached media and incremental/resumable scans. Cancellation is supported on Android.
-- Add local speech transcription for VODs without captions and a BRB screen crop/template picker.
+- Add a BRB screen crop/template picker and validate speech suggestions on real VODs.
 - Test the entire YouTube-to-GitHub flow on a physical Android phone and add file-based report sharing.
 - Add signed release builds and a Play Store distribution flow.
 - Add Windows/Linux/macOS Flutter targets and a corresponding local-processing bridge after Android validation.

@@ -86,6 +86,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Map<String, String>? video;
   Map<String, String>? transcript;
   bool fastScan = true;
+  bool speechFallback = true;
   int downloadHeight = 480;
   String detectorProfile = 'gamin4hope';
   List<dynamic> jobs = [];
@@ -170,6 +171,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         'url': url.text.trim(),
         'interval': fastScan ? 5.0 : 2.0,
         'adaptive_scan': fastScan,
+        'speech_fallback': speechFallback,
         'download_height': downloadHeight,
         'detector_profile': detectorProfile,
         if (video != null) 'video_uri': video!['uri'],
@@ -266,7 +268,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 showLicensePage(
                   context: context,
                   applicationName: 'BRB Tracker',
-                  applicationVersion: '0.3.0',
+                  applicationVersion: '0.4.0',
                 );
               }
             },
@@ -364,6 +366,18 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 : (value) => setState(() => downloadHeight = value!),
           ),
           const SizedBox(height: 12),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Transcribe speech when captions are missing'),
+            subtitle: const Text(
+              'Runs on this phone near detected breaks. First use downloads a 41 MB English model; YouTube VODs also need audio.',
+            ),
+            value: speechFallback,
+            onChanged: busy || running
+                ? null
+                : (value) => setState(() => speechFallback = value),
+          ),
+          const SizedBox(height: 12),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
             title: const Text('Files & detection settings'),
@@ -430,6 +444,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       ),
                     )
                   : 'Scan VOD',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           if (busy) const LinearProgressIndicator(),
@@ -487,7 +503,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             onTap: job['status'] == 'completed' ? () => openJob(job) : null,
             trailing: active
                 ? IconButton(
-                    onPressed: () => cancel(job['id'] as String),
+                    onPressed: jobStage(job) == 'Cancelling'
+                        ? null
+                        : () => cancel(job['id'] as String),
                     icon: const Icon(Icons.stop_circle_outlined),
                     tooltip: 'Cancel local analysis',
                   )
