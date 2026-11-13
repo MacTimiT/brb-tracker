@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  actions: read
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -39,15 +40,18 @@ jobs:
           "$tools/apksigner" verify release/brb-tracker-detector-test.apk
           "$tools/zipalign" -c -P 16 4 release/brb-tracker-detector-test.apk
           (cd release && sha256sum brb-tracker-detector-test.apk > brb-tracker-detector-test.apk.sha256)
+          checks_id=$(gh run list --workflow checks.yml --commit "$GITHUB_SHA" --limit 1 --json databaseId --jq '.[0].databaseId')
+          test -n "$checks_id"
+          gh run watch "$checks_id" --exit-status --interval 15
           cat > release/notes.md <<'NOTES'
           Install the APK and open **BRB Tracker Test**. It installs alongside the existing app and keeps separate reports, so no uninstall is needed.
 
-          This test retries the lowest part of the red banner crop as one text line. It still requires the full Be Right Back phrase and excludes right-side chat. The detector passed CI emulator tests, including resized-banner positives and chat-only negatives, in run 43466660536.
+          This build adds **Check saved BRB screenshot** on the home screen. Choose the clean BRB screenshot without player controls. It displays the red mask and raw OCR text at the original and 640-pixel widths; use Copy OCR details and share a screenshot of the mask. No full VOD rescan is needed for this check. Images stay on the phone and are not added to public reports.
 
-          Please rescan https://www.youtube.com/live/9YP_ljMuDQM using the Gamin4Hope profile and check the BRB at 1:43:55. Detection of that real VOD remains unconfirmed because this cloud environment cannot download its frames.
+          The earlier OCR retry still missed the BRB at 1:43:55 in https://www.youtube.com/live/9YP_ljMuDQM. This is a diagnostic build to establish what the phone OCR actually reads, not a claim that the VOD miss is fixed.
 
           Requires 64-bit Android 8.0+. This is a temporary debug test with a separate package. Future test builds may not install as updates. Keep the original app if you need its reports. Permanent signing remains pending repository Actions secrets.
 
           Source and GPL-3.0/dependency notices are available at this tag.
           NOTES
-          gh release create v0.4.0-detector-test.1 release/brb-tracker-detector-test.apk release/brb-tracker-detector-test.apk.sha256 --target "$GITHUB_SHA" --prerelease --title 'BRB detector test · installs alongside existing app' --notes-file release/notes.md
+          gh release create v0.4.0-detector-test.2 release/brb-tracker-detector-test.apk release/brb-tracker-detector-test.apk.sha256 --target "$GITHUB_SHA" --prerelease --title 'BRB screenshot diagnostic · no full rescan needed' --notes-file release/notes.md

@@ -34,4 +34,7 @@ class LocalApi {
       channel.invokeMethod<void>('cancel', {'id': id});
   Future<void> delete(String id) =>
       channel.invokeMethod<void>('delete', {'id': id});
+  Future<Map<String, dynamic>> diagnoseBanner(String uri) async => jsonDecode(
+    (await channel.invokeMethod<String>('diagnose_banner', {'uri': uri}))!,
+  ) as Map<String, dynamic>;
 }

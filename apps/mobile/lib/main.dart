@@ -1,4 +1,5 @@
 import 'job_progress.dart';
+import 'banner_check.dart';
 
 import 'dart:async';
 
@@ -186,6 +187,26 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> checkScreenshot() async {
+    setState(() {
+      busy = true;
+      error = null;
+    });
+    try {
+      final image = await api.pick('image');
+      if (image == null) return;
+      final result = await api.diagnoseBanner(image['uri']!);
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => BannerCheck(result: result)),
+      );
+    } catch (e) {
+      if (mounted) setState(() => error = '$e');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   Future<void> openJob(Map<String, dynamic> job) async {
     try {
       final details = await api.get(job['id'] as String);
@@ -317,6 +338,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: busy || running ? null : checkScreenshot,
+            icon: const Icon(Icons.image_search),
+            label: const Text('Check saved BRB screenshot'),
+          ),
           TextField(
             controller: url,
             enabled: !busy && !running,

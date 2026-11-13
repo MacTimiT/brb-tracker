@@ -24,6 +24,15 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "list" -> result.success(store.list().toString())
                     "get" -> result.success(store.get(call.argument<String>("id")!!).toString())
+                    "diagnose_banner" -> {
+                        val uri = android.net.Uri.parse(call.argument<String>("uri")!!)
+                        Thread {
+                            try {
+                                val diagnostic = BannerDiagnostics(this).inspect(uri).toString()
+                                runOnUiThread { result.success(diagnostic) }
+                            } catch (e: Exception) { runOnUiThread { result.error("BANNER_CHECK", e.message, null) } }
+                        }.start()
+                    }
                     "start" -> {
                         val input = JSONObject(call.arguments as Map<*, *>)
                         if (input.optString("video_uri").isEmpty()) Detection.videoId(input.getString("url"))
@@ -37,9 +46,10 @@ class MainActivity : FlutterActivity() {
                         check(picker == null) { "A file picker is already open" }
                         picker = result
                         val video = call.argument<String>("kind") == "video"
-                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType(if (video) "video/*" else "*/*")
+                        val image = call.argument<String>("kind") == "image"
+                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType(if (video) "video/*" else if (image) "image/*" else "*/*")
                             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-                        if (!video) intent.putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/json", "text/vtt", "text/plain", "application/octet-stream"))
+                        if (!video && !image) intent.putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/json", "text/vtt", "text/plain", "application/octet-stream"))
                         startActivityForResult(intent, 71)
                     }
                     else -> result.notImplemented()

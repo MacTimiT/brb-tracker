@@ -11,10 +11,14 @@ import android.util.AtomicFile
 import com.googlecode.tesseract.android.TessBaseAPI
 import java.io.Closeable
 import java.io.File
+import java.io.ByteArrayOutputStream
+import org.json.JSONArray
+import org.json.JSONObject
 
 class ScreenOcr(context: Context) : Closeable {
     private val tess = TessBaseAPI()
     private val cache = BannerCache()
+    private val reads = mutableListOf<String>()
     var calls = 0
         private set
     val cacheHits: Int get() = cache.hits
@@ -35,7 +39,8 @@ class ScreenOcr(context: Context) : Closeable {
             tess.pageSegMode = TessBaseAPI.PageSegMode.PSM_SPARSE_TEXT
         } catch (e: Exception) { tess.recycle(); throw e }
     }
-    fun isBrb(frame: Bitmap, profile: String): Boolean {
+    fun isBrb(frame: Bitmap, profile: String, useCache: Boolean = true): Boolean {
+        reads.clear()
         require(profile in BannerProfile.names) { "Unknown detector profile" }
         val prepared = if (profile == "gamin4hope") redBanner(frame) else grayscale(frame)
         if (prepared == null) return false
@@ -44,15 +49,31 @@ class ScreenOcr(context: Context) : Closeable {
                 calls++
                 tess.pageSegMode = TessBaseAPI.PageSegMode.PSM_SPARSE_TEXT
                 tess.setImage(prepared)
-                val sparseMatch = Detection.isBrb(tess.utF8Text.orEmpty())
+                val text = tess.utF8Text.orEmpty()
+                reads.add(text.take(600))
+                val sparseMatch = Detection.isBrb(text)
                 if (sparseMatch || profile != "gamin4hope") sparseMatch else bottomLine(prepared)
             }
-            if (profile == "gamin4hope") {
+            if (profile == "gamin4hope" && useCache) {
                 val pixels = IntArray(prepared.width * prepared.height)
                 prepared.getPixels(pixels, 0, prepared.width, 0, 0, prepared.width, prepared.height)
                 cache.recognize(pixels, prepared.width, read)
             } else read()
         } finally { tess.clear(); prepared.recycle() }
+    }
+    fun diagnose(frame: Bitmap): JSONObject {
+        val matched = isBrb(frame, "gamin4hope", false)
+        val result = JSONObject().put("width", frame.width).put("height", frame.height)
+            .put("matched", matched).put("texts", JSONArray(reads.toList()))
+        val mask = redBanner(frame)
+        if (mask != null) {
+            try {
+                val output = ByteArrayOutputStream()
+                mask.compress(Bitmap.CompressFormat.PNG, 100, output)
+                result.put("mask", android.util.Base64.encodeToString(output.toByteArray(), android.util.Base64.NO_WRAP))
+            } finally { mask.recycle() }
+        }
+        return result
     }
     /** The outlined banner sits below the studio panels in this layout. */
     private fun bottomLine(mask: Bitmap): Boolean {
@@ -74,7 +95,9 @@ class ScreenOcr(context: Context) : Closeable {
             tess.pageSegMode = TessBaseAPI.PageSegMode.PSM_SINGLE_LINE
             calls++
             tess.setImage(padded)
-            return Detection.isBrb(tess.utF8Text.orEmpty())
+            val text = tess.utF8Text.orEmpty()
+            reads.add(text.take(600))
+            return Detection.isBrb(text)
         } finally {
             padded.recycle()
             if (line !== mask) line.recycle()

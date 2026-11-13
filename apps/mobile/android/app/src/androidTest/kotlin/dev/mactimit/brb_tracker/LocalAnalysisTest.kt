@@ -49,7 +49,15 @@ class LocalAnalysisTest {
                 try {
                     for (width in listOf(854, 640, 480, 360)) {
                         val resized = android.graphics.Bitmap.createScaledBitmap(original, width, maxOf(1, original.height * width / original.width), true)
-                        try { assertEquals("$name at width $width", expected, ocr.isBrb(resized, "gamin4hope")) }
+                        try {
+                            assertEquals("$name at width $width", expected, ocr.isBrb(resized, "gamin4hope"))
+                            if (width == 640 && expected) {
+                                val diagnostic = ocr.diagnose(resized)
+                                assertTrue(diagnostic.getBoolean("matched"))
+                                assertTrue(diagnostic.getJSONArray("texts").length() > 0)
+                                assertTrue(diagnostic.getString("mask").isNotEmpty())
+                            }
+                        }
                         finally { if (resized !== original) resized.recycle() }
                     }
                 } finally { original.recycle() }
