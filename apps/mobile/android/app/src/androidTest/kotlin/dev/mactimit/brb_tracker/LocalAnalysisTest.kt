@@ -41,6 +41,22 @@ class LocalAnalysisTest {
         assertTrue("Bundled Python and yt-dlp did not run: $output", Regex("20\\d{2}\\.\\d{2}\\.\\d{2}").containsMatchIn(output))
     }
 
+    @Test fun bannerSurvivesVideoDownloadResolutionsWithoutMatchingChat() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        ScreenOcr(instrumentation.targetContext).use { ocr ->
+            for ((name, expected) in listOf("banner.png" to true, "chat-only.png" to false)) {
+                val original = instrumentation.context.assets.open(name).use { android.graphics.BitmapFactory.decodeStream(it) }!!
+                try {
+                    for (width in listOf(854, 640, 480, 360)) {
+                        val resized = android.graphics.Bitmap.createScaledBitmap(original, width, maxOf(1, original.height * width / original.width), true)
+                        try { assertEquals("$name at width $width", expected, ocr.isBrb(resized, "gamin4hope")) }
+                        finally { if (resized !== original) resized.recycle() }
+                    }
+                } finally { original.recycle() }
+            }
+        }
+    }
+
     @Test fun foregroundServiceDecodesOcrClassifiesAndPersistsWithoutServer() = scan(false)
     @Test fun fastScanRefinesEdgesAndPreservesHistoricalDateAndReasons() = scan(true)
 

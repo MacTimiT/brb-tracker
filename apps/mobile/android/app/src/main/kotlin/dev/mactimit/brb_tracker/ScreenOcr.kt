@@ -42,8 +42,10 @@ class ScreenOcr(context: Context) : Closeable {
         return try {
             val read = {
                 calls++
+                tess.pageSegMode = TessBaseAPI.PageSegMode.PSM_SPARSE_TEXT
                 tess.setImage(prepared)
-                Detection.isBrb(tess.utF8Text.orEmpty())
+                val sparseMatch = Detection.isBrb(tess.utF8Text.orEmpty())
+                if (sparseMatch || profile != "gamin4hope") sparseMatch else bottomLine(prepared)
             }
             if (profile == "gamin4hope") {
                 val pixels = IntArray(prepared.width * prepared.height)
@@ -51,6 +53,32 @@ class ScreenOcr(context: Context) : Closeable {
                 cache.recognize(pixels, prepared.width, read)
             } else read()
         } finally { tess.clear(); prepared.recycle() }
+    }
+    /** The outlined banner sits below the studio panels in this layout. */
+    private fun bottomLine(mask: Bitmap): Boolean {
+        val top = mask.height / 2
+        val line = Bitmap.createBitmap(mask, 0, top, mask.width, mask.height - top)
+        val pixels = IntArray(line.width * line.height)
+        line.getPixels(pixels, 0, line.width, 0, 0, line.width, line.height)
+        if (pixels.count { it == android.graphics.Color.BLACK } < 12) {
+            if (line !== mask) line.recycle()
+            return false
+        }
+        val padded = Bitmap.createBitmap(line.width + 32, line.height + 32, Bitmap.Config.ARGB_8888)
+        try {
+            Canvas(padded).apply {
+                drawColor(android.graphics.Color.WHITE)
+                drawBitmap(line, 16f, 16f, null)
+            }
+            tess.clear()
+            tess.pageSegMode = TessBaseAPI.PageSegMode.PSM_SINGLE_LINE
+            calls++
+            tess.setImage(padded)
+            return Detection.isBrb(tess.utF8Text.orEmpty())
+        } finally {
+            padded.recycle()
+            if (line !== mask) line.recycle()
+        }
     }
     private fun grayscale(frame: Bitmap): Bitmap {
         val width = minOf(frame.width, 960)
