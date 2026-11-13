@@ -1,0 +1,53 @@
+name: Publish isolated detector test
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.0'
+          channel: stable
+          cache: true
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build separate test app
+        working-directory: apps/mobile
+        env:
+          ORG_GRADLE_PROJECT_brbIsolatedPreview: 'true'
+        run: |
+          flutter pub get
+          flutter build apk --debug
+      - name: Verify and publish test
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp apps/mobile/build/app/outputs/flutter-apk/app-debug.apk release/brb-tracker-detector-test.apk
+          tools="$ANDROID_HOME/build-tools/36.0.0"
+          "$tools/aapt" dump badging release/brb-tracker-detector-test.apk | grep "package: name='dev.mactimit.brb_tracker.test'"
+          "$tools/apksigner" verify release/brb-tracker-detector-test.apk
+          "$tools/zipalign" -c -P 16 4 release/brb-tracker-detector-test.apk
+          (cd release && sha256sum brb-tracker-detector-test.apk > brb-tracker-detector-test.apk.sha256)
+          cat > release/notes.md <<'NOTES'
+          Install the APK and open **BRB Tracker Test**. It installs alongside the existing app and keeps separate reports, so no uninstall is needed.
+
+          This test retries the lowest part of the red banner crop as one text line. It still requires the full Be Right Back phrase and excludes right-side chat. The detector passed CI emulator tests, including resized-banner positives and chat-only negatives, in run 43466660536.
+
+          Please rescan https://www.youtube.com/live/9YP_ljMuDQM using the Gamin4Hope profile and check the BRB at 1:43:55. Detection of that real VOD remains unconfirmed because this cloud environment cannot download its frames.
+
+          Requires 64-bit Android 8.0+. This is a temporary debug test with a separate package. Future test builds may not install as updates. Keep the original app if you need its reports. Permanent signing remains pending repository Actions secrets.
+
+          Source and GPL-3.0/dependency notices are available at this tag.
+          NOTES
+          gh release create v0.4.0-detector-test.1 release/brb-tracker-detector-test.apk release/brb-tracker-detector-test.apk.sha256 --target "$GITHUB_SHA" --prerelease --title 'BRB detector test · installs alongside existing app' --notes-file release/notes.md
