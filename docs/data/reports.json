@@ -549,11 +549,11 @@
         {
           "start_seconds": 15713,
           "end_seconds": 15902,
-          "reason": "Unknown",
+          "reason": "Drink",
           "suggested_reason": "Unknown",
           "evidence": "I I think I think we go games. I think we go games. I am going to grab another Mountain Dew, but I think we go games. Plus, my child is squealing. So, I'll promise you two games. Even if it goes a",
-          "confidence": "unknown",
-          "reviewed": false,
+          "confidence": "manual",
+          "reviewed": true,
           "truncated": false
         }
       ]
