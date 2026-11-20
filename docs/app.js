@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const A = globalThis.BRBStats;
 const reasonNames = {Pee: 'Pee breaks', Snack: 'Snack raids', Drink: 'Hydration runs', Stretch: 'Touching grass', Technical: 'Tech gremlins', Other: 'Side quests', Unknown: 'Unsolved mysteries'};
-const colors = {Pee: '#bc2028', Snack: '#985182', Drink: '#23748a', Stretch: '#527346', Technical: '#586582', Other: '#8a6842', Unknown: '#77736b'};
+const colors = {Pee: '#bc2028', Snack: '#985182', Drink: '#23748a', Stretch: '#527346', Technical: '#586582', 'Help Rachel': '#96701d', 'Mental Break': '#6a51a3', Other: '#8a6842', Unknown: '#77736b'};
 const state = {published: [], demo: [], mode: 'published', vod: 'all', month: 'all', reason: 'all', metric: 'count', query: '', sort: 'longest', loading: true, logEntries: []};
 const integer = value => Math.round(value).toLocaleString('en-US');
 const fixed = (value, places = 1) => Number(value).toFixed(places);

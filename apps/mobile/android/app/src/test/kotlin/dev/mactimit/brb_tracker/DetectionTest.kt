@@ -47,6 +47,18 @@ class DetectionTest {
         assertEquals("Technical", Detection.reason(listOf(Cue(2.0, 4.0, "Let me fix my mic")), 6.0).first)
         assertEquals("Drink", Detection.reason(listOf(Cue(2.0, 4.0, "I'm getting water")), 6.0).first)
     }
+    @Test fun explicitRachelAndMentalBreakReasons() {
+        val announcements = mapOf(
+            "I need to help Rachel" to "Help Rachel",
+            "I'm going to clear my head" to "Mental Break",
+            "I need a mental reset" to "Mental Break",
+            "I was talking to Rachel" to "Unknown",
+            "Going to pee and get a drink" to "Unknown"
+        )
+        for ((speech, expected) in announcements) {
+            assertEquals(speech, expected, Detection.reason(listOf(Cue(2.0, 4.0, speech)), 6.0).first)
+        }
+    }
     @Test fun captionFormatsAndRollingDuplicates() {
         val vtt = "WEBVTT\n\n00:00:02.000 --> 00:00:04.000\nI need water\n\n00:00:04.000 --> 00:00:06.000\nI need water\n"
         assertEquals(listOf(Cue(2.0, 6.0, "I need water")), Detection.parseTranscript(vtt))

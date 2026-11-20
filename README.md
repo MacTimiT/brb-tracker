@@ -1,6 +1,6 @@
 # BRB Tracker
 
-**[Download Android v0.4.0 preview](https://github.com/MacTimiT/brb-tracker/releases/download/v0.4.0-preview/brb-tracker-0.4.0-android.apk)** · [Release notes](https://github.com/MacTimiT/brb-tracker/releases/tag/v0.4.0-preview)
+**[Download the latest signed Android preview](https://github.com/MacTimiT/brb-tracker/releases)**
 
 An Android-first tool for locally finding **“Be Right Back”** screens in Gamin4Hope’s YouTube VODs, estimating their duration, and suggesting a reason from the preceding transcript. Includes a Flutter Android app, a Python analysis service/CLI, and a static dashboard ready for GitHub Pages.
 
@@ -68,7 +68,7 @@ This downloads a `base.en` speech model on first use and may take considerable C
 
 The Android app parses video on the phone with a Gamin4Hope banner profile calibrated against the supplied reference. It downloads a low-resolution MP4 and available English captions with a bundled yt-dlp/Python/QuickJS runtime, samples video using Android's media decoder, runs bundled English Tesseract OCR, detects/times BRB screens, and categorizes the preceding transcript locally. When captions are missing, optional on-device speech recognition can supply transcript evidence. The Python service is optional and is not used by the app.
 
-Use Android **8.0+ (API 26)** on a **64-bit ARM phone**; x86_64 is also built for emulator testing. CI creates a sideloadable development APK under **Actions → Checks and Android APK → Artifacts → brb-tracker-android-local-debug**. This is a debug build, not a Play Store release. Preview releases through v0.4.0 used different debug signing keys, so Android requires one uninstall before moving to a future stable-signed preview. Uninstalling deletes local reports and the saved token; see [report backup and signing instructions](docs/android-updates.md) before uninstalling.
+Use Android **8.0+ (API 26)** on a **64-bit ARM phone**. Preview releases starting at v0.4.1 use a permanent signing key and can update in place. Preview releases through v0.4.0 used temporary signing keys, so Android requires one uninstall before moving to a signed preview. Uninstalling deletes local reports and the saved token. See [report backup and signing instructions](docs/android-updates.md) before uninstalling.
 
 ### Use only your phone
 
@@ -159,7 +159,7 @@ The intended URL is `https://mactimit.github.io/brb-tracker/` after successful p
 - Two consecutive positive samples confirm a break. Two negative samples confirm its end; a single missing OCR match is tolerated. Timing uses the first positive sample and first negative sample in a confirmed run. An active screen at EOF is marked `truncated` and its observed duration ends at the video boundary.
 - Sampling alone introduces up to about one interval of uncertainty at each boundary. OCR errors, transitions and tolerated gaps can add more error. Very brief screens can be missed. A small “be right back” chat message or overlay can create a false positive; full-frame OCR needs validation against the real BRB screen before trusting totals.
 - Reasons use the last **five complete transcript cues within 60 seconds before the detected start**. A cue crossing the detected start is excluded. `--lookback`, `--interval`, `--min-hits` and `--end-misses` can be adjusted in the CLI.
-- Categories: **Pee, Snack, Drink, Stretch, Technical, Other, Unknown**. Rules look for first-person/intent language and keywords, skip negated announcements, and leave mixed or missing evidence Unknown. These are suggestions, not verified facts or calibrated probabilities. Other is available as a manual correction.
+- Categories: **Pee, Snack, Drink, Stretch, Technical, Help Rachel, Mental Break, Other, Unknown**. Rules look for first-person/intent language and keywords, skip negated announcements, and leave mixed or missing evidence Unknown. These are suggestions, not verified facts or calibrated probabilities. Other is available as a manual correction.
 - A BRB screen measures screen display time; it cannot prove when someone physically left or returned. Review the timestamps and evidence before publishing conclusions.
 
 ## Verification

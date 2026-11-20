@@ -11,6 +11,8 @@ class Reason(StrEnum):
     DRINK = "Drink"
     STRETCH = "Stretch"
     TECH = "Technical"
+    HELP_RACHEL = "Help Rachel"
+    MENTAL_BREAK = "Mental Break"
     OTHER = "Other"
     UNKNOWN = "Unknown"
 

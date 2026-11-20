@@ -5,7 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-Map<String, dynamic> report(String id, {String? video, bool demo = false}) => {
+Map<String, dynamic> report(
+  String id, {
+  String? video,
+  bool demo = false,
+  String reason = 'Unknown',
+}) => {
   'schema_version': 1,
   'id': id,
   'title': id,
@@ -18,7 +23,7 @@ Map<String, dynamic> report(String id, {String? video, bool demo = false}) => {
     {
       'start_seconds': 10,
       'end_seconds': 20,
-      'reason': 'Unknown',
+      'reason': reason,
       'evidence': '',
       'reviewed': false,
       'truncated': false,
@@ -36,6 +41,15 @@ Map<String, dynamic> remote(List<Map<String, dynamic>> reports, String sha) => {
 };
 
 void main() {
+  test('publishing accepts both new reason labels', () {
+    final merged = GitHubPublisher.merge([
+      report('rachel', reason: 'Help Rachel'),
+    ], report('reset', reason: 'Mental Break'));
+    expect(
+      merged.map((item) => item['breaks'][0]['reason']),
+      unorderedEquals(['Help Rachel', 'Mental Break']),
+    );
+  });
   test(
     'publishing preserves original stream date separately from analysis time',
     () {

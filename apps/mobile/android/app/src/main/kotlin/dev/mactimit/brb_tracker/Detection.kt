@@ -49,7 +49,7 @@ class BreakDetector(private val minHits: Int = 2, private val endMisses: Int = 2
 }
 
 object Detection {
-    val reasons = setOf("Pee", "Snack", "Drink", "Stretch", "Technical", "Other", "Unknown")
+    val reasons = setOf("Pee", "Snack", "Drink", "Stretch", "Technical", "Help Rachel", "Mental Break", "Other", "Unknown")
     private val phrase = Regex("\\bbe right back\\b")
     private val intent = Regex("\\b(i|i'm|im|i’ll|i'll|gonna|going to|gotta|need to|have to|let me|grab|brb|be right back)\\b", RegexOption.IGNORE_CASE)
     private val negation = Regex("\\b(not|don't|dont|won't|wont|isn't|isnt|never|no)\\b", RegexOption.IGNORE_CASE)
@@ -58,7 +58,9 @@ object Detection {
         "Snack" to "\\b(snack|food|lunch|dinner|breakfast|sandwich|eat|eating)\\b",
         "Drink" to "\\b(water|drink|coffee|tea|hydrate|refill)\\b",
         "Stretch" to "\\b(stretch|stretching|walk|walking)\\b",
-        "Technical" to "\\b(restart|reboot|technical|fix (?:the |my )?(?:audio|mic|camera))\\b"
+        "Technical" to "\\b(restart|reboot|technical|fix (?:the |my )?(?:audio|mic|camera))\\b",
+        "Help Rachel" to "\\bhelp(?:ing)? rachel\\b",
+        "Mental Break" to "\\b(mental break|mental reset|clear my head)\\b"
     ).mapValues { Regex(it.value, RegexOption.IGNORE_CASE) }
     fun isBrb(text: String) = phrase.containsMatchIn(text.lowercase().replace(Regex("[^a-z0-9]+"), " ").trim())
 

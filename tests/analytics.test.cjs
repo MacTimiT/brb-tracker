@@ -7,6 +7,12 @@ const demo = JSON.parse(fs.readFileSync('docs/data/demo.json', 'utf8')).reports;
 function report(id, length, breaks = []) {
   return {schema_version: 1, id, title: id, duration_seconds: length, sample_interval_seconds: 2, breaks: breaks.map(([start, end, reason = 'Pee']) => ({start_seconds: start, end_seconds: end, reason, evidence: ''}))};
 }
+test('new reasons validate and filter without changing total break time', () => {
+  const reports = A.validate({schema_version: 1, reports: [report('vod', 100, [[10, 20, 'Help Rachel'], [40, 55, 'Mental Break']])]});
+  assert.equal(A.compute(reports).away, 25);
+  assert.equal(A.compute(reports, 'Help Rachel').away, 10);
+  assert.equal(A.compute(reports, 'Mental Break').away, 15);
+});
 test('demo totals, median, rate, buckets and actual uninterrupted intervals', () => {
   const data = A.compute(A.validate({schema_version: 1, reports: demo}));
   assert.equal(data.away, 1320);

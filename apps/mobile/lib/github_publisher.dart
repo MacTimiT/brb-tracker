@@ -12,6 +12,8 @@ class GitHubPublisher {
     'Drink',
     'Stretch',
     'Technical',
+    'Help Rachel',
+    'Mental Break',
     'Other',
     'Unknown',
   };

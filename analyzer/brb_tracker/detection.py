@@ -62,6 +62,8 @@ PATTERNS = {
     Reason.DRINK: r"\b(water|drink|coffee|tea|hydrate|refill)\b",
     Reason.STRETCH: r"\b(stretch|stretching|walk|walking)\b",
     Reason.TECH: r"\b(restart|reboot|technical|fix (?:the |my )?(?:audio|mic|camera))\b",
+    Reason.HELP_RACHEL: r"\bhelp(?:ing)? rachel\b",
+    Reason.MENTAL_BREAK: r"\b(mental break|mental reset|clear my head)\b",
 }
 INTENT = re.compile(r"\b(i|i'm|im|i’ll|i'll|gonna|going to|gotta|need to|have to|let me|grab|brb|be right back)\b", re.I)
 NEGATION = re.compile(r"\b(not|don't|dont|won't|wont|isn't|isnt|never|no)\b", re.I)

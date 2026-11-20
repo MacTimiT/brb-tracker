@@ -346,7 +346,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 showLicensePage(
                   context: context,
                   applicationName: 'BRB Tracker',
-                  applicationVersion: '0.4.0',
+                  applicationVersion: '0.4.2',
                 );
               }
             },

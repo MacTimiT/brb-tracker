@@ -4,18 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'github_publisher.dart';
 import 'local_api.dart';
 import 'publishing_ui.dart';
 
-const reasons = [
-  'Pee',
-  'Snack',
-  'Drink',
-  'Stretch',
-  'Technical',
-  'Other',
-  'Unknown',
-];
 String timeLabel(num seconds) {
   final s = seconds.round();
   return '${s ~/ 3600}:${(s ~/ 60 % 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
@@ -177,7 +169,7 @@ class _ReportScreenState extends State<ReportScreen> {
           DropdownButton<String>(
             value: item['reason'] as String,
             isExpanded: true,
-            items: reasons
+            items: GitHubPublisher.reasons
                 .map((r) => DropdownMenuItem(value: r, child: Text(r)))
                 .toList(),
             onChanged: widget.api == null || saving

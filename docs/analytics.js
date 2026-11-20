@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  const reasons = ['Pee', 'Snack', 'Drink', 'Stretch', 'Technical', 'Other', 'Unknown'];
+  const reasons = ['Pee', 'Snack', 'Drink', 'Stretch', 'Technical', 'Help Rachel', 'Mental Break', 'Other', 'Unknown'];
   const sum = values => values.reduce((total, value) => total + value, 0);
   const key = report => report.video_id || report.id;
   const median = values => {
