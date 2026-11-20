@@ -405,6 +405,87 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "095c23dc-6a7d-40ba-8bc3-0101afb87397",
+      "title": "I Held a 50% Winrate on Doomfist 😱",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=77ZUMwUy4YY",
+      "video_id": "77ZUMwUy4YY",
+      "duration_seconds": 23434,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-19",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-19T15:00:49Z",
+      "analyzed_at": "2026-11-20T19:40:16.621944Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 4730,
+      "ocr_calls": 5290,
+      "banner_cache_hits": 37,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 3620,
+          "end_seconds": 3953,
+          "reason": "Help Rachel",
+          "suggested_reason": "Unknown",
+          "evidence": "How How are we doing this? Okay. Uh hang on just a second. Incidently, Rachel needs help with something real quick. I'll be right back.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 6520,
+          "end_seconds": 6660,
+          "reason": "Mental Break",
+          "suggested_reason": "Unknown",
+          "evidence": "after a game that easy. I know what's on the other side here, and I just need to have my brain completely locked in or I'm going to crash out. So, I'll be right back.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 9424,
+          "end_seconds": 9857,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "38 today. I'm hoping to get 40 by the end of the week. We'll see. Oh, I got to pee. All right. I'll be right back.",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 13406,
+          "end_seconds": 13558,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "No, I'm good. I think it's already was banned anyway, but I'm going to stay on Doomfist. The whole point is to get the hours in. Let me pee, grab another beverage, and",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 18238,
+          "end_seconds": 18624,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "Never tell your wife what you do for work. True. All right, I'm going to pee, big surprise, and then we'll get into some Minecraft for the next like hour, hour and a half.",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
