@@ -71,6 +71,97 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "d0bb538f-2b47-4ffd-befc-7141ea618604",
+      "title": "I Deranked to Gold 🤷‍♂️",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=8c3bIEHVXPE",
+      "video_id": "8c3bIEHVXPE",
+      "duration_seconds": 25670,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-16",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-16T14:55:14Z",
+      "analyzed_at": "2026-11-20T16:06:06.082588Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 5186,
+      "ocr_calls": 9222,
+      "banner_cache_hits": 12,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 2101,
+          "end_seconds": 2188,
+          "reason": "Other",
+          "suggested_reason": "Unknown",
+          "evidence": "All right. Told you guys I'd give you guys a little bit of a look at the shirt here. I don't think anything was on the back, but I couldn't remember. So,",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 6472,
+          "end_seconds": 6625,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "Need some Overwatch coins, bro. Oh, I ain't trying to spend money on cosmetics. All right, I'm going to pee. Big surprise. I haven't got to pee yet. I'll",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 9325,
+          "end_seconds": 9481,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "You know what I'm saying? All right, let me pee. Let me pee. I don't know why I have to pee so much today. Holy crap. Oh, you know, I do know why. I was like, why is it so bad right now?",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 11526,
+          "end_seconds": 11717,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "Okay, I got to pee again. I'm not going to lie. I'm going to finish this. I'm going to grab water. I'm going to pee. We'll come back and we'll lock in for the last hour. Okay.",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 14606,
+          "end_seconds": 14699,
+          "reason": "Mental Break",
+          "suggested_reason": "Unknown",
+          "evidence": "I'm guessing Oh, wait. It is one more hour of Overwatch, isn't it? Oh, Jesus. I forgot that we were we moved the stream an hour later.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 19099,
+          "end_seconds": 19425,
+          "reason": "Pee",
+          "suggested_reason": "Unknown",
+          "evidence": "Sorry, I'm dealing with a thing on the side monitor here, chat. I apologize. I'm going to pay real quick.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
