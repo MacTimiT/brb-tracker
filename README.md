@@ -68,6 +68,8 @@ This downloads a `base.en` speech model on first use and may take considerable C
 
 The Android app parses video on the phone with a Gamin4Hope banner profile calibrated against the supplied reference. It downloads a low-resolution MP4 and available English captions with a bundled yt-dlp/Python/QuickJS runtime, samples video using Android's media decoder, runs bundled English Tesseract OCR, detects/times BRB screens, and categorizes the preceding transcript locally. When captions are missing, optional on-device speech recognition can supply transcript evidence. The Python service is optional and is not used by the app.
 
+**Browse Gamin4Hope streams** lists public past broadcasts from newest to oldest and loads more as you scroll. It reads the public YouTube Streams tab with the bundled downloader and requires no YouTube API key. A checkmark opens a completed scan saved on this phone. Selecting a stream without a checkmark fills in the URL for a new scan.
+
 Use Android **8.0+ (API 26)** on a **64-bit ARM phone**. Preview releases starting at v0.4.1 use a permanent signing key and can update in place. Preview releases through v0.4.0 used temporary signing keys, so Android requires one uninstall before moving to a signed preview. Uninstalling deletes local reports and the saved token. See [report backup and signing instructions](docs/android-updates.md) before uninstalling.
 
 ### Use only your phone

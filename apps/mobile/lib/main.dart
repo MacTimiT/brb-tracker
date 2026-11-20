@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'local_api.dart';
 import 'publishing_ui.dart';
 import 'report_screen.dart';
+import 'stream_catalog.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -186,6 +187,31 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  Future<void> browseStreams() async {
+    final completed = <String, String>{};
+    for (final job in jobs) {
+      final videoId = job['completed_video_id'];
+      if (videoId is String) {
+        completed.putIfAbsent(videoId, () => job['id'] as String);
+      }
+    }
+    final selection = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => StreamCatalog(
+          api: api,
+          completed: completed,
+          openReport: (id) => openJob({'id': id}),
+        ),
+      ),
+    );
+    if (selection == null || !mounted) return;
+    setState(() {
+      video = null;
+      url.text = 'https://www.youtube.com/watch?v=$selection';
+      error = null;
+    });
   }
 
   Future<void> checkScreenshot() async {
@@ -395,6 +421,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: busy ? null : browseStreams,
+            icon: const Icon(Icons.video_library_outlined),
+            label: const Text('Browse Gamin4Hope streams'),
+          ),
+          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: busy || running ? null : checkScreenshot,
             icon: const Icon(Icons.image_search),

@@ -123,7 +123,7 @@ class LocalAnalysisTest {
             instrumentation.waitForIdleSync()
             val input = JSONObject().put("video_uri", Uri.fromFile(video).toString()).put("transcript_uri", Uri.fromFile(transcript).toString())
                 .put("vod_date", "2026-10-22").put("vod_date_source", "release_date").put("adaptive_scan", adaptive)
-                .put("url", "").put("interval", if (adaptive) 5.0 else 2.0).put("detector_profile", "full_frame").put("title", "Generated Android OCR test")
+                .put("url", "https://www.youtube.com/watch?v=fixture0001").put("interval", if (adaptive) 5.0 else 2.0).put("detector_profile", "full_frame").put("title", "Generated Android OCR test")
             val job = AnalysisService.launch(context, input)
             val id = job.getString("id")
             val store = JobStore(context)
@@ -132,6 +132,9 @@ class LocalAnalysisTest {
                 while (store.get(id).getString("status") in setOf("queued", "running") && System.currentTimeMillis() < deadline) Thread.sleep(250)
                 val completed = store.get(id)
                 assertEquals("Native analysis failed: $completed", "completed", completed.getString("status"))
+                val jobs = store.list()
+                val summary = (0 until jobs.length()).map { jobs.getJSONObject(it) }.first { it.getString("id") == id }
+                assertEquals("fixture0001", summary.getString("completed_video_id"))
                 val report = completed.getJSONObject("report")
                 assertFalse(report.getBoolean("is_demo"))
                 assertEquals("2026-10-22", report.getString("vod_date"))

@@ -29,7 +29,18 @@ class JobStore(context: Context) {
     fun list(): JSONArray = synchronized(lock) {
         val jobs = directory.listFiles().orEmpty().filter { it.extension == "json" }.mapNotNull { runCatching { get(it.nameWithoutExtension) }.getOrNull() }
             .sortedByDescending { it.optString("created_at") }
-        JSONArray(jobs.map { JSONObject(it.toString()).apply { remove("input"); remove("report"); remove("diagnostic") } })
+        JSONArray(jobs.map { job ->
+            JSONObject().apply {
+                for (key in job.keys()) {
+                    if (key != "input" && key != "report" && key != "diagnostic") put(key, job.get(key))
+                }
+                val report = job.optJSONObject("report")
+                if (job.optString("status") == "completed" && report != null && !report.optBoolean("is_demo")) {
+                    report.optString("video_id").takeIf { it.isNotBlank() && !report.isNull("video_id") }
+                        ?.let { put("completed_video_id", it) }
+                }
+            }
+        })
     }
     fun review(id: String, index: Int, reason: String): JSONObject = synchronized(lock) {
         require(reason in Detection.reasons) { "Unknown reason category" }

@@ -24,6 +24,17 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "list" -> result.success(store.list().toString())
                     "get" -> result.success(store.get(call.argument<String>("id")!!).toString())
+                    "list_streams" -> {
+                        val start = call.argument<Int>("start") ?: 1
+                        Thread {
+                            try {
+                                val page = StreamCatalog.load(applicationContext, start).toString()
+                                runOnUiThread { result.success(page) }
+                            } catch (_: Exception) {
+                                runOnUiThread { result.error("STREAM_CATALOG", "Could not load Gamin4Hope’s public streams. Try again.", null) }
+                            }
+                        }.start()
+                    }
                     "diagnose_banner" -> {
                         val uri = android.net.Uri.parse(call.argument<String>("uri")!!)
                         Thread {

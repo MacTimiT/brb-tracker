@@ -11,6 +11,9 @@ class LocalApi {
   Future<List<dynamic>> list() async =>
       jsonDecode(await channel.invokeMethod<String>('list') ?? '[]')
           as List<dynamic>;
+  Future<Map<String, dynamic>> listStreams(int start) async => jsonDecode(
+    (await channel.invokeMethod<String>('list_streams', {'start': start}))!,
+  ) as Map<String, dynamic>;
   Future<Map<String, dynamic>> get(String id) async =>
       jsonDecode((await channel.invokeMethod<String>('get', {'id': id}))!)
           as Map<String, dynamic>;
