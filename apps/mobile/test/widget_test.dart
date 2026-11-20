@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:brb_tracker/main.dart';
 import 'package:brb_tracker/local_api.dart';
 import 'package:brb_tracker/report_screen.dart';
-import 'package:brb_tracker/publishing_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -13,10 +12,7 @@ void main() {
   const channel = MethodChannel('dev.mactimit.brb_tracker/local');
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          channel,
-          (call) async => call.method == 'list' ? '[]' : null,
-        );
+        .setMockMethodCallHandler(channel, (call) async => homeResponse(call));
   });
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -31,7 +27,9 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(const BrbApp());
       expect(find.text('GONE4HOPE'), findsOneWidget);
-      expect(find.text('NEW SCAN.'), findsOneWidget);
+      expect(find.text('VODs'), findsOneWidget);
+      await tester.tap(find.text('Scan options'));
+      await tester.pumpAndSettle();
       expect(find.text('Explore sample report'), findsNothing);
       expect(find.text('Your phone. The whole pipeline.'), findsNothing);
       expect(find.widgetWithText(TextField, 'YouTube VOD URL'), findsOneWidget);
@@ -42,13 +40,70 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+  testWidgets(
+    'saved quality is used for multiple VODs queued from the archive',
+    (tester) async {
+      final submitted = <Map<dynamic, dynamic>>[];
+      Map<dynamic, dynamic> preferences = {};
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            switch (call.method) {
+              case 'scan_settings':
+                return jsonEncode(preferences);
+              case 'save_scan_settings':
+                preferences = call.arguments as Map;
+              case 'start':
+                submitted.add(call.arguments as Map);
+                return '{"id":"queued"}';
+              case 'list_streams':
+                return jsonEncode({
+                  'streams': [
+                    {'id': 'fixture0001', 'title': 'First VOD'},
+                    {'id': 'fixture0002', 'title': 'Second VOD'},
+                  ],
+                  'next': null,
+                });
+            }
+            return homeResponse(call);
+          });
+      await tester.pumpWidget(const BrbApp());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan options'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<int>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('360p (smaller)').last);
+      await tester.pumpAndSettle();
+      expect(preferences['download_height'], 360);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(const BrbApp());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('First VOD'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Second VOD'));
+      await tester.pumpAndSettle();
+      expect(submitted.map((input) => input['download_height']), [360, 360]);
+      expect(submitted.map((input) => input['title']), [
+        'First VOD',
+        'Second VOD',
+      ]);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets('scan controls fit a narrow phone with large text', (
     tester,
   ) async {
     narrowPhone(tester);
+    tester.view.viewPadding = const FakeViewPadding(bottom: 42);
+    tester.view.padding = const FakeViewPadding(bottom: 42);
+    addTearDown(tester.view.resetViewPadding);
+    addTearDown(tester.view.resetPadding);
     await tester.pumpWidget(const BrbApp());
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Scan options'));
+    await tester.pumpAndSettle();
     final scrollable = find.byType(Scrollable).first;
     final scanMode = find.byType(DropdownButtonFormField<bool>);
     await tester.scrollUntilVisible(
@@ -75,6 +130,16 @@ void main() {
       find.text('Check VOD frame at timestamp').hitTestable(),
       150,
       scrollable: scrollable,
+    );
+    final dashboard = find.text('Open Dashboard');
+    await tester.scrollUntilVisible(
+      dashboard.hitTestable(),
+      180,
+      scrollable: scrollable,
+    );
+    expect(
+      tester.getRect(dashboard).bottom,
+      lessThan(tester.getRect(find.byType(NavigationBar)).top),
     );
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -127,7 +192,19 @@ void main() {
           call.arguments['key'] == 'github_token' ? 'test-token' : null,
     );
     addTearDown(() => messenger.setMockMethodCallHandler(storage, null));
-    await tester.pumpWidget(const MaterialApp(home: PublishingSettings()));
+    tester.view.viewPadding = const FakeViewPadding(bottom: 42);
+    tester.view.padding = const FakeViewPadding(bottom: 42);
+    addTearDown(tester.view.resetViewPadding);
+    addTearDown(tester.view.resetPadding);
+    await tester.pumpWidget(const BrbApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('GitHub publishing settings'));
+    await tester.pumpAndSettle();
+    final owner = find.widgetWithText(TextField, 'Repository owner');
+    final repo = find.widgetWithText(TextField, 'Repository name');
+    expect(tester.getRect(repo).top - tester.getRect(owner).bottom, 16);
+    expect(find.text('MacTimiT'), findsOneWidget);
+    expect(find.text('brb-tracker'), findsOneWidget);
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Save securely').hitTestable(),
@@ -166,7 +243,7 @@ void main() {
     },
   );
   testWidgets(
-    'active download is labeled as downloading in the job and button',
+    'active download shows its current phase and percentage',
     (tester) async {
       tester.view.physicalSize = const Size(1080, 2600);
       tester.view.devicePixelRatio = 1;
@@ -185,11 +262,13 @@ void main() {
                       'phase_progress': 0.5,
                     },
                   ])
-                : null,
+                : homeResponse(call),
           );
       await tester.pumpWidget(const BrbApp());
       await tester.pumpAndSettle();
-      expect(find.text('Downloading video to this phone'), findsOneWidget);
+      await tester.tap(find.text('Scans'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
       expect(
         find.text('Downloading video to this phone · 50%'),
         findsOneWidget,
@@ -234,9 +313,11 @@ void main() {
             started = call.arguments as Map;
             return '{"id":"probe","status":"queued"}';
           }
-          return null;
+          return homeResponse(call);
         });
     await tester.pumpWidget(const BrbApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Scan options'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byType(TextField),
@@ -263,3 +344,10 @@ void narrowPhone(WidgetTester tester) {
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 }
+
+String? homeResponse(MethodCall call) => switch (call.method) {
+  'list' => '[]',
+  'scan_settings' => '{}',
+  'list_streams' => '{"streams":[],"next":null}',
+  _ => null,
+};

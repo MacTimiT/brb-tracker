@@ -7,15 +7,17 @@ BRB Tracker scans Gamin4Hope VODs for the “Be Right Back” screen, times each
 ## Scan a stream on Android
 
 1. Download the signed APK under **Assets** and open it on a 64-bit Android 8.0 or newer phone. Update by opening the newer APK. [Updates from older previews](docs/android-updates.md)
-2. Tap **Browse Gamin4Hope streams** to find a VOD. The list loads as you scroll, newest first. A checkmark opens a completed report saved on this phone. You can also paste a YouTube VOD link or choose an MP4 under **Files & detection settings**.
-3. Tap **Scan VOD**. The app looks for the red banner in the bottom-left corner, away from chat. Use **Full frame** for other layouts. **Detailed** samples every two seconds and can catch screens that a faster scan misses.
-4. Open the saved report and review each suggested reason against its quote and YouTube timestamp. Offline English speech recognition can fill in missing captions around detected breaks. Its first use downloads a 41 MB model. Leave uncertain reasons as **Unknown**.
+2. In **VODs**, tap an unscanned stream to add it to the queue. The archive loads as you scroll, newest first. A checkmark opens a saved report.
+3. In **Scan options**, choose the download quality, scan mode, banner profile, and speech fallback. The app remembers these options for future scans. Use this tab to queue a pasted YouTube link or a local MP4. **Detailed** mode samples every two seconds. **Full frame** covers layouts outside the red bottom-left banner.
+4. In **Scans**, follow download and scan progress. The phone processes queued VODs one at a time. Tap a finished scan to review its reasons, quotes, and timestamps. English speech recognition can fill in missing captions near detected breaks. The first use downloads a 41 MB model.
+
+Finished YouTube downloads stay on the phone, including when the scan fails. In the scan’s action menu, use **Rescan saved video**, **Export video to Downloads**, or **Delete downloaded video**. A rescan creates a separate report, and deleting a video keeps the existing reports and edits. The exported MP4 may be video-only. Settings for a queued scan are captured when you add it.
 
 YouTube downloads can fail when media access is restricted. You can still scan a local video you are allowed to process. Long VODs need free storage and time for the download and scan.
 
 ## Publish a report
 
-In the app menu, open **GitHub publishing settings**. Use a fine-grained GitHub token limited to the dashboard repository with **Contents: Read and write**. The app stores the token on the phone.
+Open **GitHub publishing settings** using the gear button. Use a fine-grained GitHub token limited to the dashboard repository with **Contents: Read and write**. The app stores the token on the phone.
 
 Tap **Publish to dashboard** on a reviewed report. This sends report JSON, including its transcript quotes, to the repository. Publishing the same YouTube VOD replaces its published report. GitHub Pages deploys automatically from `docs/`. The dashboard provides filters, timelines, timestamp links, and CSV and JSON exports.
 

@@ -26,27 +26,69 @@ class AnalysisService : Service() {
             private set
         private const val NOTIFICATION = 19
         private const val CHANNEL = "brb-analysis"
-        @Synchronized fun launch(context: Context, input: JSONObject): JSONObject {
-            check(activeId == null) { "An analysis is already running. Finish or cancel it first." }
+        private val queueLock = Any()
+        private var scheduled = false
+
+        fun launch(context: Context, input: JSONObject): JSONObject = synchronized(queueLock) {
             val store = JobStore(context)
             val job = store.create(input)
-            val id = job.getString("id")
-            activeId = id
-            try { context.startForegroundService(Intent(context, AnalysisService::class.java).putExtra("id", id)) }
-            catch (e: Exception) { activeId = null; store.update(id) { it.put("status", "failed").put("error", "Android did not allow the analysis to start") }; throw e }
-            return job
+            try {
+                startPending(context, store)
+            } catch (e: Exception) {
+                store.update(job.getString("id")) {
+                    it.put("status", "failed").put("stage", "Failed")
+                        .put("error", "Android did not allow the analysis to start")
+                }
+                throw e
+            }
+            job
         }
-        fun cancel(context: Context, id: String) {
-            require(activeId == id) { "That analysis is not running" }
-            context.startService(Intent(context, AnalysisService::class.java).setAction("cancel"))
+
+        fun rescan(context: Context, id: String, settings: JSONObject): JSONObject =
+            synchronized(queueLock) {
+                launch(context, JobStore(context).rescanInput(id, settings))
+            }
+
+        fun removeVideo(context: Context, id: String) = synchronized(queueLock) {
+            JobStore(context).removeVideo(id)
+        }
+
+        fun resume(context: Context) = synchronized(queueLock) {
+            if (!scheduled) {
+                val store = JobStore(context)
+                store.recoverInterrupted()
+                File(context.noBackupFilesDir, "brb-work").deleteRecursively()
+                startPending(context, store)
+            }
+        }
+
+        private fun startPending(context: Context, store: JobStore) {
+            if (scheduled || store.queuedId() == null) return
+            scheduled = true
+            try {
+                context.startForegroundService(Intent(context, AnalysisService::class.java))
+            } catch (e: Exception) {
+                scheduled = false
+                throw e
+            }
+        }
+
+        fun cancel(context: Context, id: String) = synchronized(queueLock) {
+            if (activeId == id) {
+                context.startService(Intent(context, AnalysisService::class.java).setAction("cancel").putExtra("id", id))
+            } else {
+                require(JobStore(context).cancelQueued(id)) { "That scan is no longer in the queue." }
+            }
         }
     }
     private val worker = Executors.newSingleThreadExecutor()
     @Volatile private var cancelled = false
     @Volatile private var timedOut = false
+    @Volatile private var destroyed = false
+    private var draining = false
     private var wakeLock: PowerManager.WakeLock? = null
     private lateinit var store: JobStore
-    private val jobProgress = JobProgress()
+    private var jobProgress = JobProgress()
     @Volatile private var speechExpected = false
 
     override fun onCreate() {
@@ -58,19 +100,69 @@ class AnalysisService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "cancel") {
-            cancelled = true
-            activeId?.let {
-                YoutubeDL.destroyProcessById(it)
-                store.update(it) { job -> job.put("stage", "Cancelling").put("phase_progress", JSONObject.NULL) }
+            val id = intent.getStringExtra("id")
+            synchronized(queueLock) {
+                if (id != null && id == activeId && store.get(id).optString("status") == "running") {
+                    cancelled = true
+                    YoutubeDL.destroyProcessById(id)
+                    store.update(id) { job -> job.put("stage", "Cancelling").put("phase_progress", JSONObject.NULL) }
+                } else if (!draining) {
+                    stopSelf()
+                }
             }
             return START_NOT_STICKY
         }
-        val id = intent?.getStringExtra("id") ?: run { stopSelf(); return START_NOT_STICKY }
-        // startForeground must happen immediately, before model extraction or downloads.
-        beginForeground("Preparing VOD", null, false)
-        wakeLock = (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "brb-tracker:analysis").apply { acquire(6 * 60 * 60 * 1000L) }
-        worker.execute { runJob(id) }
+        if (!draining) {
+            // Start the foreground service before any downloader setup or OCR.
+            beginForeground("Preparing queue", null, false)
+            draining = true
+            worker.execute(::drain)
+        }
         return START_NOT_STICKY
+    }
+
+    private fun drain() {
+        try {
+            while (true) {
+                val id = synchronized(queueLock) {
+                    if (destroyed || timedOut) null
+                    else store.queuedId()?.also { next ->
+                        cancelled = false
+                        speechExpected = false
+                        jobProgress = JobProgress()
+                        store.update(next) { it.put("status", "running").put("stage", "Preparing") }
+                        activeId = next
+                    }
+                } ?: break
+                try {
+                    wakeLock = (getSystemService(POWER_SERVICE) as PowerManager)
+                        .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "brb-tracker:analysis")
+                        .apply { acquire(6 * 60 * 60 * 1000L) }
+                    runJob(id)
+                } finally {
+                    synchronized(queueLock) {
+                        activeId = null
+                        if (wakeLock?.isHeld == true) wakeLock?.release()
+                        wakeLock = null
+                    }
+                }
+            }
+        } finally {
+            android.os.Handler(mainLooper).post {
+                synchronized(queueLock) {
+                    if (!destroyed && !timedOut && store.queuedId() != null) {
+                        worker.execute(::drain)
+                    } else {
+                        scheduled = false
+                        draining = false
+                        if (!destroyed) {
+                            stopForeground(STOP_FOREGROUND_REMOVE)
+                            stopSelf()
+                        }
+                    }
+                }
+            }
+        }
     }
     private fun serviceType(processing: Boolean): Int = when {
         Build.VERSION.SDK_INT < 29 -> 0
@@ -83,13 +175,19 @@ class AnalysisService : Service() {
     }
     private fun notification(stage: String, percent: Int?): Notification {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val cancel = PendingIntent.getService(this, 1, Intent(this, AnalysisService::class.java).setAction("cancel"), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val id = activeId
+        val cancel = id?.let {
+            val intent = Intent(this, AnalysisService::class.java).setAction("cancel")
+                .setData(Uri.fromParts("brb-scan", id, null)).putExtra("id", id)
+            PendingIntent.getService(this, 1, intent, PendingIntent.FLAG_IMMUTABLE)
+        }
         return Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_brb_notification).setContentTitle("BRB Tracker")
             .setContentText(stage).setContentIntent(open).setOngoing(true).setProgress(100, percent ?: 0, percent == null)
-            .addAction(Notification.Action.Builder(null, "Cancel", cancel).build()).build()
+            .apply { if (cancel != null) addAction(Notification.Action.Builder(null, "Cancel", cancel).build()) }
+            .build()
     }
     @Synchronized private fun progress(id: String, phase: JobPhase, value: Double? = null) {
-        if (cancelled) return
+        if (cancelled || activeId != id) return
         if (!jobProgress.update(phase, value)) return
         val fraction = jobProgress.fraction
         val overall = when (phase) {
@@ -131,15 +229,27 @@ class AnalysisService : Service() {
             var cues = if (!input.has("probe_seconds") && input.optString("transcript_uri").isNotBlank()) readTranscript(Uri.parse(input.getString("transcript_uri"))) else emptyList()
             input.put("transcript_source", if (cues.isEmpty()) "none" else "imported")
             var captionWarning: String? = null
+            val files = VodFiles(this)
+            val reuse = input.optString("reuse_media").takeIf { it.isNotEmpty() }
             val localUri = input.optString("video_uri")
             val video: Uri
-            if (localUri.isNotBlank()) {
+            if (reuse != null) {
+                val retained = files.video(reuse)
+                check(retained.isFile) { "The saved video is no longer available." }
+                val captions = files.captions(reuse)
+                if (cues.isEmpty() && captions.isFile) {
+                    cues = Detection.parseTranscript(captions.readText())
+                    if (cues.isNotEmpty()) input.put("transcript_source", "youtube-captions")
+                }
+                video = Uri.fromFile(retained)
+            } else if (localUri.isNotBlank()) {
                 video = Uri.parse(localUri)
             } else {
                 val videoId = Detection.videoId(input.getString("url"))
                 val url = "https://www.youtube.com/watch?v=$videoId"
                 input.put("url", url)
                 check(work.usableSpace > 1024L * 1024 * 1024) { "Free at least 1 GB of phone storage before downloading a VOD" }
+                beginForeground("Preparing download", null, false)
                 progress(id, JobPhase.PREPARING)
                 YoutubeDL.init(this)
                 FFmpeg.init(this)
@@ -164,7 +274,10 @@ class AnalysisService : Service() {
                             addOption("-o", File(work, "vod.%(ext)s").absolutePath)
                         }
                         YoutubeDL.execute(captions, id, null)
-                        work.listFiles().orEmpty().firstOrNull { it.extension == "json3" }?.let { cues = Detection.parseTranscript(it.readText()); if (cues.isNotEmpty()) input.put("transcript_source", "youtube-captions") }
+                        work.listFiles().orEmpty().firstOrNull { it.extension == "json3" }?.let {
+                            cues = Detection.parseTranscript(it.readText())
+                            if (cues.isNotEmpty()) input.put("transcript_source", "youtube-captions")
+                        }
                     } catch (e: Exception) { checkCancelled(); captionWarning = "YouTube captions could not be downloaded. Import a transcript or review reasons manually." }
                 }
                 checkCancelled()
@@ -183,7 +296,18 @@ class AnalysisService : Service() {
                     progress(id, JobPhase.DOWNLOAD, percent / 100.0)
                 }
                 val downloaded = work.listFiles().orEmpty().firstOrNull { it.extension == "mp4" } ?: error("YouTube did not provide a downloadable MP4. Try importing a local video.")
-                video = Uri.fromFile(downloaded)
+                if (input.has("probe_seconds")) {
+                    video = Uri.fromFile(downloaded)
+                } else {
+                    store.update(id) { it.put("input", input) }
+                    if (input.optString("transcript_source") == "youtube-captions") {
+                        work.listFiles().orEmpty().firstOrNull { it.extension == "json3" }
+                            ?.let { files.retain(it, files.captions(id)) }
+                    }
+                    val retained = files.video(id)
+                    files.retain(downloaded, retained)
+                    video = Uri.fromFile(retained)
+                }
             }
             checkCancelled()
             if (input.has("probe_seconds")) {
@@ -207,7 +331,9 @@ class AnalysisService : Service() {
                 beginForeground("Preparing speech fallback", null, true)
                 try {
                     var audio = video
-                    if (localUri.isBlank()) {
+                    if (reuse != null && files.audio(reuse).isFile) {
+                        audio = Uri.fromFile(files.audio(reuse))
+                    } else if (reuse == null && localUri.isBlank()) {
                         check(work.usableSpace > 512L * 1024 * 1024) { "Free at least 512 MB for the VOD audio" }
                         progress(id, JobPhase.AUDIO)
                         val audioRequest = request(input.getString("url")).apply {
@@ -220,8 +346,11 @@ class AnalysisService : Service() {
                             if (cancelled) YoutubeDL.destroyProcessById(id)
                             progress(id, JobPhase.AUDIO, percent / 100.0)
                         }
-                        audio = Uri.fromFile(work.listFiles().orEmpty().firstOrNull { it.name.startsWith("speech.") && it.isFile }
-                            ?: error("The VOD audio was not downloaded"))
+                        val downloadedAudio = work.listFiles().orEmpty().firstOrNull { it.name.startsWith("speech.") && it.isFile }
+                            ?: error("The VOD audio was not downloaded")
+                        val retainedAudio = files.audio(id)
+                        files.retain(downloadedAudio, retainedAudio)
+                        audio = Uri.fromFile(retainedAudio)
                     }
                     val starts = (0 until breaks.length()).map { breaks.getJSONObject(it).getDouble("start_seconds") }
                     progress(id, JobPhase.MODEL, 0.0)
@@ -257,23 +386,26 @@ class AnalysisService : Service() {
             }
         } finally {
             work.deleteRecursively()
-            activeId = null
-            if (wakeLock?.isHeld == true) wakeLock?.release()
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
         }
     }
     private fun checkCancelled() { if (cancelled) throw CancellationException("Analysis cancelled") }
     override fun onTimeout(startId: Int, fgsType: Int) {
-        timedOut = true
-        cancelled = true
-        activeId?.let { id ->
-            YoutubeDL.destroyProcessById(id)
-            store.update(id) { it.put("status", "failed").put("stage", "Failed").put("phase", "failed")
-                .put("phase_progress", JSONObject.NULL).put("error", "Android's background processing time limit was reached. Keep the app open or analyze a shorter VOD.") }
+        synchronized(queueLock) {
+            timedOut = true
+            cancelled = true
+            activeId?.let { YoutubeDL.destroyProcessById(it) }
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
     }
-    override fun onDestroy() { cancelled = true; activeId?.let { YoutubeDL.destroyProcessById(it) }; if (wakeLock?.isHeld == true) wakeLock?.release(); worker.shutdown(); super.onDestroy() }
+
+    override fun onDestroy() {
+        synchronized(queueLock) {
+            destroyed = true
+            cancelled = true
+            if (draining) activeId?.let { YoutubeDL.destroyProcessById(it) }
+        }
+        worker.shutdown()
+        super.onDestroy()
+    }
 }

@@ -20,6 +20,18 @@ class LocalApi {
   Future<Map<String, dynamic>> start(Map<String, dynamic> input) async =>
       jsonDecode((await channel.invokeMethod<String>('start', input))!)
           as Map<String, dynamic>;
+  Future<Map<String, dynamic>> scanSettings() async =>
+      jsonDecode(await channel.invokeMethod<String>('scan_settings') ?? '{}')
+          as Map<String, dynamic>;
+  Future<void> saveScanSettings(Map<String, dynamic> options) =>
+      channel.invokeMethod<void>('save_scan_settings', options);
+  Future<void> resumeQueue() => channel.invokeMethod<void>('resume_queue');
+  Future<void> rescan(String id, Map<String, dynamic> settings) =>
+      channel.invokeMethod<void>('rescan', {'id': id, 'settings': settings});
+  Future<void> removeVideo(String id) =>
+      channel.invokeMethod<void>('remove_video', {'id': id});
+  Future<String?> exportVideo(String id) =>
+      channel.invokeMethod<String>('export_video', {'id': id});
   Future<Map<String, dynamic>> review(
     String id,
     int index,

@@ -150,57 +150,62 @@ class _PublishingSettingsState extends State<PublishingSettings> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('GitHub publishing')),
-    body: ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        TextField(
-          controller: owner,
-          decoration: const InputDecoration(labelText: 'Repository owner'),
-        ),
-        TextField(
-          controller: repo,
-          decoration: const InputDecoration(labelText: 'Repository name'),
-        ),
-        TextField(
-          controller: token,
-          obscureText: true,
-          autocorrect: false,
-          enableSuggestions: false,
-          decoration: InputDecoration(
-            labelText: 'GitHub token',
-            helperMaxLines: 3,
-            helperText: savedToken
-                ? 'Leave blank to keep the saved token.'
-                : 'Stored securely on this phone.',
+    body: SafeArea(
+      top: false,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          TextField(
+            controller: owner,
+            decoration: const InputDecoration(labelText: 'Repository owner'),
           ),
-        ),
-        const SizedBox(height: 16),
-        const Text('Token permission: Contents → Read and write.'),
-        TextButton(
-          onPressed: () => launchUrl(
-            Uri.https('github.com', '/settings/personal-access-tokens/new'),
-            mode: LaunchMode.externalApplication,
+          const SizedBox(height: 16),
+          TextField(
+            controller: repo,
+            decoration: const InputDecoration(labelText: 'Repository name'),
           ),
-          child: const Text('Open GitHub token settings'),
-        ),
-        if (error != null)
-          Text(error!, style: const TextStyle(color: Colors.redAccent)),
-        if (busy) const LinearProgressIndicator(),
-        FilledButton(
-          onPressed: busy ? null : save,
-          child: const Text('Save securely'),
-        ),
-        if (savedToken)
+          const SizedBox(height: 16),
+          TextField(
+            controller: token,
+            obscureText: true,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: InputDecoration(
+              labelText: 'GitHub token',
+              helperMaxLines: 3,
+              helperText: savedToken
+                  ? 'Leave blank to keep the saved token.'
+                  : 'Stored securely on this phone.',
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text('Token permission: Contents → Read and write.'),
           TextButton(
-            onPressed: busy
-                ? null
-                : () async {
-                    await _storage.delete(key: 'github_token');
-                    if (mounted) setState(() => savedToken = false);
-                  },
-            child: const Text('Forget saved token'),
+            onPressed: () => launchUrl(
+              Uri.https('github.com', '/settings/personal-access-tokens/new'),
+              mode: LaunchMode.externalApplication,
+            ),
+            child: const Text('Open GitHub token settings'),
           ),
-      ],
+          if (error != null)
+            Text(error!, style: const TextStyle(color: Colors.redAccent)),
+          if (busy) const LinearProgressIndicator(),
+          FilledButton(
+            onPressed: busy ? null : save,
+            child: const Text('Save securely'),
+          ),
+          if (savedToken)
+            TextButton(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      await _storage.delete(key: 'github_token');
+                      if (mounted) setState(() => savedToken = false);
+                    },
+              child: const Text('Forget saved token'),
+            ),
+        ],
+      ),
     ),
   );
 }

@@ -1,4 +1,3 @@
-import 'job_progress.dart';
 import 'banner_check.dart';
 
 import 'dart:async';
@@ -12,6 +11,7 @@ import 'local_api.dart';
 import 'publishing_ui.dart';
 import 'report_screen.dart';
 import 'stream_catalog.dart';
+import 'scan_history.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -91,15 +91,17 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   bool speechFallback = true;
   int downloadHeight = 480;
   String detectorProfile = 'gamin4hope';
-  List<dynamic> jobs = [];
+  List<Map<String, dynamic>> jobs = [];
+  int tab = 0;
+  bool settingsLoaded = false;
   bool busy = false;
   bool refreshing = false;
-  String? error;
   Timer? timer;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    loadSettings();
     refresh();
     startPolling();
   }
@@ -123,7 +125,50 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   void startPolling() {
     timer?.cancel();
-    timer = Timer.periodic(const Duration(seconds: 3), (_) => refresh());
+    timer = Timer.periodic(const Duration(seconds: 2), (_) => refresh());
+  }
+
+  Map<String, dynamic> get settings => {
+    'interval': fastScan ? 5.0 : 2.0,
+    'adaptive_scan': fastScan,
+    'speech_fallback': speechFallback,
+    'download_height': downloadHeight,
+    'detector_profile': detectorProfile,
+  };
+
+  void message(String text) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> loadSettings() async {
+    try {
+      final saved = await api.scanSettings();
+      if (!mounted) return;
+      setState(() {
+        fastScan = saved['adaptive_scan'] != false;
+        speechFallback = saved['speech_fallback'] != false;
+        downloadHeight = saved['download_height'] == 360 ? 360 : 480;
+        detectorProfile = saved['detector_profile'] == 'full_frame'
+            ? 'full_frame'
+            : 'gamin4hope';
+      });
+    } catch (error) {
+      message('Could not load scan settings: $error');
+    } finally {
+      if (mounted) setState(() => settingsLoaded = true);
+    }
+  }
+
+  Future<void> saveSettings(VoidCallback change) async {
+    setState(change);
+    try {
+      await api.saveScanSettings(settings);
+    } catch (error) {
+      message('Could not save scan settings: $error');
+    }
   }
 
   Future<void> refresh() async {
@@ -131,14 +176,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     refreshing = true;
     try {
       final result = await api.list();
-      if (mounted) {
-        setState(() {
-          jobs = result;
-          error = null;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => error = 'Could not read phone analyses: $e');
+      if (mounted) setState(() => jobs = result.cast<Map<String, dynamic>>());
+    } catch (error) {
+      message('Could not read phone analyses: $error');
     } finally {
       refreshing = false;
     }
@@ -155,70 +195,54 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           } else {
             transcript = value;
           }
-          error = null;
         });
       }
-    } catch (e) {
-      if (mounted) setState(() => error = '$e');
+    } catch (error) {
+      message('$error');
     }
   }
 
   Future<void> start({double? probeSeconds}) async {
-    setState(() {
-      busy = true;
-      error = null;
-    });
+    final link = url.text.trim();
+    if (video == null && link.isEmpty) {
+      message('Enter a YouTube VOD URL or choose a local video.');
+      return;
+    }
+    await enqueue({
+      ...settings,
+      'url': link,
+      'probe_seconds': ?probeSeconds,
+      if (video != null) 'video_uri': video!['uri'],
+      'title': video?['name'] ?? 'YouTube VOD',
+      if (transcript != null) 'transcript_uri': transcript!['uri'],
+    }, showScans: true);
+  }
+
+  Future<void> enqueue(
+    Map<String, dynamic> input, {
+    bool showScans = false,
+  }) async {
+    if (busy || !settingsLoaded) return;
+    setState(() => busy = true);
     try {
-      await api.start({
-        'url': url.text.trim(),
-        'interval': fastScan ? 5.0 : 2.0,
-        'adaptive_scan': fastScan,
-        'speech_fallback': speechFallback,
-        'download_height': downloadHeight,
-        'detector_profile': detectorProfile,
-        'probe_seconds': ?probeSeconds,
-        if (video != null) 'video_uri': video!['uri'],
-        'title': video?['name'] ?? 'YouTube VOD',
-        if (transcript != null) 'transcript_uri': transcript!['uri'],
-      });
+      await api.start(input);
+      if (mounted && showScans) setState(() => tab = 2);
       await refresh();
-    } catch (e) {
-      if (mounted) setState(() => error = '$e');
+    } catch (error) {
+      message('$error');
     } finally {
       if (mounted) setState(() => busy = false);
     }
   }
 
-  Future<void> browseStreams() async {
-    final completed = <String, String>{};
-    for (final job in jobs) {
-      final videoId = job['completed_video_id'];
-      if (videoId is String) {
-        completed.putIfAbsent(videoId, () => job['id'] as String);
-      }
-    }
-    final selection = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => StreamCatalog(
-          api: api,
-          completed: completed,
-          openReport: (id) => openJob({'id': id}),
-        ),
-      ),
-    );
-    if (selection == null || !mounted) return;
-    setState(() {
-      video = null;
-      url.text = 'https://www.youtube.com/watch?v=$selection';
-      error = null;
-    });
-  }
+  Future<void> queueStream(String id, String title) => enqueue({
+    ...settings,
+    'url': 'https://www.youtube.com/watch?v=$id',
+    'title': title,
+  });
 
   Future<void> checkScreenshot() async {
-    setState(() {
-      busy = true;
-      error = null;
-    });
+    setState(() => busy = true);
     try {
       final image = await api.pick('image');
       if (image == null) return;
@@ -228,7 +252,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         MaterialPageRoute<void>(builder: (_) => BannerCheck(result: result)),
       );
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      message('$e');
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -271,7 +295,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     if (value == null || !mounted) return;
     final parts = value.trim().split(':');
     if (!RegExp(r'^\d{1,3}:[0-5]\d:[0-5]\d$').hasMatch(value.trim())) {
-      setState(() => error = 'Enter a timestamp such as 0:12:34.');
+      message('Enter a timestamp such as 0:12:34.');
       return;
     }
     final seconds =
@@ -281,9 +305,9 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     await start(probeSeconds: seconds.toDouble());
   }
 
-  Future<void> openJob(Map<String, dynamic> job) async {
+  Future<void> openJob(String id) async {
     try {
-      final details = await api.get(job['id'] as String);
+      final details = await api.get(id);
       if (!mounted) return;
       if (details['diagnostic'] != null) {
         await Navigator.of(context).push(
@@ -300,13 +324,13 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           builder: (_) => ReportScreen(
             initial: details['report'] as Map<String, dynamic>,
             api: api,
-            jobId: job['id'] as String,
+            jobId: id,
           ),
         ),
       );
       await refresh();
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      message('$e');
     }
   }
 
@@ -315,7 +339,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       await api.cancel(id);
       await refresh();
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      message('$e');
     }
   }
 
@@ -325,7 +349,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete local analysis?'),
         content: const Text(
-          'This removes its saved report from this phone. Published GitHub reports will remain.',
+          'This removes the scan and any video used only by this scan. Published GitHub reports will remain.',
         ),
         actions: [
           TextButton(
@@ -344,46 +368,97 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       await api.delete(id);
       await refresh();
     } catch (e) {
-      if (mounted) setState(() => error = '$e');
+      message('$e');
+    }
+  }
+
+  Future<void> mediaAction(String id, String action) async {
+    try {
+      switch (action) {
+        case 'rescan':
+          await api.rescan(id, settings);
+          message('Rescan added to the queue.');
+        case 'export':
+          message('Exporting video…');
+          final name = await api.exportVideo(id);
+          if (name != null) message('Export complete: $name');
+        case 'remove_video':
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (dialog) => AlertDialog(
+              scrollable: true,
+              title: const Text('Delete downloaded video?'),
+              content: const Text(
+                'Your reports and edits will stay on this phone.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialog, false),
+                  child: const Text('Keep'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialog, true),
+                  child: const Text('Delete video'),
+                ),
+              ],
+            ),
+          );
+          if (confirmed == true) await api.removeVideo(id);
+        case 'delete':
+          await remove(id);
+      }
+      await refresh();
+    } catch (error) {
+      message('$error');
+    }
+  }
+
+  Future<void> resumeQueue() async {
+    try {
+      await api.resumeQueue();
+      await refresh();
+    } catch (error) {
+      message('Could not resume the queue: $error');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final running = jobs.any(
-      (job) => job['status'] == 'running' || job['status'] == 'queued',
-    );
+    final completed = <String, String>{};
+    final queued = <String>{};
+    for (final job in jobs) {
+      final videoId = job['completed_video_id'];
+      if (videoId is String) {
+        completed.putIfAbsent(videoId, () => job['id'] as String);
+      }
+      final queuedId = job['queued_video_id'];
+      if (queuedId is String) queued.add(queuedId);
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Text('GONE4HOPE', overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh local analyses',
-            onPressed: refresh,
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'GitHub publishing settings',
+            onPressed: () => showPublishingSettings(context),
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              if (value == 'publishing') {
-                showPublishingSettings(context);
-              } else if (value == 'screenshot') {
+              if (value == 'screenshot') {
                 checkScreenshot();
               } else if (value == 'licenses') {
                 showLicensePage(
                   context: context,
                   applicationName: 'BRB Tracker',
-                  applicationVersion: '0.4.3',
+                  applicationVersion: '0.5.0',
                 );
               }
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'publishing',
-                child: Text('GitHub publishing settings'),
-              ),
               PopupMenuItem(
                 value: 'screenshot',
-                enabled: !busy && !running,
+                enabled: !busy,
                 child: const Text('Check saved screenshot'),
               ),
               const PopupMenuItem(
@@ -394,243 +469,173 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            color: const Color(0xFF252B2E),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ADMIN / GAMIN4HOPE',
-                  style: TextStyle(
-                    fontFamily: 'Plex',
-                    fontSize: 11,
-                    color: Color(0xFFF5F2EB),
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'NEW SCAN.',
-                  style: TextStyle(
-                    fontFamily: 'Barlow',
-                    fontSize: 56,
-                    height: 1,
-                    color: Color(0xFFF5F2EB),
-                  ),
-                ),
-                SizedBox(height: 12),
-                SizedBox(
-                  width: 48,
-                  child: Divider(color: Color(0xFFBC2028), thickness: 4),
-                ),
-              ],
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: IndexedStack(
+          index: tab,
+          children: [
+            StreamCatalog(
+              api: api,
+              completed: completed,
+              queued: queued,
+              openReport: openJob,
+              queueStream: busy || !settingsLoaded ? null : queueStream,
             ),
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: busy ? null : browseStreams,
-            icon: const Icon(Icons.video_library_outlined),
-            label: const Text('Browse Gamin4Hope streams'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: url,
-            enabled: !busy && !running,
-            keyboardType: TextInputType.url,
-            decoration: InputDecoration(
-              labelText: video == null
-                  ? 'YouTube VOD URL'
-                  : 'YouTube source URL (optional)',
+            if (settingsLoaded)
+              scanOptions()
+            else
+              const Center(child: CircularProgressIndicator()),
+            ScanHistory(
+              jobs: jobs,
+              refresh: refresh,
+              openJob: openJob,
+              cancel: cancel,
+              action: mediaAction,
+              resumeQueue: resumeQueue,
+              settingsLoaded: settingsLoaded,
             ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: NavigationBar(
+        maintainBottomViewPadding: true,
+        selectedIndex: tab,
+        onDestinationSelected: (index) => setState(() => tab = index),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.video_library_outlined),
+            label: 'VODs',
           ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<bool>(
-            isExpanded: true,
-            itemHeight: null,
-            initialValue: fastScan,
-            decoration: const InputDecoration(labelText: 'Scan mode'),
-            items: const [
-              DropdownMenuItem(value: true, child: Text('Fast (5s, 1s edges)')),
-              DropdownMenuItem(value: false, child: Text('Detailed (2s)')),
-            ],
-            onChanged: busy || running
-                ? null
-                : (value) => setState(() => fastScan = value!),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<int>(
-            isExpanded: true,
-            itemHeight: null,
-            initialValue: downloadHeight,
-            decoration: const InputDecoration(labelText: 'Download quality'),
-            items: const [
-              DropdownMenuItem(value: 480, child: Text('480p (clearer)')),
-              DropdownMenuItem(value: 360, child: Text('360p (smaller)')),
-            ],
-            onChanged: busy || running || video != null
-                ? null
-                : (value) => setState(() => downloadHeight = value!),
-          ),
-          const SizedBox(height: 12),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Transcribe speech when captions are missing'),
-            subtitle: const Text(
-              'Runs on this phone near detected breaks. First use downloads a 41 MB English model; YouTube VODs also need audio.',
-            ),
-            value: speechFallback,
-            onChanged: busy || running
-                ? null
-                : (value) => setState(() => speechFallback = value),
-          ),
-          const SizedBox(height: 12),
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            title: const Text('Files & detection settings'),
-            children: [
-              OutlinedButton.icon(
-                onPressed: busy || running ? null : () => pick('video'),
-                icon: const Icon(Icons.video_file_outlined),
-                label: Text(video?['name'] ?? 'Choose local video'),
-              ),
-              if (video != null)
-                TextButton(
-                  onPressed: busy || running
-                      ? null
-                      : () => setState(() => video = null),
-                  child: const Text('Use YouTube instead'),
-                ),
-              OutlinedButton.icon(
-                onPressed: busy || running ? null : () => pick('transcript'),
-                icon: const Icon(Icons.subtitles_outlined),
-                label: Text(
-                  transcript?['name'] ?? 'Choose transcript · optional',
-                ),
-              ),
-              if (transcript != null)
-                TextButton(
-                  onPressed: busy || running
-                      ? null
-                      : () => setState(() => transcript = null),
-                  child: const Text('Clear transcript'),
-                ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                itemHeight: null,
-                initialValue: detectorProfile,
-                decoration: const InputDecoration(labelText: 'BRB banner'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'gamin4hope',
-                    child: Text('Gamin4Hope banner'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'full_frame',
-                    child: Text('Full frame'),
-                  ),
-                ],
-                onChanged: busy || running
-                    ? null
-                    : (value) => setState(() => detectorProfile = value!),
-              ),
-              OutlinedButton.icon(
-                onPressed: busy || running ? null : checkVodFrame,
-                icon: const Icon(Icons.image_search),
-                label: const Text('Check VOD frame at timestamp'),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: busy || running ? null : start,
-            icon: const Icon(Icons.play_arrow),
-            label: Text(
-              running
-                  ? jobStage(
-                      jobs.firstWhere(
-                        (job) =>
-                            job['status'] == 'running' ||
-                            job['status'] == 'queued',
-                      ),
-                    )
-                  : 'Scan VOD',
-            ),
-          ),
-          if (busy) const LinearProgressIndicator(),
-          if (error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                error!,
-                style: const TextStyle(color: Colors.redAccent),
-              ),
-            ),
-          const SizedBox(height: 24),
-          const Text(
-            'SAVED SCANS',
-            style: TextStyle(
-              fontFamily: 'Plex',
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          if (jobs.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text('No scans yet.'),
-            ),
-          for (final raw in jobs) _job(raw as Map<String, dynamic>),
-          const SizedBox(height: 24),
-          TextButton.icon(
-            onPressed: () => launchUrl(
-              Uri.https('mactimit.github.io', '/brb-tracker/'),
-              mode: LaunchMode.externalApplication,
-            ),
-            icon: const Icon(Icons.open_in_new),
-            label: const Text('Open dashboard'),
+          NavigationDestination(icon: Icon(Icons.tune), label: 'Scan options'),
+          NavigationDestination(
+            icon: Icon(Icons.list_alt_outlined),
+            label: 'Scans',
           ),
         ],
       ),
     );
   }
 
-  Widget _job(Map<String, dynamic> job) {
-    final active = job['status'] == 'running' || job['status'] == 'queued';
-    return Card(
-      child: Column(
+  Widget scanOptions() => ListView(
+    padding: const EdgeInsets.all(20),
+    children: [
+      DropdownButtonFormField<bool>(
+        isExpanded: true,
+        itemHeight: null,
+        initialValue: fastScan,
+        decoration: const InputDecoration(labelText: 'Scan mode'),
+        items: const [
+          DropdownMenuItem(value: true, child: Text('Fast (5s, 1s edges)')),
+          DropdownMenuItem(value: false, child: Text('Detailed (2s)')),
+        ],
+        onChanged: !settingsLoaded
+            ? null
+            : (value) => saveSettings(() => fastScan = value!),
+      ),
+      const SizedBox(height: 16),
+      DropdownButtonFormField<int>(
+        isExpanded: true,
+        itemHeight: null,
+        initialValue: downloadHeight,
+        decoration: const InputDecoration(labelText: 'Download quality'),
+        items: const [
+          DropdownMenuItem(value: 480, child: Text('480p (clearer)')),
+          DropdownMenuItem(value: 360, child: Text('360p (smaller)')),
+        ],
+        onChanged: !settingsLoaded
+            ? null
+            : (value) => saveSettings(() => downloadHeight = value!),
+      ),
+      const SizedBox(height: 12),
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Transcribe speech when captions are missing'),
+        subtitle: const Text(
+          'Runs on this phone near detected breaks. First use downloads a 41 MB English model; YouTube VODs also need audio.',
+        ),
+        value: speechFallback,
+        onChanged: !settingsLoaded
+            ? null
+            : (value) => saveSettings(() => speechFallback = value),
+      ),
+      const SizedBox(height: 16),
+      TextField(
+        controller: url,
+        enabled: !busy,
+        keyboardType: TextInputType.url,
+        decoration: InputDecoration(
+          labelText: video == null
+              ? 'YouTube VOD URL'
+              : 'YouTube source URL (optional)',
+        ),
+      ),
+      const SizedBox(height: 16),
+      const SizedBox(height: 12),
+      ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        title: const Text('Files & detection settings'),
         children: [
-          ListTile(
-            title: Text(
-              job['title'] as String? ?? 'VOD',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              '${jobStage(job)}${jobFraction(job) == null ? '' : ' · ${(jobFraction(job)! * 100).round()}%'}${job['error'] == null ? '' : '\n${job['error']}'}',
-            ),
-            onTap: job['status'] == 'completed' ? () => openJob(job) : null,
-            trailing: active
-                ? IconButton(
-                    onPressed: jobStage(job) == 'Cancelling'
-                        ? null
-                        : () => cancel(job['id'] as String),
-                    icon: const Icon(Icons.stop_circle_outlined),
-                    tooltip: 'Cancel local analysis',
-                  )
-                : IconButton(
-                    onPressed: () => remove(job['id'] as String),
-                    icon: const Icon(Icons.delete_outline),
-                    tooltip: 'Delete local analysis',
-                  ),
+          OutlinedButton.icon(
+            onPressed: busy ? null : () => pick('video'),
+            icon: const Icon(Icons.video_file_outlined),
+            label: Text(video?['name'] ?? 'Choose local video'),
           ),
-          if (active) LinearProgressIndicator(value: jobFraction(job)),
+          if (video != null)
+            TextButton(
+              onPressed: busy ? null : () => setState(() => video = null),
+              child: const Text('Use YouTube instead'),
+            ),
+          OutlinedButton.icon(
+            onPressed: busy ? null : () => pick('transcript'),
+            icon: const Icon(Icons.subtitles_outlined),
+            label: Text(transcript?['name'] ?? 'Choose transcript · optional'),
+          ),
+          if (transcript != null)
+            TextButton(
+              onPressed: busy ? null : () => setState(() => transcript = null),
+              child: const Text('Clear transcript'),
+            ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            isExpanded: true,
+            itemHeight: null,
+            initialValue: detectorProfile,
+            decoration: const InputDecoration(labelText: 'BRB banner'),
+            items: const [
+              DropdownMenuItem(
+                value: 'gamin4hope',
+                child: Text('Gamin4Hope banner'),
+              ),
+              DropdownMenuItem(value: 'full_frame', child: Text('Full frame')),
+            ],
+            onChanged: !settingsLoaded
+                ? null
+                : (value) => saveSettings(() => detectorProfile = value!),
+          ),
+          OutlinedButton.icon(
+            onPressed: busy ? null : checkVodFrame,
+            icon: const Icon(Icons.image_search),
+            label: const Text('Check VOD frame at timestamp'),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
-    );
-  }
+      const SizedBox(height: 16),
+      FilledButton.icon(
+        onPressed: busy ? null : start,
+        icon: const Icon(Icons.play_arrow),
+        label: const Text('Queue VOD scan'),
+      ),
+      const SizedBox(height: 16),
+      TextButton.icon(
+        onPressed: () => launchUrl(
+          Uri.https('mactimit.github.io', '/brb-tracker/'),
+          mode: LaunchMode.externalApplication,
+        ),
+        icon: const Icon(Icons.open_in_new),
+        label: const Text('Open Dashboard'),
+      ),
+    ],
+  );
 }

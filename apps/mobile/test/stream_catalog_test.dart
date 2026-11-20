@@ -13,7 +13,7 @@ void main() {
     const channel = MethodChannel('catalog-test');
     final offsets = <int>[];
     String? opened;
-    String? chosen;
+    String? queuedId;
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(channel, (call) async {
@@ -33,40 +33,29 @@ void main() {
     addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
     await tester.pumpWidget(
       MaterialApp(
-        home: Builder(
-          builder: (context) {
-            return Scaffold(
-              body: TextButton(
-                child: const Text('Browse'),
-                onPressed: () async {
-                  chosen = await Navigator.of(context).push<String>(
-                    MaterialPageRoute(
-                      builder: (_) => StreamCatalog(
-                        api: LocalApi(channel: channel),
-                        completed: const {'stream00001': 'saved-scan'},
-                        openReport: (id) async {
-                          opened = id;
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-            );
-          },
+        home: Scaffold(
+          body: StreamCatalog(
+            api: LocalApi(channel: channel),
+            completed: const {'stream00001': 'saved-scan'},
+            queued: const {'stream00002'},
+            openReport: (id) async => opened = id,
+            queueStream: (id, title) async => queuedId = id,
+          ),
         ),
       ),
     );
-    await tester.tap(find.text('Browse'));
     await tester.pumpAndSettle();
     expect(offsets, [1]);
     expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    expect(find.text('In scan queue'), findsOneWidget);
+    await tester.tap(find.text('Stream 2'));
+    expect(queuedId, isNull);
     await tester.tap(find.text('Stream 1'));
     expect(opened, 'saved-scan');
     await tester.scrollUntilVisible(find.text('Stream 22'), 300);
     expect(offsets, [1, 21]);
     await tester.tap(find.text('Stream 22'));
     await tester.pumpAndSettle();
-    expect(chosen, 'stream00022');
+    expect(queuedId, 'stream00022');
   });
 }

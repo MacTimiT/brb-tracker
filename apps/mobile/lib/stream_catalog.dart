@@ -8,10 +8,14 @@ class StreamCatalog extends StatefulWidget {
     required this.api,
     required this.completed,
     required this.openReport,
+    required this.queued,
+    required this.queueStream,
   });
 
   final LocalApi api;
   final Map<String, String> completed;
+  final Set<String> queued;
+  final Future<void> Function(String id, String title)? queueStream;
   final Future<void> Function(String jobId) openReport;
 
   @override
@@ -88,72 +92,66 @@ class _StreamCatalogState extends State<StreamCatalog> {
   @override
   Widget build(BuildContext context) {
     final entries = streams.entries.toList(growable: false);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Gamin4Hope streams',
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: refresh,
-        child: ListView.builder(
-          controller: scroll,
-          physics: const AlwaysScrollableScrollPhysics(),
-          itemCount: entries.length + 2,
-          itemBuilder: (context, index) {
-            if (index == 0) {
+    return RefreshIndicator(
+      onRefresh: refresh,
+      child: ListView.builder(
+        controller: scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: entries.length + 2,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Tap a VOD to queue it. Checkmarks open saved scans.',
+              ),
+            );
+          }
+          if (index == entries.length + 1) {
+            if (loading) {
               return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Newest first · Checkmarks show scans saved on this phone.',
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (failed) {
+              return ListTile(
+                title: const Text('Could not load streams'),
+                trailing: TextButton(
+                  onPressed: loadPage,
+                  child: const Text('Retry'),
                 ),
               );
             }
-            if (index == entries.length + 1) {
-              if (loading) {
-                return const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (failed) {
-                return ListTile(
-                  title: const Text('Could not load streams'),
-                  trailing: TextButton(
-                    onPressed: loadPage,
-                    child: const Text('Retry'),
-                  ),
-                );
-              }
-              if (entries.isEmpty && next == null) {
-                return const ListTile(title: Text('No past streams found.'));
-              }
-              return const SizedBox(height: 16);
+            if (entries.isEmpty && next == null) {
+              return const ListTile(title: Text('No past streams found.'));
             }
-            final entry = entries[index - 1];
-            final reportId = widget.completed[entry.key];
-            return ListTile(
-              key: ValueKey(entry.key),
-              title: Text(entry.value),
-              leading: reportId == null
-                  ? const Icon(Icons.video_library_outlined)
-                  : Icon(
-                      Icons.check_circle,
-                      semanticLabel: 'Scanned',
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                if (reportId != null) {
-                  widget.openReport(reportId);
-                } else {
-                  Navigator.pop(context, entry.key);
-                }
-              },
-            );
-          },
-        ),
+            return const SizedBox(height: 16);
+          }
+          final entry = entries[index - 1];
+          final reportId = widget.completed[entry.key];
+          final queued = widget.queued.contains(entry.key);
+          return ListTile(
+            key: ValueKey(entry.key),
+            title: Text(entry.value),
+            subtitle: queued ? const Text('In scan queue') : null,
+            leading: reportId == null
+                ? Icon(queued ? Icons.schedule : Icons.video_library_outlined)
+                : Icon(
+                    Icons.check_circle,
+                    semanticLabel: 'Scanned',
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+            trailing: Icon(
+              reportId == null && !queued ? Icons.add : Icons.chevron_right,
+            ),
+            onTap: reportId != null
+                ? () => widget.openReport(reportId)
+                : queued || widget.queueStream == null
+                ? null
+                : () => widget.queueStream!(entry.key, entry.value),
+          );
+        },
       ),
     );
   }
