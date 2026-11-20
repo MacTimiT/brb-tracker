@@ -334,6 +334,77 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "d42beb1c-533c-4047-8b54-fe498670a132",
+      "title": "I Held a 55% Winrate on Doomfist 👊",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=NPtJU2TNmO8",
+      "video_id": "NPtJU2TNmO8",
+      "duration_seconds": 24937,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-18",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-18T15:00:47Z",
+      "analyzed_at": "2026-11-20T19:00:46.821040Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 5021,
+      "ocr_calls": 6427,
+      "banner_cache_hits": 23,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 5000,
+          "end_seconds": 5060,
+          "reason": "Drink",
+          "suggested_reason": "Unknown",
+          "evidence": "gives me a better taste of what the characters like. All right, let me grab a beverage really quick and then I will be back. It will not take me long.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 8961,
+          "end_seconds": 9537,
+          "reason": "Other",
+          "suggested_reason": "Unknown",
+          "evidence": "All right. I told my dad that I would uh call him at 11. It's 11:25. Um but I I will be right back. Give me just a few minutes. I just want to share some cool news with him uh that I can't",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 15042,
+          "end_seconds": 15244,
+          "reason": "Pee",
+          "suggested_reason": "Drink",
+          "evidence": "been in that. Why is every victory expected, though, bro? Driving me nuts. All right, I'm going to pee real quick. Big surprise. I'm going to grab my water and all that kind of stuff. Um, and",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 18176,
+          "end_seconds": 18383,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "whole personality is triggering all of you. Um, another fire mittens. See, we literally have seven TV emotes for it. All right, let me uh let me pee and then I'll be back.",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
