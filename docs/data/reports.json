@@ -557,6 +557,77 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "36635aa4-2989-43de-9918-ea42b69ec687",
+      "title": "Achieving a 50/50 Winrate on Doomfist & Leveling in WoW Forever 🤙",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=IW2rEIuKGSs",
+      "video_id": "IW2rEIuKGSs",
+      "duration_seconds": 25195,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-10",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-10T14:01:35Z",
+      "analyzed_at": "2026-11-20T21:29:36.352856Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 5075,
+      "ocr_calls": 8523,
+      "banner_cache_hits": 3,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 1807,
+          "end_seconds": 1873,
+          "reason": "Other",
+          "suggested_reason": "Unknown",
+          "evidence": "people who are clueless. Some of it is truly people that are just clueless. But there is a part of it that I have to acknowledge is at least on me. You know what I'm saying?",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 8682,
+          "end_seconds": 8946,
+          "reason": "Drink",
+          "suggested_reason": "Unknown",
+          "evidence": "it to use aim trainers while you queue.\" The Q's are too short. That and I don't like showing my cues on stream. So, all right. I'm going to go get a Mountain Dew real quick. We'll come",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 12461,
+          "end_seconds": 12537,
+          "reason": "Unknown",
+          "suggested_reason": "Unknown",
+          "evidence": "today. I'm actually feeling really good there. There like these games that we're losing. Like I'm still making mistakes for sure, but like it just is one of those things you're going to run into",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 14844,
+          "end_seconds": 14999,
+          "reason": "Pee",
+          "suggested_reason": "Unknown",
+          "evidence": "what it is. I've been trying to figure it out over the last little bit, but I'll answer the Domino's and cooking question when I get back. All right, I'll be back.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
