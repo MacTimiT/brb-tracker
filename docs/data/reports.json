@@ -628,6 +628,77 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "85e7ee15-09aa-48d4-9062-b7a93bf6c35d",
+      "title": "Too Many Crashouts on Doomfist (Cooled Off in WoW) 🤷‍♂️",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=ErTzyl6005k",
+      "video_id": "ErTzyl6005k",
+      "duration_seconds": 25406.533,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-09",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-09T14:00:24Z",
+      "analyzed_at": "2026-11-20T22:24:40.871168Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 5115,
+      "ocr_calls": 8490,
+      "banner_cache_hits": 0,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 7404,
+          "end_seconds": 7647,
+          "reason": "Drink",
+          "suggested_reason": "Unknown",
+          "evidence": "Um, not bad. That also means I think we've probably hit 22 hours. Yeah, nice. All right, I need to go make some freshen up and come back. I haven't had freshen up yet today. So, you can use my",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 12057,
+          "end_seconds": 12425,
+          "reason": "Mental Break",
+          "suggested_reason": "Unknown",
+          "evidence": "haters are loser behavior. I don't show up for you guys. But there's a blend of saying they're going to be here anyway. May as well give them a little bit of a show on occasion.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 14336,
+          "end_seconds": 14559,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "Um, I do need to pee. Like unironically, I need to pee. Like, not just to walk away. I need to pee. So, let me pee real quick. Then we'll come back and we will play more Overwatch. Still got another",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 17284,
+          "end_seconds": 17552,
+          "reason": "Mental Break",
+          "suggested_reason": "Unknown",
+          "evidence": "frustrated with chat these days, so I just must be having a rough day. God forbid, right? Being human, it happens. All right. Give me just a couple.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
