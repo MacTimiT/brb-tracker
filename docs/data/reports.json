@@ -253,6 +253,87 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "b6a142d9-1719-4d4d-ad02-3a1cc3ce5f82",
+      "title": "My Doomfist is a Gold Guardian 🛡️",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=LFl1NCdxPDM",
+      "video_id": "LFl1NCdxPDM",
+      "duration_seconds": 23153.533,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-17",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-17T15:06:25Z",
+      "analyzed_at": "2026-11-20T17:32:54.661569Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 4674,
+      "ocr_calls": 5719,
+      "banner_cache_hits": 6,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 4189,
+          "end_seconds": 4384,
+          "reason": "Pee",
+          "suggested_reason": "Unknown",
+          "evidence": "you. Just stay out of it, bro. Save yourself. I knew he was going to say it. Yeah. Is it something in my face? I bet you it tells you.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 7037,
+          "end_seconds": 7152,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "Of course. Of course. Could never be me, right? Could never be me, chat. [laughter] All right, big surprise. I'm going to pee again. I'll be right back.",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 8964,
+          "end_seconds": 9165,
+          "reason": "Pee",
+          "suggested_reason": "Unknown",
+          "evidence": "Fertilance. That's my bad, bro. Am I top 500 yet? We're closer to bottom 500 at the moment. We're all being honest.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 11003,
+          "end_seconds": 11132,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "doesn't doesn't matter to him enough. That's the inside joke of that is so good. All right, [snorts] I do need to pee again. I'm I'm sure that you're very surprised,",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 15608,
+          "end_seconds": 15777,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "guys want. I Whatever you guys are on, I want some, bro. What the freak? W. [laughter] All right, I'm going to pee. And yeah, W piss any second now. W piss or L piss.",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
