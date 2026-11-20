@@ -41,6 +41,21 @@ class LocalAnalysisTest {
         assertTrue("Bundled Python and yt-dlp did not run: $output", Regex("20\\d{2}\\.\\d{2}\\.\\d{2}").containsMatchIn(output))
     }
 
+    @Test fun recognizesBannerCloseToLeftEdgeOfDownloadedFrame() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val frame = android.graphics.Bitmap.createBitmap(640, 360, android.graphics.Bitmap.Config.ARGB_8888)
+        try {
+            val canvas = android.graphics.Canvas(frame)
+            canvas.drawColor(android.graphics.Color.BLACK)
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                textSize = 46f
+                color = android.graphics.Color.RED
+            }
+            canvas.drawText("Be Right Back", 8f, 345f, paint)
+            ScreenOcr(context).use { ocr -> assertTrue(ocr.isBrb(frame, "gamin4hope")) }
+        } finally { frame.recycle() }
+    }
+
     @Test fun bannerSurvivesVideoDownloadResolutionsWithoutMatchingChat() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         ScreenOcr(instrumentation.targetContext).use { ocr ->

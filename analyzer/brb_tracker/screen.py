@@ -10,10 +10,9 @@ def prepare_screen(frame: Image.Image, profile: str = "full_frame") -> Image.Ima
     if profile == "full_frame":
         return ImageOps.autocontrast(ImageOps.grayscale(frame))
     width, height = frame.size
-    left = min(int(width * 0.05), width - 1)
-    right = max(left + 1, min(int(width * 0.68), width))
+    right = max(1, int(width * 0.68))
     top = min(int(height * 0.68), height - 1)
-    region = frame.crop((left, top, right, height)).convert("RGB")
+    region = frame.crop((0, top, right, height)).convert("RGB")
     region = region.resize((960, max(1, int(region.height * 960 / region.width))), Image.Resampling.BILINEAR)
     pixels = region.tobytes()
     mask = bytearray(region.width * region.height)

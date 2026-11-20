@@ -7,7 +7,7 @@ class DetectionTest {
     @Test fun bannerCropExcludesChatAtMultipleResolutions() {
         for ((width, height) in listOf(1280 to 597, 960 to 448, 480 to 224, 360 to 168)) {
             val box = BannerProfile.bounds(width, height)
-            assertTrue(box[0] < width * 0.1)
+            assertEquals(0, box[0])
             assertTrue(box[2] < width * 0.71)
             assertTrue(box[1] < height * 0.85)
             assertEquals(height, box[3])

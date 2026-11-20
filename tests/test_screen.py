@@ -11,7 +11,7 @@ def banner_frame(*, banner=True, color="#f20909", chat=True):
     draw = ImageDraw.Draw(frame)
     draw.rectangle((900, 0, 1279, 719), fill="#050505")
     if banner:
-        draw.text((120, 620), "Be Right Back", font=ImageFont.truetype("DejaVuSans.ttf", 54), fill=color, stroke_width=2, stroke_fill="white", anchor="lt")
+        draw.text((12, 620), "Be Right Back", font=ImageFont.truetype("DejaVuSans.ttf", 54), fill=color, stroke_width=2, stroke_fill="white", anchor="lt")
     if chat:
         draw.text((940, 520), "Be Right Back", font=ImageFont.truetype("DejaVuSans.ttf", 24), fill="#ff1010", anchor="lt")
     if not banner:
