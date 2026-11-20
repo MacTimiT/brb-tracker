@@ -486,6 +486,77 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "a5d6cdcf-9d5d-452e-a96e-93d62c46a0ae",
+      "title": "I Dealt with my Attitude More & Enjoying WoW Forever 🤙",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=_CY8bnKHtEA",
+      "video_id": "_CY8bnKHtEA",
+      "duration_seconds": 25363,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-11",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-11T14:00:21Z",
+      "analyzed_at": "2026-11-20T20:12:51.723755Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 5107,
+      "ocr_calls": 6505,
+      "banner_cache_hits": 9,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 1813,
+          "end_seconds": 1941,
+          "reason": "Unknown",
+          "suggested_reason": "Unknown",
+          "evidence": "Tank. You can do a tank build. I didn't think about that. with all the life life steal and stuff. I guess it makes sense.",
+          "confidence": "unknown",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 7248,
+          "end_seconds": 7451,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "All right, I got a pee. I know that really surprises you guys. What should surprise you is that this is the first pea break and we're two hours in. So, let me let",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 11933,
+          "end_seconds": 12020,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "on. That's it. Let me go pee real quick. I'm going to make it a P and rinse my hands off quick and then we're going to get back in the",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 15713,
+          "end_seconds": 15902,
+          "reason": "Unknown",
+          "suggested_reason": "Unknown",
+          "evidence": "I I think I think we go games. I think we go games. I am going to grab another Mountain Dew, but I think we go games. Plus, my child is squealing. So, I'll promise you two games. Even if it goes a",
+          "confidence": "unknown",
+          "reviewed": false,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
