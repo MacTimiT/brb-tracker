@@ -73,6 +73,7 @@ class Store:
             if not 0 <= index < len(report.breaks):
                 raise IndexError(index)
             item = report.breaks[index]
+            item.additional_reasons = [extra for extra in item.additional_reasons if extra != reason] if reason != "Unknown" else []
             item.reason, item.confidence, item.reviewed = reason, "manual", True
             db.execute("UPDATE jobs SET report=? WHERE id=?", (report.model_dump_json(), identifier))
         return report

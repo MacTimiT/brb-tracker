@@ -11,6 +11,11 @@ class LocalApi {
   Future<List<dynamic>> list() async =>
       jsonDecode(await channel.invokeMethod<String>('list') ?? '[]')
           as List<dynamic>;
+  Future<Map<String, dynamic>?> cachedStreams() async {
+    final cached = await channel.invokeMethod<String>('cached_streams');
+    return cached == null ? null : jsonDecode(cached) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> listStreams(int start) async => jsonDecode(
     (await channel.invokeMethod<String>('list_streams', {'start': start}))!,
   ) as Map<String, dynamic>;
@@ -28,6 +33,12 @@ class LocalApi {
   Future<void> resumeQueue() => channel.invokeMethod<void>('resume_queue');
   Future<void> rescan(String id, Map<String, dynamic> settings) =>
       channel.invokeMethod<void>('rescan', {'id': id, 'settings': settings});
+  Future<void> moveUp(String id) =>
+      channel.invokeMethod<void>('move_up', {'id': id});
+  Future<int> retryFailed([String? id]) async =>
+      await channel.invokeMethod<int>('retry_failed', {'id': ?id}) ?? 0;
+  Future<int> removeUnusedVideos() async =>
+      await channel.invokeMethod<int>('remove_unused_videos') ?? 0;
   Future<void> removeVideo(String id) =>
       channel.invokeMethod<void>('remove_video', {'id': id});
   Future<String?> exportVideo(String id) =>
@@ -35,12 +46,14 @@ class LocalApi {
   Future<Map<String, dynamic>> review(
     String id,
     int index,
-    String reason,
-  ) async => jsonDecode(
+    String reason, [
+    List<String> additionalReasons = const [],
+  ]) async => jsonDecode(
     (await channel.invokeMethod<String>('review', {
       'id': id,
       'index': index,
       'reason': reason,
+      'additional_reasons': additionalReasons,
     }))!,
   ) as Map<String, dynamic>;
   Future<Map<String, String>?> pick(String kind) async =>

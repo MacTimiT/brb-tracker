@@ -33,6 +33,7 @@ class Break(BaseModel):
     start_seconds: float = Field(ge=0)
     end_seconds: float = Field(ge=0)
     reason: Reason = Reason.UNKNOWN
+    additional_reasons: list[Reason] = Field(default_factory=list)
     suggested_reason: Reason = Reason.UNKNOWN
     confidence: Literal["unknown", "keyword", "manual"] = "unknown"
     evidence: str = ""
@@ -43,6 +44,9 @@ class Break(BaseModel):
     def ordered(self):
         if self.end_seconds < self.start_seconds:
             raise ValueError("Break end must follow start")
+        extra = self.additional_reasons
+        if len(set(extra)) != len(extra) or self.reason in extra or Reason.UNKNOWN in extra or (extra and self.reason == Reason.UNKNOWN):
+            raise ValueError("Additional reasons must be distinct known reasons")
         return self
 
     @property
@@ -66,6 +70,7 @@ class Report(BaseModel):
     transcript_source: str = "none"
     detector_profile: Literal["full_frame", "gamin4hope"] = "full_frame"
     is_demo: bool = False
+    timings_ms: dict[str, int] | None = None
     warnings: list[str] = Field(default_factory=list)
     breaks: list[Break] = Field(default_factory=list)
 

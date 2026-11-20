@@ -30,6 +30,17 @@ object VodMetadata {
         if (uploadDate != null) return JSONObject().put("vod_date", uploadDate.toString()).put("vod_date_source", "upload_date").put("stream_started_at", JSONObject.NULL)
         return JSONObject().put("vod_date", JSONObject.NULL).put("vod_date_source", "unknown").put("stream_started_at", JSONObject.NULL)
     }
+    fun estimatedDownloadBytes(metadata: JSONObject): Long? {
+        val candidates = listOfNotNull(metadata.optJSONArray("requested_downloads")?.optJSONObject(0), metadata)
+        for (candidate in candidates) {
+            for (field in listOf("filesize", "filesize_approx")) {
+                val bytes = candidate.optLong(field, 0)
+                if (bytes in 1..(4L shl 30)) return bytes
+            }
+        }
+        return null
+    }
+
     fun format(height: Int): String {
         require(height in listOf(360, 480)) { "Choose 360p or 480p" }
         // Prefer AVC video-only; combined MP4 is a compatibility fallback.

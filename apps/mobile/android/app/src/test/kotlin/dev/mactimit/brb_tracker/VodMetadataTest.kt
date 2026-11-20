@@ -32,4 +32,10 @@ class VodMetadataTest {
         assertTrue(VodMetadata.format(480).contains("/best[height<=480]"))
         assertThrows(IllegalArgumentException::class.java) { VodMetadata.format(720) }
     }
+
+    @Test fun preflightUsesTheSelectedFormatSizeWhenAvailable() {
+        val metadata = JSONObject("""{"filesize":900,"requested_downloads":[{"filesize_approx":600}]}""")
+        assertEquals(600L, VodMetadata.estimatedDownloadBytes(metadata))
+        assertEquals(null, VodMetadata.estimatedDownloadBytes(JSONObject()))
+    }
 }

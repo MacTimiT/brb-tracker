@@ -10,7 +10,7 @@ import java.util.concurrent.CancellationException
 import java.time.Instant
 
 class LocalAnalyzer(private val context: Context) {
-    fun analyze(uri: Uri, input: JSONObject, id: String, cues: List<Cue>, cancelled: () -> Boolean, progress: (Double) -> Unit): JSONObject {
+    fun analyze(uri: Uri, input: JSONObject, id: String, cues: List<Cue>, timings: ScanTimings, cancelled: () -> Boolean, progress: (Double) -> Unit): JSONObject {
         val interval = input.optDouble("interval", 2.0)
         require(interval.isFinite() && interval in 1.0..30.0)
         val profile = input.optString("detector_profile", "gamin4hope")
@@ -22,7 +22,7 @@ class LocalAnalyzer(private val context: Context) {
         try {
             val ocr = ScreenOcr(context)
             screenOcr = ocr
-            decoder.setDataSource(context, uri)
+            timings.measure("decode") { decoder.setDataSource(context, uri) }
             val duration = decoder.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)!!.toDouble() / 1000
             require(duration.isFinite() && duration > 0) { "The video has no usable duration" }
             val originalWidth = decoder.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt() ?: 960
@@ -35,8 +35,11 @@ class LocalAnalyzer(private val context: Context) {
             fun sample(timestamp: Double): Boolean? {
                 if (cancelled()) throw CancellationException("Analysis cancelled")
                 val micros = (timestamp * 1_000_000).toLong()
-                val bitmap = if (Build.VERSION.SDK_INT >= 27) decoder.getScaledFrameAtTime(micros, MediaMetadataRetriever.OPTION_CLOSEST, width, height)
+                val bitmap = timings.measure("decode") {
+                    if (Build.VERSION.SDK_INT >= 27)
+                        decoder.getScaledFrameAtTime(micros, MediaMetadataRetriever.OPTION_CLOSEST, width, height)
                     else decoder.getFrameAtTime(micros, MediaMetadataRetriever.OPTION_CLOSEST)
+                }
                 if (bitmap == null) {
                     failedFrames++
                     consecutiveFailures++
@@ -46,7 +49,7 @@ class LocalAnalyzer(private val context: Context) {
                     consecutiveFailures = 0
                     try {
                         decoded++
-                        return ocr.isBrb(bitmap, profile)
+                        return timings.measure("ocr") { ocr.isBrb(bitmap, profile) }
                     } finally { bitmap.recycle() }
                 }
             }

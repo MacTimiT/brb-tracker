@@ -2,6 +2,8 @@ import 'package:material_ui/material_ui.dart';
 
 import 'local_api.dart';
 
+enum StreamFilter { all, unscanned, scanned }
+
 class StreamCatalog extends StatefulWidget {
   const StreamCatalog({
     super.key,
@@ -28,13 +30,31 @@ class _StreamCatalogState extends State<StreamCatalog> {
   int? next = 1;
   bool loading = false;
   bool failed = false;
+  StreamFilter filter = StreamFilter.all;
 
   @override
   void initState() {
     super.initState();
     scroll.addListener(loadNearEnd);
-    loadPage();
+    loadCached();
   }
+
+  Future<void> loadCached() async {
+    try {
+      final cached = await widget.api.cachedStreams();
+      if (mounted && cached != null) {
+        setState(() => streams.addAll(pageEntries(cached)));
+      }
+    } catch (_) {
+      // A missing or expired cache falls back to the live archive.
+    }
+    if (mounted) await loadPage();
+  }
+
+  Map<String, String> pageEntries(Map<String, dynamic> page) => {
+    for (final item in page['streams'] as List)
+      item['id'] as String: item['title'] as String,
+  };
 
   @override
   void dispose() {
@@ -43,7 +63,10 @@ class _StreamCatalogState extends State<StreamCatalog> {
   }
 
   void loadNearEnd() {
-    if (scroll.hasClients && !failed && scroll.position.extentAfter < 250) {
+    if (filter == StreamFilter.all &&
+        scroll.hasClients &&
+        !failed &&
+        scroll.position.extentAfter < 250) {
       loadPage();
     }
   }
@@ -59,11 +82,9 @@ class _StreamCatalogState extends State<StreamCatalog> {
       final page = await widget.api.listStreams(start);
       if (!mounted) return;
       final more = page['next'] as int?;
-      final entries = {
-        for (final item in page['streams'] as List)
-          item['id'] as String: item['title'] as String,
-      };
+      final entries = pageEntries(page);
       setState(() {
+        if (start == 1) streams.clear();
         streams.addAll(entries);
         next = more != null && more > start ? more : null;
         loading = false;
@@ -82,16 +103,22 @@ class _StreamCatalogState extends State<StreamCatalog> {
 
   Future<void> refresh() async {
     if (loading) return;
-    setState(() {
-      streams.clear();
-      next = 1;
-    });
+    next = 1;
     await loadPage();
   }
 
   @override
   Widget build(BuildContext context) {
-    final entries = streams.entries.toList(growable: false);
+    final entries = streams.entries
+        .where((entry) {
+          final scanned = widget.completed.containsKey(entry.key);
+          return switch (filter) {
+            StreamFilter.all => true,
+            StreamFilter.unscanned => !scanned,
+            StreamFilter.scanned => scanned,
+          };
+        })
+        .toList(growable: false);
     return RefreshIndicator(
       onRefresh: refresh,
       child: ListView.builder(
@@ -100,10 +127,26 @@ class _StreamCatalogState extends State<StreamCatalog> {
         itemCount: entries.length + 2,
         itemBuilder: (context, index) {
           if (index == 0) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Tap a VOD to queue it. Checkmarks open saved scans.',
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  for (final (value, label) in const [
+                    (StreamFilter.all, 'All VODs'),
+                    (StreamFilter.unscanned, 'Unscanned'),
+                    (StreamFilter.scanned, 'Scanned'),
+                  ])
+                    ChoiceChip(
+                      label: Text(label),
+                      selected: filter == value,
+                      onSelected: (_) {
+                        if (filter == value) return;
+                        if (scroll.hasClients) scroll.jumpTo(0);
+                        setState(() => filter = value);
+                      },
+                    ),
+                ],
               ),
             );
           }
@@ -116,15 +159,33 @@ class _StreamCatalogState extends State<StreamCatalog> {
             }
             if (failed) {
               return ListTile(
-                title: const Text('Could not load streams'),
+                title: Text(
+                  streams.isEmpty
+                      ? 'Could not load streams'
+                      : 'Could not refresh the archive',
+                ),
                 trailing: TextButton(
                   onPressed: loadPage,
                   child: const Text('Retry'),
                 ),
               );
             }
+            if (filter != StreamFilter.all && next != null) {
+              return Column(
+                children: [
+                  if (entries.isEmpty)
+                    const ListTile(
+                      title: Text('No matches in loaded streams.'),
+                    ),
+                  TextButton(
+                    onPressed: loadPage,
+                    child: const Text('Load older streams'),
+                  ),
+                ],
+              );
+            }
             if (entries.isEmpty && next == null) {
-              return const ListTile(title: Text('No past streams found.'));
+              return const ListTile(title: Text('No matching streams found.'));
             }
             return const SizedBox(height: 16);
           }

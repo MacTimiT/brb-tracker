@@ -164,3 +164,19 @@ test('month filter uses original VOD date and keeps undated legacy reports separ
   assert.match(d.getElementById('vod-table').textContent, /Unknown/);
   dom.window.close();
 });
+
+test('secondary reasons show in receipts and select the same break once', async () => {
+  const report = structuredClone(sample.reports[0]);
+  report.is_demo = false;
+  report.breaks = [{...report.breaks[0], reason: 'Pee', additional_reasons: ['Help Rachel']}];
+  const dom = await page({schema_version: 1, reports: [report]});
+  const d = dom.window.document;
+  const total = d.getElementById('total').textContent;
+  change(dom, 'reason', 'Help Rachel');
+  assert.equal(d.getElementById('count').textContent, '1');
+  assert.equal(d.getElementById('total').textContent, total);
+  assert.match(d.querySelector('.reason-tag').textContent, /Pee breaks \/ Help Rachel/);
+  d.querySelector('.receipt-open').click();
+  assert.match(d.getElementById('receipt-title').textContent, /Help Rachel/);
+  dom.window.close();
+});

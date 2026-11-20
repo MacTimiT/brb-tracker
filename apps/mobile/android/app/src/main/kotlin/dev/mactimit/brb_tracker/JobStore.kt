@@ -10,6 +10,7 @@ import java.util.UUID
 
 class JobStore(context: Context) {
     private val media = VodFiles(context)
+    private val queueOrder = AtomicFile(File(context.noBackupFilesDir, "brb-queue-order.json"))
     private val directory = File(context.noBackupFilesDir, "brb-jobs").apply { mkdirs() }
     companion object {
         private val lock = Any()
@@ -45,8 +46,68 @@ class JobStore(context: Context) {
         media.delete(key)
     }
 
+    fun removeUnusedVideos(): Int = synchronized(lock) {
+        val snapshot = jobs()
+        val inUse = snapshot.filter { it.optString("status") in pending }.map(::mediaId).toSet()
+        val removable = snapshot.map(::mediaId).distinct().filter { it !in inUse && media.video(it).isFile }
+        removable.forEach(media::delete)
+        removable.size
+    }
+
+    private fun queueTime(job: JSONObject) = job.optString("queued_at", job.optString("created_at"))
+    private fun queueKey(job: JSONObject) = job.getString("id") + "@" + queueTime(job)
+
+    private fun orderedQueue(snapshot: List<JSONObject>): List<JSONObject> {
+        val order = runCatching {
+            val values = JSONArray(queueOrder.openRead().bufferedReader().use { it.readText() })
+            (0 until values.length()).associate { values.getString(it) to it }
+        }.getOrDefault(emptyMap())
+        return snapshot.filter { it.optString("status") == "queued" }
+            .sortedWith(compareBy<JSONObject> { order[queueKey(it)] ?: Int.MAX_VALUE }
+                .thenBy { runCatching { Instant.parse(queueTime(it)) }.getOrDefault(Instant.EPOCH) })
+    }
+
     fun queuedId(): String? = synchronized(lock) {
-        jobs().lastOrNull { it.optString("status") == "queued" }?.getString("id")
+        orderedQueue(jobs()).firstOrNull()?.getString("id")
+    }
+
+    fun moveUp(id: String) = synchronized(lock) {
+        val order = orderedQueue(jobs()).toMutableList()
+        val index = order.indexOfFirst { it.getString("id") == id }
+        check(index >= 0) { "This scan is no longer waiting in the queue." }
+        if (index > 0) {
+            java.util.Collections.swap(order, index - 1, index)
+            write(queueOrder, JSONArray(order.map(::queueKey)).toString())
+        }
+    }
+
+    private fun retryKey(job: JSONObject): String? {
+        val input = job.optJSONObject("input") ?: return null
+        val source = sourceId(input) ?: input.optString("video_uri").takeIf { it.isNotBlank() } ?: return null
+        return if (input.has("probe_seconds")) "$source@${input.optDouble("probe_seconds")}" else source
+    }
+
+    fun retryFailed(id: String? = null): Int = synchronized(lock) {
+        val snapshot = jobs()
+        val keyInQueue = snapshot.filter { it.optString("status") in pending }.mapNotNull(::retryKey).toMutableSet()
+        val handled = mutableSetOf<String>()
+        val candidates = if (id == null) snapshot else listOf(get(id))
+        val attempts = candidates.filter { job ->
+            val key = retryKey(job) ?: return@filter false
+            val status = job.optString("status")
+            if (id == null && status != "cancelled" && !handled.add(key)) return@filter false
+            status == "failed" && key !in keyInQueue && (id != null || !job.getJSONObject("input").has("probe_seconds"))
+        }.asReversed()
+        for (job in attempts) {
+            val key = mediaId(job)
+            val input = job.getJSONObject("input")
+            if (media.video(key).isFile) input.put("reuse_media", key) else input.remove("reuse_media")
+            job.put("status", "queued").put("stage", "Queued").put("progress", 0.0)
+                .put("queued_at", Instant.now().toString())
+            for (field in listOf("error", "phase", "phase_progress")) job.remove(field)
+            save(job)
+        }
+        attempts.size
     }
 
     fun cancelQueued(id: String): Boolean = synchronized(lock) {
@@ -72,21 +133,38 @@ class JobStore(context: Context) {
     }
     fun get(id: String): JSONObject = synchronized(lock) { JSONObject(AtomicFile(file(id)).openRead().bufferedReader().use { it.readText() }) }
     fun save(job: JSONObject) = synchronized(lock) {
-        val atomic = AtomicFile(file(job.getString("id")))
+        write(AtomicFile(file(job.getString("id"))), job.toString())
+    }
+    private fun write(atomic: AtomicFile, text: String) {
         val stream = atomic.startWrite()
-        try { stream.write(job.toString().toByteArray(Charsets.UTF_8)); atomic.finishWrite(stream) }
+        try { stream.write(text.toByteArray(Charsets.UTF_8)); atomic.finishWrite(stream) }
         catch (e: Exception) { atomic.failWrite(stream); throw e }
     }
     fun update(id: String, change: (JSONObject) -> Unit): JSONObject = synchronized(lock) { get(id).also { change(it); save(it) } }
     fun list(): JSONArray = synchronized(lock) {
-        JSONArray(jobs().map { job ->
+        val snapshot = jobs()
+        val positions = orderedQueue(snapshot).mapIndexed { index, job -> job.getString("id") to index + 1 }.toMap()
+        val inUse = snapshot.filter { it.optString("status") in pending }.map(::mediaId).toSet()
+        val sizes = mutableMapOf<String, Pair<Long, Long>>()
+        JSONArray(snapshot.map { job ->
             JSONObject().apply {
                 for (key in job.keys()) {
                     if (key != "input" && key != "report" && key != "diagnostic") put(key, job.get(key))
                 }
-                put("has_video", media.video(mediaId(job)).isFile)
+                val key = mediaId(job)
+                val video = media.video(key)
+                val (videoBytes, retainedBytes) = sizes.getOrPut(key) {
+                    val bytes = video.length()
+                    bytes to (bytes + media.captions(key).length() + media.audio(key).length())
+                }
+                put("has_video", video.isFile)
+                if (videoBytes > 0L) {
+                    put("media_key", key).put("video_bytes", videoBytes).put("retained_bytes", retainedBytes)
+                        .put("media_in_use", key in inUse)
+                }
+                positions[job.getString("id")]?.let { put("queue_position", it) }
                 val input = job.optJSONObject("input")
-                put("can_rescan", input != null && (sourceId(input) != null || input.optString("video_uri").isNotBlank()))
+                put("can_rescan", retryKey(job) != null)
                 if (input != null && job.optString("status") in pending && !input.has("probe_seconds")) {
                     sourceId(input)?.let { put("queued_video_id", it) }
                 }
@@ -98,12 +176,20 @@ class JobStore(context: Context) {
             }
         })
     }
-    fun review(id: String, index: Int, reason: String): JSONObject = synchronized(lock) {
+    fun review(id: String, index: Int, reason: String, additional: List<String>? = null): JSONObject = synchronized(lock) {
         require(reason in Detection.reasons) { "Unknown reason category" }
         val job = get(id)
         val report = job.getJSONObject("report")
         require(index >= 0 && index < report.getJSONArray("breaks").length())
-        report.getJSONArray("breaks").getJSONObject(index).put("reason", reason).put("confidence", "manual").put("reviewed", true)
+        val item = report.getJSONArray("breaks").getJSONObject(index)
+        val existing = item.optJSONArray("additional_reasons")
+        val extra = additional ?: if (reason == "Unknown" || existing == null) emptyList()
+            else (0 until existing.length()).map(existing::getString).filterNot { it == reason }
+        require(extra.distinct().size == extra.size && extra.all {
+            it in Detection.reasons && it != reason && it != "Unknown" && reason != "Unknown"
+        }) { "Choose distinct additional reasons." }
+        item.put("reason", reason).put("confidence", "manual").put("reviewed", true)
+        if (extra.isEmpty()) item.remove("additional_reasons") else item.put("additional_reasons", JSONArray(extra))
         save(job)
         report
     }

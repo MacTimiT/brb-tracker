@@ -70,7 +70,10 @@ class ScanQueueTest {
                 assertFalse(Instant.parse(secondResult.getJSONObject("report").getString("analyzed_at"))
                     .isBefore(Instant.parse(report.getString("analyzed_at"))))
 
-                store.review(first, 0, "Help Rachel")
+                val timings = report.getJSONObject("timings_ms")
+                assertTrue(timings.getLong("total") >= timings.getLong("decode") + timings.getLong("ocr"))
+                assertFalse(timings.has("download"))
+                store.review(first, 0, "Help Rachel", listOf("Drink", "Mental Break"))
                 store.removeVideo(original)
                 assertFalse(firstVideo.exists())
                 val row = store.list().let { rows ->
@@ -78,8 +81,9 @@ class ScanQueueTest {
                 }
                 assertEquals("queuevideo1", row.getString("completed_video_id"))
                 assertFalse(row.getBoolean("has_video"))
-                assertEquals("Help Rachel", store.get(first).getJSONObject("report")
-                    .getJSONArray("breaks").getJSONObject(0).getString("reason"))
+                val reviewed = store.get(first).getJSONObject("report").getJSONArray("breaks").getJSONObject(0)
+                assertEquals("Help Rachel", reviewed.getString("reason"))
+                assertEquals("Drink", reviewed.getJSONArray("additional_reasons").getString(0))
             }
         } finally {
             for (id in listOf(first, second, original)) {
@@ -87,6 +91,35 @@ class ScanQueueTest {
                 if (store.get(id).optString("status") != "running") store.delete(id)
             }
             secondVideo.delete()
+        }
+    }
+
+    @Test fun reorderAndRetryPersistAndBulkDeletionSkipsQueuedMedia() {
+        val first = store.create(input("queuevideo3")).getString("id")
+        val second = store.create(input("queuevideo4")).getString("id")
+        val failed = store.create(input("queuevideo5")).getString("id")
+        val completed = store.create(input("queuevideo6")).getString("id")
+        try {
+            store.update(failed) { it.put("status", "failed").put("error", "Temporary error") }
+            store.update(completed) { it.put("status", "completed") }
+            val inUse = media.video(failed).also(::fixture)
+            val unused = media.video(completed).also(::fixture)
+            assertEquals(1, store.retryFailed())
+            assertEquals(first, store.queuedId())
+            store.moveUp(second)
+            assertEquals(second, JobStore(context).queuedId())
+            val retry = store.get(failed)
+            assertFalse(retry.has("error"))
+            assertEquals(failed, retry.getJSONObject("input").getString("reuse_media"))
+            assertEquals(1, store.removeUnusedVideos())
+            assertTrue(inUse.isFile)
+            assertFalse(unused.exists())
+            assertEquals("completed", store.get(completed).getString("status"))
+        } finally {
+            for (id in listOf(first, second, failed, completed)) {
+                store.cancelQueued(id)
+                store.delete(id)
+            }
         }
     }
 

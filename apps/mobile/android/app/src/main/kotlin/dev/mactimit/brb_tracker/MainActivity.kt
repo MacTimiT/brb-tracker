@@ -39,6 +39,7 @@ class MainActivity : FlutterActivity() {
                     "resume_queue" -> { AnalysisService.resume(this); result.success(null) }
                     "list" -> result.success(store.list().toString())
                     "get" -> result.success(store.get(call.argument<String>("id")!!).toString())
+                    "cached_streams" -> result.success(StreamCatalog.cached(applicationContext))
                     "list_streams" -> {
                         val start = call.argument<Int>("start") ?: 1
                         Thread {
@@ -71,6 +72,12 @@ class MainActivity : FlutterActivity() {
                         AnalysisService.rescan(this, id, settings)
                         result.success(null)
                     }
+                    "move_up" -> {
+                        AnalysisService.moveUp(this, call.argument<String>("id")!!)
+                        result.success(null)
+                    }
+                    "retry_failed" -> result.success(AnalysisService.retryFailed(this, call.argument<String>("id")))
+                    "remove_unused_videos" -> result.success(AnalysisService.removeUnusedVideos(this))
                     "remove_video" -> {
                         AnalysisService.removeVideo(this, call.argument<String>("id")!!)
                         result.success(null)
@@ -83,7 +90,10 @@ class MainActivity : FlutterActivity() {
                         val videoId = runCatching { Detection.videoId(job.getString("url")) }.getOrNull() ?: id
                         exportVideo(source, "brb-$videoId.mp4", result)
                     }
-                    "review" -> result.success(store.review(call.argument<String>("id")!!, call.argument<Int>("index")!!, call.argument<String>("reason")!!).toString())
+                    "review" -> result.success(store.review(
+                        call.argument<String>("id")!!, call.argument<Int>("index")!!,
+                        call.argument<String>("reason")!!, call.argument<List<String>>("additional_reasons"),
+                    ).toString())
                     "cancel" -> { AnalysisService.cancel(this, call.argument<String>("id")!!); result.success(null) }
                     "delete" -> { store.delete(call.argument<String>("id")!!); result.success(null) }
                     "pick" -> {

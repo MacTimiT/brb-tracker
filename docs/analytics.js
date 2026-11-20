@@ -3,6 +3,7 @@
   const reasons = ['Pee', 'Snack', 'Drink', 'Stretch', 'Technical', 'Help Rachel', 'Mental Break', 'Other', 'Unknown'];
   const sum = values => values.reduce((total, value) => total + value, 0);
   const key = report => report.video_id || report.id;
+  const assignedReasons = item => [item.reason, ...(item.additional_reasons ?? [])];
   const median = values => {
     if (!values.length) return null;
     const sorted = [...values].sort((a, b) => a - b);
@@ -28,6 +29,8 @@
       let previousEnd = 0;
       for (const item of report.breaks) {
         if (!item || !Number.isFinite(item.start_seconds) || !Number.isFinite(item.end_seconds) || item.start_seconds < previousEnd || item.end_seconds < item.start_seconds || item.end_seconds > report.duration_seconds || !reasons.includes(item.reason) || typeof item.evidence !== 'string') throw Error('Invalid break timing, reason, or quote.');
+        const extra = item.additional_reasons;
+        if (extra != null && (!Array.isArray(extra) || new Set(extra).size !== extra.length || extra.some(value => value === item.reason || value === 'Unknown' || item.reason === 'Unknown' || !reasons.includes(value)))) throw Error('Invalid additional reasons.');
         for (const field of ['reviewed', 'truncated']) if (item[field] != null && typeof item[field] !== 'boolean') throw Error('Invalid break status.');
         previousEnd = item.end_seconds;
       }
@@ -37,12 +40,13 @@
 
   function compute(reports, reason = 'all') {
     const all = reports.flatMap(report => report.breaks.map((item, index) => ({...item, report, index, seconds: item.end_seconds - item.start_seconds})));
-    const entries = all.filter(item => reason === 'all' || item.reason === reason);
+    const entries = all.filter(item => reason === 'all' || assignedReasons(item).includes(reason));
     const duration = sum(reports.map(report => report.duration_seconds));
     const away = sum(entries.map(item => item.seconds));
     const groups = reasons.map(name => {
-      const items = entries.filter(item => item.reason === name);
-      return {reason: name, count: items.length, seconds: sum(items.map(item => item.seconds)), median: median(items.map(item => item.seconds))};
+      const items = entries.filter(item => assignedReasons(item).includes(name));
+      const primary = items.filter(item => item.reason === name);
+      return {reason: name, count: items.length, seconds: sum(primary.map(item => item.seconds)), median: median(primary.map(item => item.seconds))};
     }).filter(group => group.count);
     const most = Math.max(0, ...groups.map(group => group.count));
     const leaders = groups.filter(group => group.count === most).map(group => group.reason);
@@ -97,11 +101,11 @@
       if (/^[\s]*[=+@-]/.test(text)) text = "'" + text;
       return '"' + text.replaceAll('"', '""') + '"';
     };
-    const rows = [['VOD', 'VOD date', 'Date source', 'Analyzed at', 'Start seconds', 'End seconds', 'Duration seconds', 'Reason', 'Quote', 'YouTube URL']];
-    for (const item of entries) rows.push([item.report.title, item.report.vod_date, item.report.vod_date_source, item.report.analyzed_at, item.start_seconds, item.end_seconds, item.seconds, item.reason, item.evidence, item.report.video_id ? `https://www.youtube.com/watch?v=${item.report.video_id}&t=${Math.floor(item.start_seconds)}s` : '']);
+    const rows = [['VOD', 'VOD date', 'Date source', 'Analyzed at', 'Start seconds', 'End seconds', 'Duration seconds', 'Reason', 'Quote', 'YouTube URL', 'Additional reasons']];
+    for (const item of entries) rows.push([item.report.title, item.report.vod_date, item.report.vod_date_source, item.report.analyzed_at, item.start_seconds, item.end_seconds, item.seconds, item.reason, item.evidence, item.report.video_id ? `https://www.youtube.com/watch?v=${item.report.video_id}&t=${Math.floor(item.start_seconds)}s` : '', (item.additional_reasons ?? []).join(' / ')]);
     return rows.map(row => row.map(cell).join(',')).join('\r\n') + '\r\n';
   }
-  const api = {reasons, key, month, validDate, median, validate, compute, csv};
+  const api = {reasons, key, assignedReasons, month, validDate, median, validate, compute, csv};
   root.BRBStats = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(globalThis);

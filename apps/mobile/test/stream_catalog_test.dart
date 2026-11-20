@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:brb_tracker/local_api.dart';
@@ -17,6 +18,7 @@ void main() {
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'cached_streams') return null;
       final start = call.arguments['start'] as int;
       offsets.add(start);
       return jsonEncode({
@@ -58,4 +60,48 @@ void main() {
     await tester.pumpAndSettle();
     expect(queuedId, 'stream00022');
   });
+
+  testWidgets(
+    'cached archive is available while refreshing and can be filtered',
+    (tester) async {
+      const channel = MethodChannel('cached-catalog-test');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final fresh = Completer<String>();
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'cached_streams') {
+          return '{"streams":[{"id":"stream00001","title":"Cached report"},{"id":"stream00002","title":"New stream"}],"next":null}';
+        }
+        return fresh.future;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StreamCatalog(
+              api: LocalApi(channel: channel),
+              completed: const {'stream00001': 'saved-scan'},
+              queued: const {},
+              openReport: (_) async {},
+              queueStream: (_, _) async {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Cached report'), findsOneWidget);
+      await tester.tap(find.text('Scanned'));
+      await tester.pump();
+      expect(find.text('New stream'), findsNothing);
+      fresh.complete(
+        '{"streams":[{"id":"stream00001","title":"Refreshed report"},{"id":"stream00002","title":"New stream"}],"next":null}',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Refreshed report'), findsOneWidget);
+      await tester.tap(find.text('Unscanned'));
+      await tester.pumpAndSettle();
+      expect(find.text('New stream'), findsOneWidget);
+      expect(find.text('Refreshed report'), findsNothing);
+    },
+  );
 }

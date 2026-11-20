@@ -102,3 +102,23 @@ test('original VOD date is exported separately from scan date; invalid dates are
   assert.ok(csv.includes('"2026-10-22","release_timestamp","2026-11-12T15:00:00Z"'));
   for (const value of ['2026-02-30', 'today', 123]) assert.throws(() => A.validate({...r, vod_date: value}), /Invalid VOD date/);
 });
+
+test('secondary reasons count without counting a break or its duration twice', () => {
+  const vod = report('multi', 100, [[10, 30, 'Pee'], [45, 50, 'Drink']]);
+  vod.breaks[0].additional_reasons = ['Drink', 'Stretch'];
+  const reports = A.validate(vod);
+  const all = A.compute(reports);
+  assert.equal(all.count, 2);
+  assert.equal(all.away, 25);
+  assert.deepEqual(all.groups.map(group => [group.reason, group.count, group.seconds]), [
+    ['Pee', 1, 20], ['Drink', 2, 5], ['Stretch', 1, 0],
+  ]);
+  assert.equal(A.compute(reports, 'Stretch').away, 20);
+  assert.equal(A.compute(reports, 'Drink').entries.length, 2);
+  assert.match(A.csv(all.entries), /"Additional reasons"/);
+  assert.match(A.csv(all.entries), /"Drink \/ Stretch"/);
+  for (const extra of [['Drink', 'Drink'], ['Pee'], ['Unknown'], ['Invalid']]) {
+    vod.breaks[0].additional_reasons = extra;
+    assert.throws(() => A.validate(vod), /Invalid additional reasons/);
+  }
+});

@@ -89,6 +89,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Map<String, String>? transcript;
   bool fastScan = true;
   bool speechFallback = true;
+  bool autoDeleteVideo = false;
   int downloadHeight = 480;
   String detectorProfile = 'gamin4hope';
   List<Map<String, dynamic>> jobs = [];
@@ -125,13 +126,21 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
 
   void startPolling() {
     timer?.cancel();
-    timer = Timer.periodic(const Duration(seconds: 2), (_) => refresh());
+    timer = Timer.periodic(const Duration(seconds: 2), (tick) {
+      if (tick.tick % 5 == 0 ||
+          jobs.any(
+            (job) => job['status'] == 'running' || job['status'] == 'queued',
+          )) {
+        refresh();
+      }
+    });
   }
 
   Map<String, dynamic> get settings => {
     'interval': fastScan ? 5.0 : 2.0,
     'adaptive_scan': fastScan,
     'speech_fallback': speechFallback,
+    'auto_delete_video': autoDeleteVideo,
     'download_height': downloadHeight,
     'detector_profile': detectorProfile,
   };
@@ -150,6 +159,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       setState(() {
         fastScan = saved['adaptive_scan'] != false;
         speechFallback = saved['speech_fallback'] != false;
+        autoDeleteVideo = saved['auto_delete_video'] == true;
         downloadHeight = saved['download_height'] == 360 ? 360 : 480;
         detectorProfile = saved['detector_profile'] == 'full_frame'
             ? 'full_frame'
@@ -375,6 +385,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   Future<void> mediaAction(String id, String action) async {
     try {
       switch (action) {
+        case 'move_up':
+          await api.moveUp(id);
+        case 'retry':
+          await retryFailed(id);
         case 'rescan':
           await api.rescan(id, settings);
           message('Rescan added to the queue.');
@@ -410,6 +424,53 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
       await refresh();
     } catch (error) {
       message('$error');
+    }
+  }
+
+  Future<void> retryFailed([String? id]) async {
+    try {
+      final count = await api.retryFailed(id);
+      message(
+        count == 0
+            ? 'No failed scans can be retried.'
+            : '$count added to the queue.',
+      );
+    } catch (error) {
+      message('Could not retry scans: $error');
+    } finally {
+      await refresh();
+    }
+  }
+
+  Future<void> clearVideos() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        scrollable: true,
+        title: const Text('Delete downloaded videos?'),
+        content: const Text(
+          'Reports and edits stay on your phone. Videos used by the queue will be kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Keep'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Delete videos'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final count = await api.removeUnusedVideos();
+      message('$count downloaded videos deleted.');
+    } catch (error) {
+      message('Could not delete videos: $error');
+    } finally {
+      await refresh();
     }
   }
 
@@ -451,7 +512,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                 showLicensePage(
                   context: context,
                   applicationName: 'BRB Tracker',
-                  applicationVersion: '0.5.0',
+                  applicationVersion: '0.6.0',
                 );
               }
             },
@@ -493,6 +554,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               cancel: cancel,
               action: mediaAction,
               resumeQueue: resumeQueue,
+              retryFailed: retryFailed,
+              clearVideos: clearVideos,
               settingsLoaded: settingsLoaded,
             ),
           ],
@@ -558,6 +621,15 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
         onChanged: !settingsLoaded
             ? null
             : (value) => saveSettings(() => speechFallback = value),
+      ),
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Auto-delete new videos after successful scans'),
+        subtitle: const Text(
+          'Failed scans and videos reused for rescans stay on this phone.',
+        ),
+        value: autoDeleteVideo,
+        onChanged: (value) => saveSettings(() => autoDeleteVideo = value),
       ),
       const SizedBox(height: 16),
       TextField(

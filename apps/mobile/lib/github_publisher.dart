@@ -63,6 +63,19 @@ class GitHubPublisher {
           'Invalid break timing or evidence. Nothing was published.',
         );
       }
+      final extra = raw['additional_reasons'];
+      if (extra != null &&
+          (extra is! List ||
+              extra.toSet().length != extra.length ||
+              extra.any(
+                (value) =>
+                    !reasons.contains(value) ||
+                    value == 'Unknown' ||
+                    value == raw['reason'] ||
+                    raw['reason'] == 'Unknown',
+              ))) {
+        throw const FormatException('Invalid additional reasons.');
+      }
       end = raw['end_seconds'] as num;
     }
   }

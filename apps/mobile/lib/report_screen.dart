@@ -25,10 +25,15 @@ class ReportScreen extends StatefulWidget {
 class _ReportScreenState extends State<ReportScreen> {
   late Map<String, dynamic> report = widget.initial;
   bool saving = false;
-  Future<void> review(int index, String reason) async {
+  Future<void> review(int index, String reason, List<String> additional) async {
     setState(() => saving = true);
     try {
-      final updated = await widget.api!.review(widget.jobId!, index, reason);
+      final updated = await widget.api!.review(
+        widget.jobId!,
+        index,
+        reason,
+        additional,
+      );
       if (mounted) setState(() => report = updated);
     } catch (e) {
       if (mounted) {
@@ -43,6 +48,14 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     final breaks = report['breaks'] as List<dynamic>;
+    final timings = report['timings_ms'] as Map?;
+    const timingLabels = {
+      'download': 'Video download',
+      'decode': 'Frame decoding',
+      'ocr': 'OCR',
+      'speech': 'Speech and model setup',
+      'total': 'Total elapsed',
+    };
     final total = breaks.fold<double>(
       0,
       (value, item) =>
@@ -123,6 +136,11 @@ class _ReportScreenState extends State<ReportScreen> {
                 Text(
                   '${report['frames_checked']} frames · ${report['ocr_calls']} OCR reads · ${report['banner_cache_hits']} cached',
                 ),
+              for (final entry in timingLabels.entries)
+                if (timings?[entry.key] case final num milliseconds)
+                  Text(
+                    '${entry.value} · ${(milliseconds / 1000).toStringAsFixed(1)} s',
+                  ),
               for (final warning
                   in (report['warnings'] as List<dynamic>? ?? []))
                 Padding(
@@ -141,6 +159,57 @@ class _ReportScreenState extends State<ReportScreen> {
         ],
       ),
     );
+  }
+
+  List<String> additionalReasons(Map<String, dynamic> item) =>
+      (item['additional_reasons'] as List? ?? []).cast<String>();
+
+  Future<void> editAdditional(Map<String, dynamic> item, int index) async {
+    final primary = item['reason'] as String;
+    final selected = additionalReasons(item).toSet();
+    final result = await showDialog<List<String>>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
+          title: const Text('Additional reasons'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'The dashboard assigns time away to the primary reason, $primary.',
+              ),
+              for (final reason in GitHubPublisher.reasons)
+                if (reason != primary && reason != 'Unknown')
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(reason),
+                    value: selected.contains(reason),
+                    onChanged: (checked) => setDialogState(() {
+                      if (checked == true) {
+                        selected.add(reason);
+                      } else {
+                        selected.remove(reason);
+                      }
+                    }),
+                  ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, selected.toList()),
+              child: const Text('Save reasons'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted && result != null) await review(index, primary, result);
   }
 
   Widget _breakCard(Map<String, dynamic> item, int index) => Card(
@@ -168,6 +237,8 @@ class _ReportScreenState extends State<ReportScreen> {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 8),
+          const Text('Primary reason'),
           DropdownButton<String>(
             value: item['reason'] as String,
             isExpanded: true,
@@ -178,9 +249,27 @@ class _ReportScreenState extends State<ReportScreen> {
             onChanged: widget.api == null || saving
                 ? null
                 : (value) {
-                    if (value != null) review(index, value);
+                    if (value != null) {
+                      review(
+                        index,
+                        value,
+                        value == 'Unknown'
+                            ? []
+                            : additionalReasons(item)
+                                  .where((reason) => reason != value)
+                                  .toList(),
+                      );
+                    }
                   },
           ),
+          if (additionalReasons(item).isNotEmpty)
+            Text('Also: ${additionalReasons(item).join(', ')}'),
+          if (widget.api != null && item['reason'] != 'Unknown')
+            TextButton.icon(
+              onPressed: saving ? null : () => editAdditional(item, index),
+              icon: const Icon(Icons.playlist_add),
+              label: const Text('Additional reasons'),
+            ),
           if (report['video_id'] != null)
             TextButton.icon(
               icon: const Icon(Icons.play_arrow),

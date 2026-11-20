@@ -53,6 +53,21 @@ class AnalysisService : Service() {
             JobStore(context).removeVideo(id)
         }
 
+        fun removeUnusedVideos(context: Context): Int = synchronized(queueLock) {
+            JobStore(context).removeUnusedVideos()
+        }
+
+        fun retryFailed(context: Context, id: String?): Int = synchronized(queueLock) {
+            val store = JobStore(context)
+            val count = store.retryFailed(id)
+            if (count > 0) startPending(context, store)
+            count
+        }
+
+        fun moveUp(context: Context, id: String) = synchronized(queueLock) {
+            JobStore(context).moveUp(id)
+        }
+
         fun resume(context: Context) = synchronized(queueLock) {
             if (!scheduled) {
                 val store = JobStore(context)
@@ -223,6 +238,7 @@ class AnalysisService : Service() {
         addOption("--no-mtime")
     }
     private fun runJob(id: String) {
+        val timings = ScanTimings()
         val work = File(noBackupFilesDir, "brb-work/$id").apply { mkdirs() }
         try {
             val input = store.get(id).getJSONObject("input")
@@ -258,9 +274,22 @@ class AnalysisService : Service() {
                 runCatching { YoutubeDL.updateYoutubeDL(this, YoutubeDL.UpdateChannel.STABLE) }
                 checkCancelled()
                 progress(id, JobPhase.METADATA)
-                val metadataRequest = request(url).apply { addOption("--dump-single-json"); addOption("--skip-download") }
+                val format = VodMetadata.format(input.optInt("download_height", 480))
+                val metadataRequest = request(url).apply {
+                    addOption("--match-filter", "!is_live")
+                    addOption("--dump-single-json")
+                    addOption("--skip-download")
+                    addOption("-f", format)
+                }
                 val metadata = JSONObject(YoutubeDL.execute(metadataRequest, id, null).out)
                 check(!metadata.optBoolean("is_live", false)) { "Wait until the livestream has ended before analyzing its VOD" }
+                val estimate = VodMetadata.estimatedDownloadBytes(metadata)
+                if (estimate != null) {
+                    val required = estimate + (512L shl 20)
+                    check(work.usableSpace >= required) {
+                        "Not enough space for this VOD. Free about ${(required - work.usableSpace + (1L shl 20) - 1) shr 20} MB or choose a smaller download."
+                    }
+                }
                 input.put("title", metadata.optString("title", videoId))
                 val dates = VodMetadata.date(metadata)
                 for (field in listOf("vod_date", "vod_date_source", "stream_started_at")) input.put(field, dates.get(field))
@@ -283,7 +312,7 @@ class AnalysisService : Service() {
                 checkCancelled()
                 progress(id, JobPhase.DOWNLOAD, 0.0)
                 val media = request(url).apply {
-                    addOption("-f", VodMetadata.format(input.optInt("download_height", 480)))
+                    addOption("-f", format)
                     addOption("--max-filesize", "4G")
                     addOption("--concurrent-fragments", 4)
                     addOption("--match-filter", "!is_live")
@@ -291,9 +320,11 @@ class AnalysisService : Service() {
                     addOption("--newline")
                     // Use downloader progress callbacks for the download phase.
                 }
-                YoutubeDL.execute(media, id) { percent, _, _ ->
-                    if (cancelled) YoutubeDL.destroyProcessById(id)
-                    progress(id, JobPhase.DOWNLOAD, percent / 100.0)
+                timings.measure("download") {
+                    YoutubeDL.execute(media, id) { percent, _, _ ->
+                        if (cancelled) YoutubeDL.destroyProcessById(id)
+                        progress(id, JobPhase.DOWNLOAD, percent / 100.0)
+                    }
                 }
                 val downloaded = work.listFiles().orEmpty().firstOrNull { it.extension == "mp4" } ?: error("YouTube did not provide a downloadable MP4. Try importing a local video.")
                 if (input.has("probe_seconds")) {
@@ -322,7 +353,7 @@ class AnalysisService : Service() {
             speechExpected = cues.isEmpty() && input.optBoolean("speech_fallback", true)
             progress(id, JobPhase.ANALYSIS, 0.0)
             beginForeground(JobPhase.ANALYSIS.label, 0, true)
-            val report = LocalAnalyzer(this).analyze(video, input, id, cues, { cancelled }) {
+            val report = LocalAnalyzer(this).analyze(video, input, id, cues, timings, { cancelled }) {
                 progress(id, JobPhase.ANALYSIS, it)
             }
             checkCancelled()
@@ -354,8 +385,10 @@ class AnalysisService : Service() {
                     }
                     val starts = (0 until breaks.length()).map { breaks.getJSONObject(it).getDouble("start_seconds") }
                     progress(id, JobPhase.MODEL, 0.0)
-                    val spoken = SpeechTranscriber(this).transcribe(audio, starts, { cancelled },
-                        { progress(id, JobPhase.MODEL, it) }, { progress(id, JobPhase.SPEECH, it) })
+                    val spoken = timings.measure("speech") {
+                        SpeechTranscriber(this).transcribe(audio, starts, { cancelled },
+                            { progress(id, JobPhase.MODEL, it) }, { progress(id, JobPhase.SPEECH, it) })
+                    }
                     checkCancelled()
                     if (spoken.isNotEmpty()) {
                         for (index in 0 until breaks.length()) {
@@ -376,7 +409,11 @@ class AnalysisService : Service() {
                 }
             }
             if (report.getString("transcript_source") == "none") captionWarning?.let { report.getJSONArray("warnings").put(it) }
+            report.put("timings_ms", timings.report())
             store.update(id) { it.put("status", "completed").put("stage", "Saved on this phone").put("phase", "completed").put("phase_progress", 1.0).put("progress", 1.0).put("title", report.getString("title")).put("report", report) }
+            if (reuse == null && localUri.isBlank() && input.optBoolean("auto_delete_video")) {
+                synchronized(queueLock) { runCatching { store.removeVideo(id) } }
+            }
         } catch (e: Exception) {
             val wasCancelled = cancelled || e is CancellationException || e is YoutubeDL.CanceledException
             store.update(id) {

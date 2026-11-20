@@ -32,7 +32,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Explore sample report'), findsNothing);
       expect(find.text('Your phone. The whole pipeline.'), findsNothing);
-      expect(find.widgetWithText(TextField, 'YouTube VOD URL'), findsOneWidget);
+      final url = find.widgetWithText(TextField, 'YouTube VOD URL');
+      await tester.scrollUntilVisible(
+        url,
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(url, findsOneWidget);
       expect(
         find.text('https://www.youtube.com/live/IW2rEIuKGSs'),
         findsNothing,
@@ -179,6 +185,49 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('saving additional reasons keeps the primary and evidence', (
+    tester,
+  ) async {
+    final item = <String, dynamic>{
+      'start_seconds': 10,
+      'end_seconds': 20,
+      'evidence': 'I need to pee and get a drink.',
+      'suggested_reason': 'Pee',
+      'reason': 'Pee',
+    };
+    final report = {
+      'title': 'Reviewed stream',
+      'breaks': [item],
+    };
+    Map<dynamic, dynamic>? sent;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          if (call.method != 'review') return homeResponse(call);
+          sent = call.arguments as Map;
+          item['additional_reasons'] = sent!['additional_reasons'];
+          item['reviewed'] = true;
+          return jsonEncode(report);
+        });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportScreen(
+          initial: report,
+          api: LocalApi(),
+          jobId: 'review-job',
+        ),
+      ),
+    );
+    await tester.tap(find.text('Additional reasons'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Drink'));
+    await tester.tap(find.text('Save reasons'));
+    await tester.pumpAndSettle();
+    expect(sent?['reason'], 'Pee');
+    expect(sent?['additional_reasons'], ['Drink']);
+    expect(find.text('Also: Drink'), findsOneWidget);
+    expect(find.textContaining('pee and get a drink'), findsOneWidget);
+  });
+
   testWidgets('publishing settings fit with large text', (tester) async {
     narrowPhone(tester);
     const storage = MethodChannel(
@@ -242,41 +291,37 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
-  testWidgets(
-    'active download shows its current phase and percentage',
-    (tester) async {
-      tester.view.physicalSize = const Size(1080, 2600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            channel,
-            (call) async => call.method == 'list'
-                ? jsonEncode([
-                    {
-                      'id': 'download-job',
-                      'status': 'running',
-                      'stage': 'Downloading video to this phone',
-                      'progress': 0.15,
-                      'phase_progress': 0.5,
-                    },
-                  ])
-                : homeResponse(call),
-          );
-      await tester.pumpWidget(const BrbApp());
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Scans'));
-      await tester.pumpAndSettle();
-      expect(find.byType(LinearProgressIndicator), findsOneWidget);
-      expect(
-        find.text('Downloading video to this phone · 50%'),
-        findsOneWidget,
-      );
-      expect(find.text('Analysis running on this phone'), findsNothing);
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+  testWidgets('active download shows its current phase and percentage', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          channel,
+          (call) async => call.method == 'list'
+              ? jsonEncode([
+                  {
+                    'id': 'download-job',
+                    'status': 'running',
+                    'stage': 'Downloading video to this phone',
+                    'progress': 0.15,
+                    'phase_progress': 0.5,
+                  },
+                ])
+              : homeResponse(call),
+        );
+    await tester.pumpWidget(const BrbApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Scans'));
+    await tester.pumpAndSettle();
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(find.text('Downloading video to this phone · 50%'), findsOneWidget);
+    expect(find.text('Analysis running on this phone'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
   test('Analysis is dispatched to Android with no HTTP service', () async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {

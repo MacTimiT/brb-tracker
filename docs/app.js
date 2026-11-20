@@ -3,6 +3,7 @@ const $ = id => document.getElementById(id);
 const A = globalThis.BRBStats;
 const reasonNames = {Pee: 'Pee breaks', Snack: 'Snack raids', Drink: 'Hydration runs', Stretch: 'Touching grass', Technical: 'Tech gremlins', Other: 'Side quests', Unknown: 'Unsolved mysteries'};
 const reasonName = reason => reasonNames[reason] ?? reason;
+const reasonLabels = item => A.assignedReasons(item).map(reasonName).join(' / ');
 const colors = {Pee: '#bc2028', Snack: '#985182', Drink: '#23748a', Stretch: '#527346', Technical: '#586582', 'Help Rachel': '#96701d', 'Mental Break': '#6a51a3', Other: '#8a6842', Unknown: '#77736b'};
 const state = {published: [], vod: 'all', month: 'all', reason: 'all', metric: 'count', query: '', sort: 'longest', loading: true, logEntries: []};
 const integer = value => Math.round(value).toLocaleString('en-US');
@@ -50,12 +51,12 @@ function render() {
   $('one-secs').textContent = hasReports ? `${integer(stats.away)} “one secs” and counting.` : 'Waiting for the first “one sec.”';
   $('share-fill').style.width = `${stats.percent}%`;
   const otherName = state.reason === 'all' ? 'Not BRB' : 'Everything else';
-  const awayName = state.reason === 'all' ? 'BRB' : state.reason;
+  const awayName = state.reason === 'all' ? 'BRB' : `BRB with ${state.reason}`;
   $('other-label').textContent = `${otherName}${hasReports ? ' ' + fixed(stats.duration ? 100 - stats.percent : 0) + '%' : ''}`;
   $('away-label').textContent = `${awayName}${hasReports ? ' ' + fixed(stats.percent) + '%' : ''}`;
   $('count').textContent = integer(stats.count);
   $('away-percent').textContent = `${fixed(stats.percent)}%`;
-  $('away-metric-label').textContent = state.reason === 'all' ? 'STREAM SPENT BRB' : `STREAM SPENT ON ${state.reason.toUpperCase()}`;
+  $('away-metric-label').textContent = state.reason === 'all' ? 'STREAM SPENT BRB' : `BRB TIME WITH ${state.reason.toUpperCase()}`;
   $('average').textContent = duration(stats.average);
   $('median').textContent = duration(stats.median);
   $('rate').textContent = fixed(stats.rate, 2);
@@ -89,11 +90,12 @@ function renderReasons(stats) {
   groups.forEach((group, index) => {
     const button = node('button', null, 'reason-row'); button.type = 'button';
     button.setAttribute('aria-pressed', String(state.reason === group.reason));
-    button.title = `Filter ${group.reason} · ${group.count} breaks · ${duration(group.seconds)}`;
+    button.title = `Filter ${group.reason} · ${group.count} breaks · ${duration(group.seconds)} as primary reason`;
     const middle = node('span');
     const track = node('span', null, 'reason-track');
     const fill = node('span', null, 'reason-fill');
     fill.style.width = `${max ? group[state.metric] / max * 100 : 0}%`; fill.style.backgroundColor = colors[group.reason];
+    fill.hidden = !group[state.metric];
     track.append(fill); middle.append(node('span', reasonName(group.reason), 'reason-name'), track);
     const values = node('span', state.metric === 'count' ? String(group.count) : duration(group.seconds), 'reason-values');
     values.append(node('small', state.metric === 'count' ? duration(group.seconds) : `${group.count} breaks`));
@@ -152,7 +154,7 @@ function renderTimeline(stats) {
       mark.style.left = `${report.duration_seconds ? item.start_seconds / report.duration_seconds * 100 : 0}%`;
       mark.style.width = `${report.duration_seconds ? item.seconds / report.duration_seconds * 100 : 0}%`;
       mark.style.backgroundColor = colors[item.reason];
-      mark.setAttribute('aria-label', `${item.reason}, ${stamp(item.start_seconds)}, ${duration(item.seconds)}`);
+      mark.setAttribute('aria-label', `${reasonLabels(item)}, ${stamp(item.start_seconds)}, ${duration(item.seconds)}`);
       mark.title = mark.getAttribute('aria-label'); mark.onclick = () => openReceipt(item);
       track.append(mark);
     }
@@ -162,7 +164,7 @@ function renderTimeline(stats) {
 }
 function renderLog(stats) {
   const query = state.query.trim().toLocaleLowerCase();
-  const entries = stats.entries.filter(item => !query || `${item.report.title} ${reasonName(item.reason)} ${item.evidence}`.toLocaleLowerCase().includes(query));
+  const entries = stats.entries.filter(item => !query || `${item.report.title} ${reasonLabels(item)} ${A.assignedReasons(item).join(" ")} ${item.evidence}`.toLocaleLowerCase().includes(query));
   if (state.sort !== 'stream') entries.sort((a, b) => state.sort === 'longest' ? b.seconds - a.seconds : a.seconds - b.seconds);
   state.logEntries = entries;
   $('breaks').replaceChildren();
@@ -171,16 +173,16 @@ function renderLog(stats) {
   for (const item of entries) {
     const row = node('tr');
     const source = node('td'); source.append(node('strong', item.report.title), node('small', item.report.vod_date || 'Date unknown'), node('small', `${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}`));
-    const reason = node('td'); reason.append(node('span', reasonName(item.reason), 'reason-tag'));
+    const reason = node('td'); reason.append(node('span', reasonLabels(item), 'reason-tag'));
     if (item.reviewed) { const checked = node('span', '✓', 'reviewed'); checked.title = 'Reviewed'; reason.append(checked); }
     const quote = node('td'); quote.append(node('div', item.evidence ? `“${item.evidence}”` : 'No quote on file.', 'quote-preview'));
-    const action = node('td'); const button = node('button', '↗', 'receipt-open'); button.setAttribute('aria-label', `Open ${item.reason} receipt at ${stamp(item.start_seconds)}`); button.onclick = () => openReceipt(item); action.append(button);
+    const action = node('td'); const button = node('button', '↗', 'receipt-open'); button.setAttribute('aria-label', `Open ${A.assignedReasons(item).join(' / ')} receipt at ${stamp(item.start_seconds)}`); button.onclick = () => openReceipt(item); action.append(button);
     row.append(source, node('td', duration(item.seconds) + (item.truncated ? '+' : '')), reason, quote, action);
     $('breaks').append(row);
   }
 }
 function openReceipt(item) {
-  $('receipt-title').textContent = `${reasonName(item.reason)} · ${duration(item.seconds)}${item.truncated ? '+' : ''}`;
+  $('receipt-title').textContent = `${reasonLabels(item)} · ${duration(item.seconds)}${item.truncated ? '+' : ''}`;
   $('receipt-meta').textContent = `${item.report.title} · ${item.report.vod_date || 'Date unknown'} · ${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}${item.truncated ? ' · Still BRB when the VOD ends.' : ''}`;
   $('receipt-quote').textContent = item.evidence || 'No quote on file.';
   $('receipt-review').textContent = item.reviewed ? 'Reviewed.' : '';
