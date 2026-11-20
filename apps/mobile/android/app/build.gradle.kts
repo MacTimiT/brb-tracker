@@ -47,6 +47,7 @@ android {
             // Without signing secrets, a release build is unsigned and cannot
             // silently fall back to the per-run Android debug certificate.
             signingConfig = signingConfigs.findByName("brbStable")
+            proguardFiles("proguard-rules.pro")
         }
     }
     packaging {
