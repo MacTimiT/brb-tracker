@@ -162,6 +162,97 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "4f10f2a9-0b37-4d64-a6c7-b1473d931aeb",
+      "title": "I Pushed My Limits, and Broke 🤯",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=HohIvON830U",
+      "video_id": "HohIvON830U",
+      "duration_seconds": 19836,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-13",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-13T13:59:35Z",
+      "analyzed_at": "2026-11-20T16:30:01.056345Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 4016,
+      "ocr_calls": 4502,
+      "banner_cache_hits": 37,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 1864,
+          "end_seconds": 1931,
+          "reason": "Other",
+          "suggested_reason": "Unknown",
+          "evidence": "out of 10 or a two or a one or a zero out of 10, I'm going to keep focusing on myself. I can't I can't go back to the past, dude. I can't do it. I'm not going to do it.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 9320,
+          "end_seconds": 9481,
+          "reason": "Pee",
+          "suggested_reason": "Unknown",
+          "evidence": "See, I'm looking for Doomfist stuff, though. I can pull that code up, though, just for fun. But I I do feel like um cuz we could do vax for just mechanics",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 13179,
+          "end_seconds": 13296,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "saying? So, it's just interesting. Let me pee real quick. We'll get into the next game. I think that's enough. That's enough of a bit of a a break for me. So,",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 16420,
+          "end_seconds": 16500,
+          "reason": "Mental Break",
+          "suggested_reason": "Unknown",
+          "evidence": "",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 17083,
+          "end_seconds": 17244,
+          "reason": "Mental Break",
+          "suggested_reason": "Unknown",
+          "evidence": ">> [groaning] >> Deploying rock. The fall proceeds to climb >> defeat.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 18609,
+          "end_seconds": 19670,
+          "reason": "Other",
+          "suggested_reason": "Unknown",
+          "evidence": "than it is for me to be frustrated with something I can't control. Hey, I I just realized I missed an important call. I do actually need to call them back.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
