@@ -6,7 +6,12 @@ const path = require('node:path');
 const sample = JSON.parse(fs.readFileSync('docs/data/demo.json', 'utf8'));
 async function page(data = sample) {
   const dom = new JSDOM(fs.readFileSync('docs/index.html', 'utf8'), {url: 'http://localhost/', runScripts: 'outside-only'});
-  dom.window.fetch = async path => ({ok: true, json: async () => structuredClone(path.includes('demo.json') ? sample : data)});
+  const requests = [];
+  dom.window.fetch = async path => {
+    requests.push(path);
+    return {ok: true, json: async () => structuredClone(data)};
+  };
+  dom.requests = requests;
   for (const dialog of dom.window.document.querySelectorAll('dialog')) {
     dialog.showModal = () => { dialog.open = true; };
     dialog.close = () => { dialog.open = false; };
@@ -21,20 +26,16 @@ function change(dom, id, value, type = 'change') {
   control.value = value;
   control.dispatchEvent(new dom.window.Event(type));
 }
-test('published view does not pass off invented demo numbers as real attendance', async () => {
+test('published view ignores demo reports and has no demo controls even when empty', async () => {
   const dom = await page(); const d = dom.window.document;
   assert.equal(d.getElementById('total').textContent, '—');
   assert.equal(d.getElementById('empty-board').hidden, false);
   assert.equal(d.getElementById('analytics-board').hidden, true);
   assert.equal(d.getElementById('data-mode').textContent, 'Published VODs');
   assert.doesNotMatch(d.body.textContent, /not proof|unverified suggestion|A note on the numbers|Invented sample data/i);
-  d.getElementById('demo-empty').click();
-  assert.equal(d.getElementById('data-mode').textContent, 'Demo round');
-  assert.equal(d.getElementById('count').textContent, '6');
-  assert.equal(d.getElementById('total').textContent, '22m 0s');
-  assert.equal(d.getElementById('median').textContent, '3m 15s');
-  assert.equal(d.getElementById('rate').textContent, '1.50');
-  assert.equal(d.getElementById('empty-board').hidden, true);
+  assert.deepEqual(dom.requests, ['data/reports.json']);
+  assert.equal(d.querySelectorAll('#demo-toggle, #demo-empty').length, 0);
+  assert.doesNotMatch(d.body.textContent, /Try the demo|Take a demo lap/);
   dom.window.close();
 });
 test('real published reports render automatically; reason filters keep the full VOD denominator', async () => {
@@ -61,6 +62,23 @@ test('leaderboard switches between counts and total minutes and supports click f
   d.querySelector('.reason-row').click();
   assert.equal(d.getElementById('reason').value, 'Snack');
   assert.equal(d.getElementById('count').textContent, '1');
+  dom.window.close();
+});
+test('new reasons show in leaderboard rows, podium copy and receipts', async () => {
+  const report = structuredClone(sample.reports[0]);
+  report.is_demo = false;
+  report.breaks = [
+    {...report.breaks[0], reason: 'Help Rachel'},
+    {...report.breaks[1], reason: 'Mental Break'},
+  ];
+  const dom = await page({schema_version: 1, reports: [report]});
+  const d = dom.window.document;
+  assert.deepEqual([...d.querySelectorAll('.reason-name')].map(row => row.textContent), ['Help Rachel', 'Mental Break']);
+  assert.match(d.getElementById('leaderboard-note').textContent, /Help Rachel \/ Mental Break/);
+  change(dom, 'reason-metric', 'seconds');
+  assert.match(d.getElementById('leaderboard-note').textContent, /Mental Break/);
+  d.querySelector('.receipt-open').click();
+  assert.match(d.getElementById('receipt-title').textContent, /Mental Break/);
   dom.window.close();
 });
 test('search and ordering affect the receipt list while analytics keep their scope', async () => {
