@@ -89,7 +89,12 @@ class _StreamCatalogState extends State<StreamCatalog> {
   Widget build(BuildContext context) {
     final entries = streams.entries.toList(growable: false);
     return Scaffold(
-      appBar: AppBar(title: const Text('Gamin4Hope streams')),
+      appBar: AppBar(
+        title: const Text(
+          'Gamin4Hope streams',
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: refresh,
         child: ListView.builder(

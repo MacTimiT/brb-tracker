@@ -235,10 +235,11 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
   }
 
   Future<void> checkVodFrame() async {
-    var timestamp = '1:43:55';
+    var timestamp = '';
     final value = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: const Text('Check a VOD frame'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -247,10 +248,10 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               'Uses the selected video or YouTube URL. Downloads the video if needed, then checks only this timestamp instead of scanning the full VOD.',
             ),
             TextFormField(
-              initialValue: timestamp,
               onChanged: (value) => timestamp = value,
               decoration: const InputDecoration(
                 labelText: 'Timestamp · H:MM:SS',
+                hintText: '0:12:34',
               ),
             ),
           ],
@@ -270,7 +271,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     if (value == null || !mounted) return;
     final parts = value.trim().split(':');
     if (!RegExp(r'^\d{1,3}:[0-5]\d:[0-5]\d$').hasMatch(value.trim())) {
-      setState(() => error = 'Enter a timestamp such as 1:43:55.');
+      setState(() => error = 'Enter a timestamp such as 0:12:34.');
       return;
     }
     final seconds =
@@ -354,13 +355,8 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
     );
     return Scaffold(
       appBar: AppBar(
-        title: const Text('GONE4HOPE'),
+        title: const Text('GONE4HOPE', overflow: TextOverflow.ellipsis),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.cloud_upload_outlined),
-            tooltip: 'GitHub publishing settings',
-            onPressed: () => showPublishingSettings(context),
-          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh local analyses',
@@ -368,15 +364,28 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              if (value == 'licenses') {
+              if (value == 'publishing') {
+                showPublishingSettings(context);
+              } else if (value == 'screenshot') {
+                checkScreenshot();
+              } else if (value == 'licenses') {
                 showLicensePage(
                   context: context,
                   applicationName: 'BRB Tracker',
-                  applicationVersion: '0.4.2',
+                  applicationVersion: '0.4.3',
                 );
               }
             },
             itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'publishing',
+                child: Text('GitHub publishing settings'),
+              ),
+              PopupMenuItem(
+                value: 'screenshot',
+                enabled: !busy && !running,
+                child: const Text('Check saved screenshot'),
+              ),
               const PopupMenuItem(
                 value: 'licenses',
                 child: Text('Open-source licenses'),
@@ -427,11 +436,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             label: const Text('Browse Gamin4Hope streams'),
           ),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: busy || running ? null : checkScreenshot,
-            icon: const Icon(Icons.image_search),
-            label: const Text('Check saved BRB screenshot'),
-          ),
           TextField(
             controller: url,
             enabled: !busy && !running,
@@ -443,24 +447,14 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: busy || running ? null : checkVodFrame,
-            icon: const Icon(Icons.video_library_outlined),
-            label: const Text('Check VOD frame at timestamp'),
-          ),
           DropdownButtonFormField<bool>(
             isExpanded: true,
+            itemHeight: null,
             initialValue: fastScan,
             decoration: const InputDecoration(labelText: 'Scan mode'),
             items: const [
-              DropdownMenuItem(
-                value: true,
-                child: Text('Fast · 5s scan, 1s edges'),
-              ),
-              DropdownMenuItem(
-                value: false,
-                child: Text('Detailed · every 2s'),
-              ),
+              DropdownMenuItem(value: true, child: Text('Fast (5s, 1s edges)')),
+              DropdownMenuItem(value: false, child: Text('Detailed (2s)')),
             ],
             onChanged: busy || running
                 ? null
@@ -469,17 +463,12 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           const SizedBox(height: 16),
           DropdownButtonFormField<int>(
             isExpanded: true,
+            itemHeight: null,
             initialValue: downloadHeight,
             decoration: const InputDecoration(labelText: 'Download quality'),
             items: const [
-              DropdownMenuItem(
-                value: 480,
-                child: Text('480p · clearer banner'),
-              ),
-              DropdownMenuItem(
-                value: 360,
-                child: Text('360p · smaller download'),
-              ),
+              DropdownMenuItem(value: 480, child: Text('480p (clearer)')),
+              DropdownMenuItem(value: 360, child: Text('360p (smaller)')),
             ],
             onChanged: busy || running || video != null
                 ? null
@@ -531,21 +520,27 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 isExpanded: true,
+                itemHeight: null,
                 initialValue: detectorProfile,
                 decoration: const InputDecoration(labelText: 'BRB banner'),
                 items: const [
                   DropdownMenuItem(
                     value: 'gamin4hope',
-                    child: Text('Gamin4Hope · red banner'),
+                    child: Text('Gamin4Hope banner'),
                   ),
                   DropdownMenuItem(
                     value: 'full_frame',
-                    child: Text('Full frame · other layouts'),
+                    child: Text('Full frame'),
                   ),
                 ],
                 onChanged: busy || running
                     ? null
                     : (value) => setState(() => detectorProfile = value!),
+              ),
+              OutlinedButton.icon(
+                onPressed: busy || running ? null : checkVodFrame,
+                icon: const Icon(Icons.image_search),
+                label: const Text('Check VOD frame at timestamp'),
               ),
               const SizedBox(height: 16),
             ],
@@ -564,8 +559,6 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
                       ),
                     )
                   : 'Scan VOD',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
           if (busy) const LinearProgressIndicator(),

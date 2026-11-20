@@ -45,6 +45,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .filter-row{display:flex;flex-wrap:wrap;align-items:end;gap:20px}
 label{display:block;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.3px}
 select{display:block;width:100%;border:0;border-bottom:1px solid #a39f95;background:transparent;color:var(--ink);padding:8px 25px 8px 0;border-radius:0;font-size:13px;font-weight:600;max-width:310px;min-width:130px}
+.filter-row select{min-width:0}
 .filter-row>label:first-child{width:32%;max-width:330px}
 .filter-row>label:nth-child(2){width:160px}
 .control-buttons{display:flex;gap:7px;margin-left:auto;align-items:center;padding-bottom:1px;flex-wrap:wrap;justify-content:flex-end}
@@ -99,7 +100,7 @@ h2{font:800 30px/1.05 Barlow,Impact,sans-serif;margin:0;letter-spacing:-.2px}
 .gap-note{font-size:11px;color:var(--muted);margin:12px 0 0}
 .vod-panel{margin-bottom:23px}
 .section-side{font-size:9px;color:var(--muted);text-align:right}
-.table-scroll{overflow-x:auto}
+.table-scroll{position:relative;overflow-x:auto}
 table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}
 th{font-size:8px;letter-spacing:.8px;font-weight:700;color:var(--muted);padding:8px 10px 13px;white-space:nowrap;border-bottom:1px solid var(--ink)}
 td{padding:16px 10px;vertical-align:top;border-bottom:1px solid #e6e0d6}

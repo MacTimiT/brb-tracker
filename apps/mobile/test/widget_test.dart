@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:brb_tracker/main.dart';
 import 'package:brb_tracker/local_api.dart';
 import 'package:brb_tracker/report_screen.dart';
+import 'package:brb_tracker/publishing_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -41,6 +42,101 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+  testWidgets('scan controls fit a narrow phone with large text', (
+    tester,
+  ) async {
+    narrowPhone(tester);
+    await tester.pumpWidget(const BrbApp());
+    await tester.pumpAndSettle();
+
+    final scrollable = find.byType(Scrollable).first;
+    final scanMode = find.byType(DropdownButtonFormField<bool>);
+    await tester.scrollUntilVisible(
+      scanMode.hitTestable(),
+      160,
+      scrollable: scrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(scanMode);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Detailed (2s)').last);
+    await tester.pumpAndSettle();
+
+    final settings = find.text('Files & detection settings');
+    await tester.scrollUntilVisible(
+      settings.hitTestable(),
+      170,
+      scrollable: scrollable,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(settings);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Check VOD frame at timestamp').hitTestable(),
+      150,
+      scrollable: scrollable,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('long break details and reason picker fit with large text', (
+    tester,
+  ) async {
+    narrowPhone(tester);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReportScreen(
+          initial: {
+            'title': 'A long stream title with extra words and a game title',
+            'video_id': '9YP_ljMuDQM',
+            'breaks': [
+              {
+                'start_seconds': 6240,
+                'end_seconds': 6470,
+                'evidence': 'I need to go help Rachel before I come back.',
+                'suggested_reason': 'Help Rachel',
+                'reason': 'Mental Break',
+              },
+            ],
+          },
+          api: LocalApi(),
+          jobId: 'local-job',
+        ),
+      ),
+    );
+    final picker = find.byType(DropdownButton<String>);
+    await tester.scrollUntilVisible(picker.hitTestable(), 160);
+    await tester.pumpAndSettle();
+    await tester.tap(picker);
+    await tester.pumpAndSettle();
+    expect(find.text('Help Rachel'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('publishing settings fit with large text', (tester) async {
+    narrowPhone(tester);
+    const storage = MethodChannel(
+      'plugins.it_nomads.com/flutter_secure_storage',
+    );
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      storage,
+      (call) async =>
+          call.arguments['key'] == 'github_token' ? 'test-token' : null,
+    );
+    addTearDown(() => messenger.setMockMethodCallHandler(storage, null));
+    await tester.pumpWidget(const MaterialApp(home: PublishingSettings()));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Save securely').hitTestable(),
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'report shows historical VOD date, missing captions and preserves publishing',
     (tester) async {
@@ -146,12 +242,24 @@ void main() {
       find.byType(TextField),
       'https://www.youtube.com/watch?v=9YP_ljMuDQM',
     );
+    await tester.tap(find.text('Files & detection settings'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Check VOD frame at timestamp'));
     await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '1:43:55');
     await tester.tap(find.text('Check frame'));
     await tester.pumpAndSettle();
     expect(started?['probe_seconds'], 6235.0);
     expect(started?['url'], 'https://www.youtube.com/watch?v=9YP_ljMuDQM');
     await tester.pumpWidget(const SizedBox.shrink());
   });
+}
+
+void narrowPhone(WidgetTester tester) {
+  tester.view.physicalSize = const Size(320, 650);
+  tester.view.devicePixelRatio = 1;
+  tester.platformDispatcher.textScaleFactorTestValue = 1.6;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 }

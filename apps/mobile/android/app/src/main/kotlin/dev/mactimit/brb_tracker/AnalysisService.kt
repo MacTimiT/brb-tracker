@@ -84,7 +84,7 @@ class AnalysisService : Service() {
     private fun notification(stage: String, percent: Int?): Notification {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val cancel = PendingIntent.getService(this, 1, Intent(this, AnalysisService::class.java).setAction("cancel"), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        return Notification.Builder(this, CHANNEL).setSmallIcon(applicationInfo.icon).setContentTitle("BRB Tracker")
+        return Notification.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_brb_notification).setContentTitle("BRB Tracker")
             .setContentText(stage).setContentIntent(open).setOngoing(true).setProgress(100, percent ?: 0, percent == null)
             .addAction(Notification.Action.Builder(null, "Cancel", cancel).build()).build()
     }

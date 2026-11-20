@@ -52,7 +52,7 @@ class _ReportScreenState extends State<ReportScreen> {
     );
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Break report'),
+        title: const Text('Break report', overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
             icon: const Icon(Icons.copy),
@@ -164,11 +164,14 @@ class _ReportScreenState extends State<ReportScreen> {
           ),
           Text(
             'Suggested: ${item['suggested_reason']} · ${item['reviewed'] == true ? 'Reviewed' : 'Needs review'}',
-            style: const TextStyle(color: Colors.grey),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           DropdownButton<String>(
             value: item['reason'] as String,
             isExpanded: true,
+            itemHeight: null,
             items: GitHubPublisher.reasons
                 .map((r) => DropdownMenuItem(value: r, child: Text(r)))
                 .toList(),

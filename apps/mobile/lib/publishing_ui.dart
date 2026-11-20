@@ -27,6 +27,7 @@ Future<void> publishReport(
   final answer = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
+      scrollable: true,
       title: const Text('Publish this report?'),
       content: Text(
         'Publish ${(report['breaks'] as List).length} breaks and transcript quotes to $owner/$repo? Other VODs will be kept.',
@@ -166,11 +167,10 @@ class _PublishingSettingsState extends State<PublishingSettings> {
           autocorrect: false,
           enableSuggestions: false,
           decoration: InputDecoration(
-            labelText: savedToken
-                ? 'Replacement GitHub token (optional)'
-                : 'GitHub token',
+            labelText: 'GitHub token',
+            helperMaxLines: 3,
             helperText: savedToken
-                ? 'A token is saved securely on this device.'
+                ? 'Leave blank to keep the saved token.'
                 : 'Stored securely on this phone.',
           ),
         ),

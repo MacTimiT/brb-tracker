@@ -2,7 +2,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const A = require('../docs/analytics.js');
-const demo = JSON.parse(fs.readFileSync('docs/data/demo.json', 'utf8')).reports;
+const demo = JSON.parse(fs.readFileSync('tests/fixtures/dashboard-sample.json', 'utf8')).reports;
 
 function report(id, length, breaks = []) {
   return {schema_version: 1, id, title: id, duration_seconds: length, sample_interval_seconds: 2, breaks: breaks.map(([start, end, reason = 'Pee']) => ({start_seconds: start, end_seconds: end, reason, evidence: ''}))};
