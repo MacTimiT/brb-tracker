@@ -6,6 +6,14 @@ import org.junit.Test
 import java.time.Instant
 
 class VodMetadataTest {
+    @Test fun metadataSignInChallengeIsRecognizedWithoutMaskingOtherFailures() {
+        for (challenge in listOf("Sign in to confirm youre not a bot.", "Sign in to confirm you’re not a bot.")) {
+            val message = VodMetadata.signInChallengeMessage("WARNING: No title found\nERROR: [youtube] fixture0001: $challenge")
+            assertTrue(message.orEmpty().contains("YouTube asked for sign-in verification"))
+        }
+        assertNull(VodMetadata.signInChallengeMessage("ERROR: [youtube] fixture0001: Video unavailable"))
+        assertNull(VodMetadata.signInChallengeMessage(null))
+    }
     @Test fun oldLivestreamDateWinsOverUploadAndScanDate() {
         val source = JSONObject().put("release_timestamp", Instant.parse("2026-10-22T23:30:00Z").epochSecond)
             .put("upload_date", "20261112").put("timestamp", Instant.parse("2026-11-12T12:00:00Z").epochSecond)

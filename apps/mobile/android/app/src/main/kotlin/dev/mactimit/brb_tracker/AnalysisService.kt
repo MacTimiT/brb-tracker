@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.youtubedl_android.YoutubeDLException
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import com.yausername.ffmpeg.FFmpeg
 import org.json.JSONObject
@@ -285,7 +286,13 @@ class AnalysisService : Service() {
                     addOption("--print", VodMetadata.printTemplate)
                     addOption("-f", format)
                 }
-                val metadata = VodMetadata.parse(YoutubeDL.execute(metadataRequest, id, null).out)
+                val metadataOutput = try {
+                    YoutubeDL.execute(metadataRequest, id, null).out
+                } catch (e: YoutubeDLException) {
+                    val message = VodMetadata.signInChallengeMessage(e.message) ?: throw e
+                    throw IllegalStateException(message, e)
+                }
+                val metadata = VodMetadata.parse(metadataOutput)
                 checkCancelled()
                 check(!metadata.optBoolean("is_live", false)) { "Wait until the livestream has ended before analyzing its VOD" }
                 val estimate = VodMetadata.estimatedDownloadBytes(metadata)

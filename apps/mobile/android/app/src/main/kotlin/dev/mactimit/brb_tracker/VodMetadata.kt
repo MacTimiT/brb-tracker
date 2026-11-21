@@ -10,6 +10,15 @@ object VodMetadata {
     // Printing only the fields the scan needs keeps format manifests and captions out of Android's heap.
     const val printTemplate = "%(.{title,is_live,live_start_timestamp,release_timestamp,release_date,timestamp,upload_date,filesize,filesize_approx})j"
 
+    fun signInChallengeMessage(downloaderError: String?): String? =
+        if (downloaderError?.lineSequence()?.any { line ->
+                line.startsWith("ERROR: [youtube]", ignoreCase = true) &&
+                    line.contains("sign in to confirm", ignoreCase = true) &&
+                    line.contains("not a bot", ignoreCase = true)
+            } == true
+        ) "YouTube asked for sign-in verification before providing this VOD. To scan a saved copy, use Choose local video."
+        else null
+
     fun parse(output: String): JSONObject {
         val json = output.trim()
         check(json.isNotEmpty()) { "YouTube returned no VOD details. If the stream is still live, wait until it ends." }
