@@ -766,6 +766,73 @@
         "ocr": 1016905,
         "total": 2431982
       }
+    },
+    {
+      "schema_version": 1,
+      "id": "8aee5658-3927-4b1d-993c-d8c56f62891a",
+      "title": "I Reached 20 Hours on Doomfist & Found Diamonds in Minecraft 🤙",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=i9NDKXtx9RU",
+      "video_id": "i9NDKXtx9RU",
+      "duration_seconds": 22089,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-04",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-04T14:59:53Z",
+      "analyzed_at": "2026-11-21T17:39:03.449596Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 4445,
+      "ocr_calls": 5552,
+      "banner_cache_hits": 15,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 7411,
+          "end_seconds": 7590,
+          "reason": "Unknown",
+          "suggested_reason": "Unknown",
+          "evidence": "other day or three days of a game, it just becomes difficult to communicate. That's all. I think if I were just recording content, it'd be very different. So, uh, let me, uh, let me",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 10508,
+          "end_seconds": 10673,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "[clears throat] >> When Minecraft an hour, one more hour. That's how I feel about it today, chat. That is how I feel. Chatting chatters. Also, I need I need to pee. I need to",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 12591,
+          "end_seconds": 12754,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "surprises all of you. I never have to do that. I'm gonna pee real quick and then we'll get the last game in. It should be the last one, I think, to be honest. We'll see though.",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        }
+      ],
+      "timings_ms": {
+        "download": 202302,
+        "decode": 829839,
+        "ocr": 604418,
+        "total": 1668041
+      }
     }
   ]
 }
