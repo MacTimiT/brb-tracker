@@ -8,9 +8,9 @@
   <title>GONE4HOPE · The BRB department</title>
   <link rel="icon" href="assets/gamin4hope-profile.jpg">
   <link rel="preload" href="assets/fonts/barlow-condensed-extrabold.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="style.css?v=gone4hope-8">
+  <link rel="stylesheet" href="style.css?v=gone4hope-9">
   <script src="analytics.js?v=gone4hope-6" defer></script>
-  <script src="app.js?v=gone4hope-9" defer></script>
+  <script src="app.js?v=gone4hope-10" defer></script>
 </head>
 <body>
   <header class="masthead wrap">
@@ -56,9 +56,23 @@
       <section class="records" aria-labelledby="records-title"><div class="section-heading"><div><p class="eyebrow">PLEASE ACCEPT THIS VERY SMALL TROPHY</p><h2 id="records-title">The hall of gone.</h2></div></div><div class="record-grid"><article><span class="record-label">01 / LONGEST BREAK</span><div id="longest"></div></article><article><span class="record-label">02 / QUICKEST COMEBACK</span><div id="shortest"></div></article><article><span class="record-label">03 / LONGEST WITHOUT A BRB</span><div id="streak"></div><small>Across all reasons in these VODs</small></article></div><p id="gap-mean" class="gap-note"></p></section>
 
       <section class="panel vod-panel">
-        <div class="section-heading"><div><p class="eyebrow">A LEAGUE OF HIS OWN</p><h2>Streams, ranked by chair time.</h2></div><span class="section-side">Highest BRB share first</span></div>
-        <div class="table-scroll"><table class="vod-table" role="table" aria-label="Streams, ranked by BRB share">
-          <thead role="rowgroup"><tr role="row"><th scope="col">Stream</th><th scope="col">VOD date</th><th scope="col">Length</th><th scope="col">Breaks</th><th scope="col">Time away</th><th scope="col" aria-sort="descending">BRB share</th><th scope="col">Breaks / h</th><th scope="col">Est. Twitch viewer-hours</th></tr></thead>
+        <div class="section-heading">
+          <div><p class="eyebrow">A LEAGUE OF HIS OWN</p><h2 id="vod-table-title">Stream rankings.</h2></div>
+          <div class="vod-sort-controls">
+            <label>Sort streams by<select id="vod-sort">
+              <option value="percent">BRB share</option>
+              <option value="count">Break count</option>
+              <option value="seconds">Time away</option>
+              <option value="rate">Breaks per hour</option>
+              <option value="length">Stream length</option>
+              <option value="date">Stream date</option>
+              <option value="twitch">Twitch viewer-hours</option>
+            </select></label>
+            <label>Order<select id="vod-order"><option value="descending">Highest first</option><option value="ascending">Lowest first</option></select></label>
+          </div>
+        </div>
+        <div class="table-scroll"><table class="vod-table" role="table" aria-labelledby="vod-table-title">
+          <thead role="rowgroup"><tr role="row"><th scope="col">Stream</th><th scope="col" data-vod-sort="date">VOD date</th><th scope="col" data-vod-sort="length">Length</th><th scope="col" data-vod-sort="count">Breaks</th><th scope="col" data-vod-sort="seconds">Time away</th><th scope="col" data-vod-sort="percent" aria-sort="descending">BRB share</th><th scope="col" data-vod-sort="rate">Breaks / h</th><th scope="col" data-vod-sort="twitch">Est. Twitch viewer-hours</th></tr></thead>
           <tbody id="vod-table" role="rowgroup"></tbody>
         </table></div>
         <button class="show-more" id="more-vods" type="button" hidden>Show more streams</button>

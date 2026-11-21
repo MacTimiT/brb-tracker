@@ -18,6 +18,7 @@ const colors = {Pee: '#bc2028', Snack: '#985182', Drink: '#23748a', Stretch: '#5
 const pageSize = 24;
 const state = {
   published: [], vod: 'all', month: 'all', reason: 'all', metric: 'count',
+  vodSort: 'percent', vodOrder: 'descending',
   query: '', sort: 'longest', loading: true, reportsStatus: 'loading',
   twitchStatus: 'loading', twitchMatches: null, stats: null, receipt: null,
   logEntries: [], receiptLimit: pageSize, vodLimit: pageSize, timelineLimit: pageSize,
@@ -80,12 +81,6 @@ function renderTwitchViewerHours() {
     stale: `${coverage} · previously loaded`,
     ready: coverage,
   }[state.twitchStatus];
-  for (const cell of $('vod-table').querySelectorAll('[data-twitch-index]')) {
-    const {report, seconds} = vods[Number(cell.dataset.twitchIndex)];
-    const average = A.twitchAverage(report, state.twitchMatches);
-    cell.querySelector('strong').textContent = average == null ? '—' : hoursLabel(seconds * average / 3600);
-    cell.querySelector('small').textContent = average == null ? '' : `${integer(average)} avg viewers`;
-  }
   renderReceiptTwitch();
 }
 
@@ -125,6 +120,7 @@ function render() {
   renderRecord('streak', stats.longestStreak, true);
   $('gap-mean').textContent = stats.meanGap == null ? '' : `Back at the desk for ${duration(stats.meanGap)} on average between breaks. A heroic effort. (All reasons.)`;
   renderVods();
+  renderTwitchViewerHours();
   renderTimeline();
   renderLog();
   if (focusKey) {
@@ -214,7 +210,26 @@ function tableCell(label, value, className) {
 }
 
 function renderVods() {
-  const {vods} = state.stats;
+  const body = $('vod-table');
+  const focusedStream = body.contains(document.activeElement) ? document.activeElement.dataset.focusKey : null;
+  const {vodSort, vodOrder} = state;
+  const vods = state.stats.vods.map(row => {
+    const average = A.twitchAverage(row.report, state.twitchMatches);
+    return {...row, date: row.report.vod_date, length: row.report.duration_seconds,
+      average, twitch: average == null ? null : row.seconds * average / 3600};
+  });
+  const direction = vodOrder === 'ascending' ? 1 : -1;
+  vods.sort((a, b) => {
+    const left = a[vodSort], right = b[vodSort];
+    if (left === right) return 0;
+    if (left == null) return 1;
+    if (right == null) return -1;
+    return (left < right ? -1 : 1) * direction;
+  });
+  for (const header of document.querySelectorAll('[data-vod-sort]')) {
+    if (header.dataset.vodSort === vodSort) header.setAttribute('aria-sort', vodOrder);
+    else header.removeAttribute('aria-sort');
+  }
   const rows = vods.slice(0, state.vodLimit).map((row, index) => {
     const tr = node('tr');
     tr.setAttribute('role', 'row');
@@ -225,8 +240,8 @@ function renderVods() {
     button.onclick = () => applyFilters({vod: A.key(row.report)});
     title.append(node('span', String(index + 1).padStart(2, '0'), 'vod-rank'), button);
     const twitch = tableCell('Est. Twitch viewer-hours', null, 'vod-twitch');
-    twitch.dataset.twitchIndex = index;
-    twitch.append(node('strong'), node('small'));
+    twitch.append(node('strong', row.twitch == null ? '—' : hoursLabel(row.twitch)));
+    if (row.average != null) twitch.append(node('small', `${integer(row.average)} avg viewers`));
     tr.append(title,
       tableCell('VOD date', row.report.vod_date || 'Unknown', 'vod-date'),
       tableCell('Length', duration(row.report.duration_seconds)),
@@ -236,9 +251,12 @@ function renderVods() {
       tableCell('Breaks / h', fixed(row.rate, 2)), twitch);
     return tr;
   });
-  $('vod-table').replaceChildren(...rows);
+  body.replaceChildren(...rows);
   $('more-vods').hidden = vods.length <= state.vodLimit;
-  renderTwitchViewerHours();
+  if (focusedStream) {
+    const replacement = [...body.querySelectorAll('.vod-name')].find(button => button.dataset.focusKey === focusedStream);
+    (replacement ?? $('vod-sort')).focus({preventScroll: true});
+  }
 }
 
 function renderTimeline() {
@@ -372,6 +390,7 @@ function refreshTwitchMatches() {
   }).finally(() => {
     twitchRequest = null;
     renderTwitchViewerHours();
+    renderVods();
   });
 }
 
@@ -418,6 +437,14 @@ $('month').onchange = event => applyFilters({month: event.target.value});
 for (const reason of A.reasons) $('reason').add(new Option(reasonName(reason), reason));
 $('reason').onchange = event => applyFilters({reason: event.target.value});
 $('reason-metric').onchange = event => { state.metric = event.target.value; render(); };
+$('vod-sort').onchange = event => {
+  state.vodSort = event.target.value;
+  $('vod-order').options[0].textContent = state.vodSort === 'date' ? 'Newest first' : 'Highest first';
+  $('vod-order').options[1].textContent = state.vodSort === 'date' ? 'Oldest first' : 'Lowest first';
+  state.vodLimit = pageSize;
+  renderVods();
+};
+$('vod-order').onchange = event => { state.vodOrder = event.target.value; state.vodLimit = pageSize; renderVods(); };
 $('search').oninput = event => { state.query = event.target.value; state.receiptLimit = pageSize; renderLog(); };
 $('log-sort').onchange = event => { state.sort = event.target.value; state.receiptLimit = pageSize; renderLog(); };
 $('refresh').onclick = () => refreshReports(true);

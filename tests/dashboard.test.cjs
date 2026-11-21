@@ -13,7 +13,7 @@ async function page(data = sample, url = 'http://localhost/', twitch = null) {
       return {ok: true, json: async () => [{commit: {committer: {date: '2026-11-20T22:24:40Z'}}}]};
     }
     if (path.endsWith('/twitch-viewership.json')) {
-      return {ok: twitch !== null, json: async () => structuredClone(twitch)};
+      return {ok: twitch !== null, json: async () => structuredClone(await twitch)};
     }
     return {ok: data !== null, json: async () => structuredClone(data)};
   };
@@ -152,6 +152,55 @@ test('VOD ranking buttons select a stream by stable identity', async () => {
   assert.equal(d.getElementById('vod').value, 'second');
   assert.equal(d.getElementById('count').textContent, '0');
   assert.equal(d.querySelectorAll('#vod-table tr').length, 1);
+  dom.window.close();
+});
+test('stream rankings sort by each metric and keep unknown values last', async () => {
+  const base = {
+    ...sample.reports[0], is_demo: false, stream_started_at: '2026-11-12T14:05:09Z',
+  };
+  const report = (title, video_id, duration_seconds, vod_date, durations) => ({
+    ...base, title, video_id, duration_seconds, vod_date,
+    breaks: durations.map((seconds, index) => ({
+      ...base.breaks[0], start_seconds: index * 50, end_seconds: index * 50 + seconds,
+    })),
+  });
+  const short = report('Short', 'fixture0001', 200, '2026-11-13', [100]);
+  const many = report('Many', 'fixture0002', 1000, '2026-11-14', [20, 20, 20]);
+  const long = report('Long', 'fixture0003', 2000, '2026-11-12', [300]);
+  const noBreaks = report('No breaks', 'fixture0004', 2500, null, []);
+  let loadTwitch;
+  const twitch = new Promise(resolve => { loadTwitch = resolve; });
+  const dom = await page({schema_version: 1, reports: [many, short, long, noBreaks]}, 'http://localhost/', twitch);
+  const d = dom.window.document;
+  const order = () => [...d.querySelectorAll('.vod-name')].map(button => button.textContent);
+  assert.deepEqual(order(), ['Short', 'Long', 'Many', 'No breaks']);
+  for (const [metric, first] of [['count', 'Many'], ['seconds', 'Long'], ['rate', 'Short'], ['length', 'No breaks'], ['date', 'Many']]) {
+    change(dom, 'vod-sort', metric);
+    assert.equal(order()[0], first);
+    assert.equal(d.querySelector('[aria-sort]').dataset.vodSort, metric);
+  }
+  assert.equal(d.getElementById('vod-order').options[1].textContent, 'Oldest first');
+  change(dom, 'vod-order', 'ascending');
+  assert.deepEqual(order(), ['Long', 'Short', 'Many', 'No breaks']);
+  assert.equal(d.querySelector('[aria-sort]').getAttribute('aria-sort'), 'ascending');
+  change(dom, 'vod-sort', 'twitch');
+  d.querySelector('.vod-name').focus();
+  loadTwitch({schema_version: 1, matches: Object.fromEntries([[short, 5], [long, 100], [noBreaks, 50]].map(
+    ([vod, average_viewers]) => [vod.video_id, {
+      average_viewers, vod_started_at: vod.stream_started_at, vod_duration_seconds: vod.duration_seconds,
+    }],
+  ))});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(order(), ['No breaks', 'Short', 'Long', 'Many']);
+  assert.equal(d.activeElement.textContent, 'Short');
+  assert.equal(d.querySelector('.vod-twitch strong').textContent, '0 h');
+  change(dom, 'vod-order', 'descending');
+  assert.deepEqual(order(), ['Long', 'Short', 'No breaks', 'Many']);
+  assert.equal(d.querySelector('.vod-twitch strong').textContent, '8.3 h');
+  change(dom, 'reason', 'Drink');
+  assert.equal(d.getElementById('vod-sort').value, 'twitch');
+  assert.equal(order().length, 4);
+  assert.equal(order().at(-1), 'Many');
   dom.window.close();
 });
 test('refresh failures keep the last published numbers on the board', async () => {
@@ -295,6 +344,12 @@ test('large archives load with incremental rows and chronological receipts', asy
   assert.match(d.querySelector('.receipt-row').textContent, /2026-11-09/);
   assert.equal(d.querySelectorAll('.receipt-row').length, 24);
   assert.equal(d.querySelectorAll('.timeline-row').length, 24);
+  d.getElementById('more-vods').click();
+  assert.equal(d.querySelectorAll('.vod-name').length, 48);
+  change(dom, 'vod-sort', 'date');
+  change(dom, 'vod-order', 'ascending');
+  assert.equal(d.querySelectorAll('.vod-name').length, 24);
+  assert.equal(d.querySelector('.vod-name').dataset.focusKey, 'vod:test-vod-0');
   d.getElementById('more-receipts').click();
   assert.equal(d.querySelectorAll('.receipt-row').length, 48);
   assert.equal(d.activeElement.className, 'receipt-open');
