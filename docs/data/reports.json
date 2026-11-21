@@ -699,6 +699,73 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "4333692a-079a-4011-aa6a-996fcde2f296",
+      "title": "I Played Supporter Games, Improved at Doomfist, and Minecrafted 🤙",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=us123J9y9MA",
+      "video_id": "us123J9y9MA",
+      "duration_seconds": 21692,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-06",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-06T15:01:16Z",
+      "analyzed_at": "2026-11-21T15:43:20.512104Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 4364,
+      "ocr_calls": 7027,
+      "banner_cache_hits": 11,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 7430,
+          "end_seconds": 7571,
+          "reason": "Pee",
+          "suggested_reason": "Unknown",
+          "evidence": ">> there's been some insane trick shots. >> Okay, bro. Need an average speed of 13 and you could do it. >> Oh [laughter] my heavens. What the hell is happening? Okay, I'll be right back.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 11447,
+          "end_seconds": 11603,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "interested in playing, chat. It's Doomfist. Yeah, I should pee. I know how that's going to go. I'm curious as to why you chose Doomfist. Just a challenge, that's",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 13416,
+          "end_seconds": 13611,
+          "reason": "Pee",
+          "suggested_reason": "Unknown",
+          "evidence": "am down. I had my freshen up energy, right? I had my freshen up, which was like 16 to 20 ounces of fluid. I had my protein shake, which is another 20 oz. 24 oz actually. And then I started the",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        }
+      ],
+      "timings_ms": {
+        "download": 374372,
+        "decode": 985377,
+        "ocr": 1016905,
+        "total": 2431982
+      }
     }
   ]
 }
