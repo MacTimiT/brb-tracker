@@ -1,0 +1,69 @@
+{
+  "matches": {
+    "77ZUMwUy4YY": {
+      "average_viewers": 218,
+      "twitch_duration_minutes": 395,
+      "twitch_started_at": "2026-11-19T15:00+00:00",
+      "vod_duration_seconds": 23434,
+      "vod_started_at": "2026-11-19T15:00:49Z"
+    },
+    "8c3bIEHVXPE": {
+      "average_viewers": 283,
+      "twitch_duration_minutes": 429,
+      "twitch_started_at": "2026-11-16T14:55+00:00",
+      "vod_duration_seconds": 25670,
+      "vod_started_at": "2026-11-16T14:55:14Z"
+    },
+    "9YP_ljMuDQM": {
+      "average_viewers": 229,
+      "twitch_duration_minutes": 419,
+      "twitch_started_at": "2026-11-12T14:05+00:00",
+      "vod_duration_seconds": 25234,
+      "vod_started_at": "2026-11-12T14:05:09Z"
+    },
+    "ErTzyl6005k": {
+      "average_viewers": 228,
+      "twitch_duration_minutes": 424,
+      "twitch_started_at": "2026-11-09T14:00+00:00",
+      "vod_duration_seconds": 25406.533,
+      "vod_started_at": "2026-11-09T14:00:24Z"
+    },
+    "HohIvON830U": {
+      "average_viewers": 194,
+      "twitch_duration_minutes": 325,
+      "twitch_started_at": "2026-11-13T13:59+00:00",
+      "vod_duration_seconds": 19836,
+      "vod_started_at": "2026-11-13T13:59:35Z"
+    },
+    "IW2rEIuKGSs": {
+      "average_viewers": 193,
+      "twitch_duration_minutes": 423,
+      "twitch_started_at": "2026-11-10T14:01+00:00",
+      "vod_duration_seconds": 25195,
+      "vod_started_at": "2026-11-10T14:01:35Z"
+    },
+    "LFl1NCdxPDM": {
+      "average_viewers": 281,
+      "twitch_duration_minutes": 395,
+      "twitch_started_at": "2026-11-17T15:00+00:00",
+      "vod_duration_seconds": 23153.533,
+      "vod_started_at": "2026-11-17T15:06:25Z"
+    },
+    "NPtJU2TNmO8": {
+      "average_viewers": 230,
+      "twitch_duration_minutes": 415,
+      "twitch_started_at": "2026-11-18T15:00+00:00",
+      "vod_duration_seconds": 24937,
+      "vod_started_at": "2026-11-18T15:00:47Z"
+    },
+    "_CY8bnKHtEA": {
+      "average_viewers": 224,
+      "twitch_duration_minutes": 425,
+      "twitch_started_at": "2026-11-11T14:00+00:00",
+      "vod_duration_seconds": 25363,
+      "vod_started_at": "2026-11-11T14:00:21Z"
+    }
+  },
+  "schema_version": 1,
+  "source": "https://twitchtracker.com/gamin4hope/streams"
+}

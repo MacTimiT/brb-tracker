@@ -6,6 +6,9 @@ const reasonName = reason => reasonNames[reason] ?? reason;
 const reasonLabels = item => A.assignedReasons(item).map(reasonName).join(' / ');
 const colors = {Pee: '#bc2028', Snack: '#985182', Drink: '#23748a', Stretch: '#527346', Technical: '#586582', 'Help Rachel': '#96701d', 'Mental Break': '#6a51a3', Other: '#8a6842', Unknown: '#77736b'};
 const state = {published: [], vod: 'all', month: 'all', reason: 'all', metric: 'count', query: '', sort: 'longest', loading: true, logEntries: []};
+let twitchMatches = null;
+let selectedVods = [];
+let twitchRequest;
 const integer = value => Math.round(value).toLocaleString('en-US');
 const fixed = (value, places = 1) => Number(value).toFixed(places);
 function duration(value) {
@@ -38,10 +41,22 @@ function updateOptions() {
   $('search').value = state.query;
   $('log-sort').value = state.sort;
 }
+function renderTwitchViewerHours() {
+  const {hours, matched} = A.twitchViewerHours(selectedVods, twitchMatches);
+  $('twitch-viewer-hours').textContent = hours == null
+    ? '—'
+    : hours.toLocaleString('en-US', {maximumFractionDigits: 1}) + ' h';
+  $('twitch-coverage').textContent = matched
+    ? `${matched} of ${selectedVods.length} VODs matched`
+    : 'No matched Twitch data';
+}
+
 function render() {
   updateOptions();
   const selected = selectedReports();
   const stats = A.compute(selected, state.reason);
+  selectedVods = stats.vods;
+  renderTwitchViewerHours();
   const hasReports = selected.length > 0;
   $('empty-board').hidden = hasReports || state.loading;
   $('analytics-board').hidden = !hasReports;
@@ -198,11 +213,31 @@ function download(value, type, filename) {
   const anchor = node('a'); anchor.href = url; anchor.download = filename; anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+function dataUrl(file) {
+  return window.location.origin === 'https://mactimit.github.io'
+    ? `https://raw.githubusercontent.com/MacTimiT/brb-tracker/main/docs/data/${file}`
+    : `data/${file}`;
+}
+function refreshTwitchMatches() {
+  if (twitchRequest) return;
+  twitchRequest = (async () => {
+    try {
+      const response = await fetch(dataUrl('twitch-viewership.json'), {cache: 'no-store'});
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.schema_version === 1 && data.matches && typeof data.matches === 'object') {
+        twitchMatches = data.matches;
+        renderTwitchViewerHours();
+      }
+    } catch {
+      // Leave the last available estimates in place if the optional data fails.
+    } finally {
+      twitchRequest = null;
+    }
+  })();
+}
 async function fetchReports() {
-  const url = window.location.origin === 'https://mactimit.github.io'
-    ? 'https://raw.githubusercontent.com/MacTimiT/brb-tracker/main/docs/data/reports.json'
-    : 'data/reports.json';
-  const response = await fetch(url, {cache: 'no-store'});
+  const response = await fetch(dataUrl('reports.json'), {cache: 'no-store'});
   if (!response.ok) throw Error('The receipts didn’t arrive. Try Refresh.');
   return A.validate(await response.json()).filter(report => !report.is_demo);
 }
@@ -219,7 +254,9 @@ $('search').oninput = event => { state.query = event.target.value; renderLog(A.c
 $('log-sort').onchange = event => { state.sort = event.target.value; render(); };
 $('refresh').onclick = async () => {
   state.loading = true; render();
-  try { state.published = await fetchReports(); notice('Fresh receipts. Board updated.'); }
+  const reports = fetchReports();
+  refreshTwitchMatches();
+  try { state.published = await reports; notice('Fresh receipts. Board updated.'); }
   catch (error) { notice(error.message); }
   finally { state.loading = false; render(); }
 };
@@ -227,4 +264,6 @@ $('export').title = 'Download reports in the current month and stream filters as
 $('export').onclick = () => download(JSON.stringify({schema_version: 1, reports: selectedReports()}, null, 2), 'application/json', 'gone4hope-reports.json');
 $('csv-export').title = 'Download the receipts matching the current filters and search';
 $('csv-export').onclick = () => download(A.csv(state.logEntries), 'text/csv;charset=utf-8', 'gone4hope-receipts.csv');
+$('twitch-viewer-hours-help').onclick = () => $('twitch-viewer-hours-dialog').showModal();
 initialize();
+refreshTwitchMatches();

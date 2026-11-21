@@ -5,6 +5,7 @@ on:
     paths:
       - 'docs/**'
       - '!docs/data/reports.json'
+      - '!docs/data/twitch-viewership.json'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 permissions:

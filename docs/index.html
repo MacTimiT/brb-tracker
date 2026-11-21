@@ -8,9 +8,9 @@
   <title>GONE4HOPE · The BRB department</title>
   <link rel="icon" href="assets/gamin4hope-profile.jpg">
   <link rel="preload" href="assets/fonts/barlow-condensed-extrabold.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="style.css?v=gone4hope-6">
-  <script src="analytics.js?v=gone4hope-4" defer></script>
-  <script src="app.js?v=gone4hope-6" defer></script>
+  <link rel="stylesheet" href="style.css?v=gone4hope-7">
+  <script src="analytics.js?v=gone4hope-5" defer></script>
+  <script src="app.js?v=gone4hope-7" defer></script>
 </head>
 <body>
   <header class="masthead wrap">
@@ -41,6 +41,11 @@
         <div><span>AVERAGE BREAK</span><strong id="average">—</strong></div>
         <div><span>MEDIAN BREAK</span><strong id="median">—</strong></div>
         <div><span>BREAKS / STREAM HOUR</span><strong id="rate">—</strong></div>
+        <div class="viewer-stat">
+          <div class="viewer-stat-label"><span>EST. TWITCH VIEWER-HOURS</span><button id="twitch-viewer-hours-help" type="button" aria-label="How Twitch viewer-hours are estimated" aria-haspopup="dialog" title="Average Twitch viewers × BRB hours. Open for details.">?</button></div>
+          <strong id="twitch-viewer-hours">—</strong>
+          <small id="twitch-coverage"></small>
+        </div>
       </section>
 
       <div class="split">
@@ -58,6 +63,15 @@
     </div>
     <footer><strong>THANKS FOR HOLDING, CHAT.</strong><nav aria-label="More links"><a href="https://www.twitch.tv/gamin4hope" target="_blank" rel="noopener noreferrer">Watch Hope ↗</a><a href="https://linktr.ee/gamin4hope" target="_blank" rel="noopener noreferrer">His links ↗</a><a href="https://github.com/MacTimiT/brb-tracker">The code ↗</a></nav></footer>
   </main>
+
+  <dialog id="twitch-viewer-hours-dialog" aria-labelledby="twitch-viewer-hours-title">
+    <form method="dialog"><button class="close" aria-label="Close viewer-hours explanation">×</button></form>
+    <h2 id="twitch-viewer-hours-title">Estimated Twitch viewer-hours</h2>
+    <p><strong>Average concurrent Twitch viewers × BRB seconds ÷ 3,600</strong></p>
+    <p>We calculate this for each matched stream and add the results for the selected filters. For example, 200 viewers during a six-minute break gives 20 viewer-hours.</p>
+    <p>The viewer count is an average across the whole Twitch broadcast. The audience can change during a break, so the result is an estimate. Streams without a match are left out.</p>
+    <p>Viewer averages from <a href="https://twitchtracker.com/gamin4hope/streams" target="_blank" rel="noopener noreferrer">TwitchTracker</a>.</p>
+  </dialog>
 
   <dialog id="receipt-dialog" aria-labelledby="receipt-title"><form method="dialog"><button class="close" aria-label="Close receipt">×</button></form><p class="eyebrow">EXHIBIT BRB</p><h2 id="receipt-title"></h2><p id="receipt-meta"></p><blockquote id="receipt-quote"></blockquote><p id="receipt-review"></p><a class="primary watch-link" id="receipt-watch" target="_blank" rel="noopener noreferrer">Roll the tape ↗</a></dialog>
 </body>

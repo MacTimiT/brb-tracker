@@ -25,6 +25,8 @@ Choose one primary reason for each break and add other reasons when the transcri
 
 Tap **Publish to dashboard** on a reviewed report. This sends report JSON, including its transcript quotes, to the repository. Publishing the same YouTube VOD replaces its published report. The live dashboard reads the report file from the public `main` branch on page load and on **Refresh**. GitHub may cache the data for up to five minutes. Pages deploys when the site files change. Local dashboard previews read their local copy of `docs/data/reports.json`.
 
+The dashboard estimates Twitch viewer-hours using each matched broadcast's average concurrent audience and time away. The separate Twitch viewership workflow refreshes the matches after reports are published and twice a day. Its data updates do not trigger a Pages deployment.
+
 ## Run the optional Python analyzer
 
 Install Python 3.11+, FFmpeg, and Tesseract with English language data. Install DejaVu fonts to run the OCR tests.

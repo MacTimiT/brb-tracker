@@ -4,11 +4,14 @@ const fs = require('node:fs');
 const {JSDOM} = require('jsdom');
 const path = require('node:path');
 const sample = JSON.parse(fs.readFileSync('tests/fixtures/dashboard-sample.json', 'utf8'));
-async function page(data = sample, url = 'http://localhost/') {
+async function page(data = sample, url = 'http://localhost/', twitch = null) {
   const dom = new JSDOM(fs.readFileSync('docs/index.html', 'utf8'), {url, runScripts: 'outside-only'});
   const requests = [];
   dom.window.fetch = async path => {
     requests.push(path);
+    if (path.endsWith('/twitch-viewership.json')) {
+      return {ok: twitch !== null, json: async () => structuredClone(twitch)};
+    }
     return {ok: true, json: async () => structuredClone(data)};
   };
   dom.requests = requests;
@@ -33,7 +36,7 @@ test('published view ignores demo reports and has no demo controls even when emp
   assert.equal(d.getElementById('analytics-board').hidden, true);
   assert.equal(d.getElementById('data-mode').textContent, 'Published VODs');
   assert.doesNotMatch(d.body.textContent, /not proof|unverified suggestion|A note on the numbers|Invented sample data/i);
-  assert.deepEqual(dom.requests, ['data/reports.json']);
+  assert.deepEqual(dom.requests, ['data/reports.json', 'data/twitch-viewership.json']);
   assert.equal(d.querySelectorAll('#demo-toggle, #demo-empty').length, 0);
   assert.doesNotMatch(d.body.textContent, /Try the demo|Take a demo lap/);
   dom.window.close();
@@ -55,13 +58,14 @@ test('live Pages dashboard reads main directly at startup and on refresh', async
   const data = structuredClone(sample);
   data.reports[0].is_demo = false;
   const dom = await page(data, 'https://mactimit.github.io/brb-tracker/');
-  const source = 'https://raw.githubusercontent.com/MacTimiT/brb-tracker/main/docs/data/reports.json';
-  assert.deepEqual(dom.requests, [source]);
+  const path = 'https://raw.githubusercontent.com/MacTimiT/brb-tracker/main/docs/data/';
+  const sources = [path + 'reports.json', path + 'twitch-viewership.json'];
+  assert.deepEqual(dom.requests, sources);
   assert.equal(dom.window.document.getElementById('count').textContent, '6');
   data.reports[0].breaks.pop();
   dom.window.document.getElementById('refresh').click();
   await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(dom.requests, [source, source]);
+  assert.deepEqual(dom.requests, [...sources, ...sources]);
   assert.equal(dom.window.document.getElementById('count').textContent, '5');
   dom.window.close();
 });
@@ -192,5 +196,35 @@ test('secondary reasons show in receipts and select the same break once', async 
   assert.match(d.querySelector('.reason-tag').textContent, /Pee breaks \/ Help Rachel/);
   d.querySelector('.receipt-open').click();
   assert.match(d.getElementById('receipt-title').textContent, /Help Rachel/);
+  dom.window.close();
+});
+
+test('estimated Twitch viewer-hours follow the filters and explain their coverage', async () => {
+  const report = structuredClone(sample.reports[0]);
+  report.video_id = 'fixture0001';
+  report.stream_started_at = '2026-11-12T14:05:09Z';
+  report.is_demo = false;
+  const other = {...report, id: 'no-twitch-match', video_id: 'fixture0002'};
+  const data = {schema_version: 1, reports: [report, other]};
+  const twitch = {schema_version: 1, matches: {
+    fixture0001: {
+      average_viewers: 200,
+      vod_started_at: report.stream_started_at,
+      vod_duration_seconds: report.duration_seconds,
+    },
+  }};
+  const dom = await page(data, 'http://localhost/', twitch);
+  const d = dom.window.document;
+  assert.equal(d.getElementById('twitch-viewer-hours').textContent, '73.3 h');
+  assert.equal(d.getElementById('twitch-coverage').textContent, '1 of 2 VODs matched');
+  change(dom, 'reason', 'Pee');
+  assert.equal(d.getElementById('twitch-viewer-hours').textContent, '30 h');
+  change(dom, 'vod', 'fixture0002');
+  assert.equal(d.getElementById('twitch-viewer-hours').textContent, '—');
+  d.getElementById('twitch-viewer-hours-help').click();
+  const dialog = d.getElementById('twitch-viewer-hours-dialog');
+  assert.equal(dialog.open, true);
+  assert.match(dialog.textContent, /BRB seconds ÷ 3,600/);
+  assert.match(dialog.textContent, /average across the whole Twitch broadcast/);
   dom.window.close();
 });

@@ -95,6 +95,21 @@
     };
   }
 
+  function twitchViewerHours(vods, matches) {
+    let hours = 0;
+    let matched = 0;
+    for (const {report, seconds} of vods) {
+      const entry = matches?.[report.video_id];
+      if (!entry || report.is_demo ||
+          entry.vod_started_at !== report.stream_started_at ||
+          entry.vod_duration_seconds !== report.duration_seconds ||
+          !Number.isSafeInteger(entry.average_viewers) || entry.average_viewers <= 0) continue;
+      hours += seconds * entry.average_viewers / 3600;
+      matched++;
+    }
+    return {hours: matched ? hours : null, matched};
+  }
+
   function csv(entries) {
     const cell = value => {
       let text = String(value ?? '');
@@ -105,7 +120,7 @@
     for (const item of entries) rows.push([item.report.title, item.report.vod_date, item.report.vod_date_source, item.report.analyzed_at, item.start_seconds, item.end_seconds, item.seconds, item.reason, item.evidence, item.report.video_id ? `https://www.youtube.com/watch?v=${item.report.video_id}&t=${Math.floor(item.start_seconds)}s` : '', (item.additional_reasons ?? []).join(' / ')]);
     return rows.map(row => row.map(cell).join(',')).join('\r\n') + '\r\n';
   }
-  const api = {reasons, key, assignedReasons, month, validDate, median, validate, compute, csv};
+  const api = {reasons, key, assignedReasons, month, validDate, median, validate, compute, twitchViewerHours, csv};
   root.BRBStats = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(globalThis);

@@ -1,0 +1,41 @@
+name: Refresh Twitch viewer averages
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/data/reports.json'
+      - 'scripts/update_twitch_viewership.py'
+      - '.github/workflows/twitch-viewership.yml'
+  schedule:
+    - cron: '23 6,18 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: twitch-viewership
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update matched stream averages
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git switch --detach FETCH_HEAD
+            python3 scripts/update_twitch_viewership.py
+            if git diff --quiet -- docs/data/twitch-viewership.json; then
+              exit 0
+            fi
+            git add docs/data/twitch-viewership.json
+            git commit -m 'Refresh Twitch viewer averages'
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+          done
+          exit 1
