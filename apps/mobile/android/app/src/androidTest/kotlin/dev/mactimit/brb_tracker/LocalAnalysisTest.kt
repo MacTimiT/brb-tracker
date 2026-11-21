@@ -51,22 +51,27 @@ class LocalAnalysisTest {
                   "id": "fixture0001", "title": "Test VOD", "is_live": false, "release_date": "20261112",
                   "formats": [
                     {"format_id":"360p","url":"https://example.org/360.mp4","height":360,"ext":"mp4","vcodec":"avc1","acodec":"none","filesize":3600000},
+                    {"format_id":"240p","url":"https://example.org/240.mp4","height":240,"ext":"mp4","vcodec":"avc1","acodec":"aac","filesize":2400000},
                     {"format_id":"480p","url":"https://example.org/480.mp4","height":480,"ext":"mp4","vcodec":"avc1","acodec":"none","filesize":4800000}
                   ]
                 }
             """.trimIndent())
-            val request = YoutubeDLRequest(emptyList<String>()).apply {
+            fun request(format: String) = YoutubeDLRequest(emptyList<String>()).apply {
                 addOption("--load-info-json", fixture.absolutePath)
                 addOption("--match-filter", "!is_live")
                 addOption("--skip-download")
                 addOption("--print", VodMetadata.printTemplate)
-                addOption("-f", VodMetadata.format(360))
+                addOption("-f", format)
             }
-            val metadata = VodMetadata.parse(YoutubeDL.execute(request, "metadata-test", null).out)
+            val metadata = VodMetadata.parse(YoutubeDL.execute(request(VodMetadata.format(360)), "metadata-test", null).out)
             assertEquals("Test VOD", metadata.getString("title"))
             assertEquals("2026-11-12", VodMetadata.date(metadata).getString("vod_date"))
             assertEquals(3_600_000L, VodMetadata.estimatedDownloadBytes(metadata))
             assertFalse(metadata.has("formats"))
+            val formatId = metadata.getString("format_id")
+            assertEquals("360p", formatId)
+            val alternate = request(VodMetadata.format(360, formatId))
+            assertEquals("240p", VodMetadata.parse(YoutubeDL.execute(alternate, "metadata-test", null).out).getString("format_id"))
         } finally {
             fixture.delete()
         }

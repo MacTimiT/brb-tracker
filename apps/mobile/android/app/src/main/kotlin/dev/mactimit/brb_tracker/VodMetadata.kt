@@ -8,7 +8,17 @@ import java.time.format.DateTimeFormatter
 
 object VodMetadata {
     // Printing only the fields the scan needs keeps format manifests and captions out of Android's heap.
-    const val printTemplate = "%(.{title,is_live,live_start_timestamp,release_timestamp,release_date,timestamp,upload_date,filesize,filesize_approx})j"
+    const val printTemplate = "%(.{title,is_live,live_start_timestamp,release_timestamp,release_date,timestamp,upload_date,filesize,filesize_approx,format_id})j"
+
+    private val missingFragment = Regex("""fragment \d+ not found, unable to continue""", RegexOption.IGNORE_CASE)
+    private val deniedMedia = Regex("""HTTP Error (401|403)\b""", RegexOption.IGNORE_CASE)
+    private val formatId = Regex("""[A-Za-z0-9_.-]+""")
+
+    fun missingMedia(downloaderError: String?): Boolean =
+        downloaderError != null && !deniedMedia.containsMatchIn(downloaderError) &&
+            signInChallengeMessage(downloaderError) == null &&
+            (downloaderError.contains("The downloaded file is empty", ignoreCase = true) ||
+                missingFragment.containsMatchIn(downloaderError))
 
     fun signInChallengeMessage(downloaderError: String?): String? =
         if (downloaderError?.lineSequence()?.any { line ->
@@ -56,9 +66,13 @@ object VodMetadata {
         return null
     }
 
-    fun format(height: Int): String {
+    fun format(height: Int, alternateTo: String? = null): String {
         require(height in listOf(360, 480)) { "Choose 360p or 480p" }
+        val alternate = if (alternateTo != null) {
+            "[protocol~='^https?$']" + if (formatId.matches(alternateTo)) "[format_id!=$alternateTo]" else ""
+        } else ""
+        val compatible = "[height<=$height][ext=mp4][vcodec^=avc1]$alternate"
         // Prefer AVC video-only; combined MP4 is a compatibility fallback.
-        return "bestvideo[height<=$height][ext=mp4][vcodec^=avc1]/best[height<=$height][ext=mp4][vcodec^=avc1]"
+        return "bestvideo$compatible/best$compatible"
     }
 }

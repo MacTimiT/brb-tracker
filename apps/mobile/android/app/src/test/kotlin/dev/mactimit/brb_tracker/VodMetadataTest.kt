@@ -39,6 +39,17 @@ class VodMetadataTest {
         assertTrue(VodMetadata.format(360).startsWith("bestvideo[height<=360]"))
         assertTrue(VodMetadata.format(480).contains("/best[height<=480]"))
         assertThrows(IllegalArgumentException::class.java) { VodMetadata.format(720) }
+        assertEquals(2, VodMetadata.format(360, "134-0").split("[format_id!=134-0]").size - 1)
+        assertFalse(VodMetadata.format(360, "bad]filter").contains("bad]filter"))
+    }
+
+    @Test fun onlyMissingMediaCanTriggerTheDirectMp4Retry() {
+        val empty = "ERROR: The downloaded file is empty"
+        assertTrue(VodMetadata.missingMedia(empty))
+        assertTrue(VodMetadata.missingMedia("ERROR: fragment 5 not found, unable to continue"))
+        assertFalse(VodMetadata.missingMedia("ERROR: [youtube] fixture0001: Sign in to confirm youre not a bot.\n$empty"))
+        assertFalse(VodMetadata.missingMedia("HTTP Error 403: Forbidden\n$empty"))
+        assertFalse(VodMetadata.missingMedia("ERROR: No space left on device"))
     }
 
     @Test fun preflightUsesTheSelectedFormatSizeWhenAvailable() {

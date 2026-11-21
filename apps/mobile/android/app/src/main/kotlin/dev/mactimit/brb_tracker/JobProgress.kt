@@ -5,6 +5,7 @@ enum class JobPhase(val label: String) {
     METADATA("Reading YouTube VOD details"),
     CAPTIONS("Downloading available English captions"),
     DOWNLOAD("Downloading video to this phone"),
+    DOWNLOAD_RETRY("Retrying with a direct MP4"),
     ANALYSIS("Scanning BRB screens locally"),
     AUDIO("Downloading VOD audio to this phone"),
     MODEL("Preparing English speech model on this phone"),

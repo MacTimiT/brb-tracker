@@ -211,7 +211,7 @@ class AnalysisService : Service() {
         if (!jobProgress.update(phase, value)) return
         val fraction = jobProgress.fraction
         val overall = when (phase) {
-            JobPhase.DOWNLOAD -> (fraction ?: 0.0) * 0.3
+            JobPhase.DOWNLOAD, JobPhase.DOWNLOAD_RETRY -> (fraction ?: 0.0) * 0.3
             JobPhase.ANALYSIS -> 0.3 + (fraction ?: 0.0) * (if (speechExpected) 0.5 else 0.7)
             JobPhase.AUDIO -> 0.8 + (fraction ?: 0.0) * 0.1
             JobPhase.MODEL -> 0.9 + (fraction ?: 0.0) * 0.05
@@ -242,6 +242,37 @@ class AnalysisService : Service() {
         addOption("--no-playlist"); addOption("--socket-timeout", 30); addOption("--retries", 2)
         addOption("--no-mtime")
     }
+
+    private fun downloadVideo(id: String, url: String, format: String, folder: File, phase: JobPhase): File? {
+        checkCancelled()
+        check(folder.mkdirs()) { "Could not create the VOD download folder." }
+        progress(id, phase, 0.0)
+        val media = request(url).apply {
+            addOption("-f", format)
+            addOption("--max-filesize", "4G")
+            addOption("--concurrent-fragments", 4)
+            addOption("--abort-on-unavailable-fragments")
+            addOption("--match-filter", "!is_live")
+            addOption("-o", File(folder, "vod.%(ext)s").absolutePath)
+            addOption("--newline")
+        }
+        try {
+            YoutubeDL.execute(media, id) { percent, _, _ ->
+                if (cancelled) YoutubeDL.destroyProcessById(id)
+                progress(id, phase, percent / 100.0)
+            }
+        } catch (e: YoutubeDLException) {
+            checkCancelled()
+            val message = VodMetadata.signInChallengeMessage(e.message)
+            if (message != null) throw IllegalStateException(message, e)
+            if (VodMetadata.missingMedia(e.message)) return null
+            if (phase == JobPhase.DOWNLOAD_RETRY && e.message.orEmpty().contains("Requested format is not available")) return null
+            throw e
+        }
+        checkCancelled()
+        return File(folder, "vod.mp4").takeIf { it.isFile && it.length() > 0 }
+    }
+
     private fun runJob(id: String) {
         val timings = ScanTimings()
         val work = File(noBackupFilesDir, "brb-work/$id").apply { mkdirs() }
@@ -279,7 +310,8 @@ class AnalysisService : Service() {
                 runCatching { YoutubeDL.updateYoutubeDL(this, YoutubeDL.UpdateChannel.STABLE) }
                 checkCancelled()
                 progress(id, JobPhase.METADATA)
-                val format = VodMetadata.format(input.optInt("download_height", 480))
+                val height = input.optInt("download_height", 480)
+                val format = VodMetadata.format(height)
                 val metadataRequest = request(url).apply {
                     addOption("--match-filter", "!is_live")
                     addOption("--skip-download")
@@ -321,24 +353,14 @@ class AnalysisService : Service() {
                         }
                     } catch (e: Exception) { checkCancelled(); captionWarning = "YouTube captions could not be downloaded. Import a transcript or review reasons manually." }
                 }
-                checkCancelled()
-                progress(id, JobPhase.DOWNLOAD, 0.0)
-                val media = request(url).apply {
-                    addOption("-f", format)
-                    addOption("--max-filesize", "4G")
-                    addOption("--concurrent-fragments", 4)
-                    addOption("--match-filter", "!is_live")
-                    addOption("-o", File(work, "vod.%(ext)s").absolutePath)
-                    addOption("--newline")
-                    // Use downloader progress callbacks for the download phase.
-                }
-                timings.measure("download") {
-                    YoutubeDL.execute(media, id) { percent, _, _ ->
-                        if (cancelled) YoutubeDL.destroyProcessById(id)
-                        progress(id, JobPhase.DOWNLOAD, percent / 100.0)
+                val downloaded = timings.measure("download") {
+                    val first = File(work, "primary")
+                    downloadVideo(id, url, format, first, JobPhase.DOWNLOAD) ?: run {
+                        first.deleteRecursively()
+                        val fallback = VodMetadata.format(height, alternateTo = metadata.optString("format_id"))
+                        downloadVideo(id, url, fallback, File(work, "alternate"), JobPhase.DOWNLOAD_RETRY)
                     }
-                }
-                val downloaded = work.listFiles().orEmpty().firstOrNull { it.extension == "mp4" } ?: error("YouTube did not provide a downloadable MP4. Try importing a local video.")
+                } ?: error("YouTube did not deliver a usable video file. To scan a saved copy, use Choose local video.")
                 if (input.has("probe_seconds")) {
                     video = Uri.fromFile(downloaded)
                 } else {
