@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#252b2e">
-  <meta name="description" content="GONE4HOPE: a very unnecessary scoreboard for Gamin4Hope’s BRB breaks. The excuses, the times, the receipts.">
+  <meta name="description" content="GONE4HOPE: a very unnecessary scoreboard for Gamin4Hope’s BRB breaks. The reasons, the times, the receipts.">
   <title>GONE4HOPE · The BRB department</title>
   <link rel="icon" href="assets/gamin4hope-profile.jpg">
   <link rel="preload" href="assets/fonts/barlow-condensed-extrabold.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="style.css?v=gone4hope-8">
   <script src="analytics.js?v=gone4hope-6" defer></script>
-  <script src="app.js?v=gone4hope-8" defer></script>
+  <script src="app.js?v=gone4hope-9" defer></script>
 </head>
 <body>
   <header class="masthead wrap">
@@ -25,7 +25,7 @@
 
     <section class="controls" id="filters" aria-label="Scoreboard filters">
       <div class="data-state"><span class="mode" id="data-mode">Published VODs</span><span id="scope-summary">Checking the receipts…</span><span id="publication" hidden>Last published <time id="published-time" title="Time of the latest published report change on GitHub"></time></span></div>
-      <div class="filter-row"><label>Stream<select id="vod"><option value="all">All streams</option></select></label><label>Month<select id="month"><option value="all">All dates</option></select></label><label>Excuse<select id="reason"><option value="all">All excuses</option><option value="Pee">Pee</option><option value="Snack">Snack</option><option value="Drink">Drink</option><option value="Stretch">Stretch</option><option value="Technical">Technical</option><option value="Help Rachel">Help Rachel</option><option value="Mental Break">Mental Break</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select></label><div class="control-buttons"><button id="refresh" title="Refresh published reports">Refresh</button></div></div>
+      <div class="filter-row"><label>Stream<select id="vod"><option value="all">All streams</option></select></label><label>Month<select id="month"><option value="all">All dates</option></select></label><label>Reason<select id="reason"><option value="all">All reasons</option></select></label><div class="control-buttons"><button id="refresh" title="Refresh published reports">Refresh</button></div></div>
       <p id="notice" role="status" hidden></p>
     </section>
 
@@ -49,11 +49,11 @@
       </section>
 
       <div class="split">
-        <section class="panel" id="excuses"><div class="section-heading"><div><p class="eyebrow">WHERE DID HE GO?</p><h2>The excuse leaderboard.</h2></div><label class="compact-label">Rank by<select id="reason-metric"><option value="count">Break count</option><option value="seconds">Time away</option></select></label></div><p class="panel-note" id="leaderboard-note"></p><p class="reason-method">Each reason counts toward the leaderboard. Time away goes to the primary reason.</p><div id="reasons" class="reasons"></div></section>
+        <section class="panel" id="excuses"><div class="section-heading"><div><p class="eyebrow">WHERE DID HE GO?</p><h2>The reason leaderboard.</h2></div><label class="compact-label">Rank by<select id="reason-metric"><option value="count">Break count</option><option value="seconds">Time away</option></select></label></div><p class="panel-note" id="leaderboard-note"></p><p class="reason-method">Each reason counts toward the leaderboard. Time away goes to the primary reason.</p><div id="reasons" class="reasons"></div></section>
         <section class="panel"><div class="section-heading"><div><p class="eyebrow">DEFINE “QUICK”</p><h2>How long was he gone?</h2></div></div><div id="distribution" class="column-chart" aria-label="Break length distribution"></div><p class="chart-caption">Break count by duration</p></section>
       </div>
 
-      <section class="records" aria-labelledby="records-title"><div class="section-heading"><div><p class="eyebrow">PLEASE ACCEPT THIS VERY SMALL TROPHY</p><h2 id="records-title">The hall of gone.</h2></div></div><div class="record-grid"><article><span class="record-label">01 / LONGEST SIDE QUEST</span><div id="longest"></div></article><article><span class="record-label">02 / QUICKEST COMEBACK</span><div id="shortest"></div></article><article><span class="record-label">03 / LONGEST WITHOUT A BRB</span><div id="streak"></div><small>Across all excuses in these VODs</small></article></div><p id="gap-mean" class="gap-note"></p></section>
+      <section class="records" aria-labelledby="records-title"><div class="section-heading"><div><p class="eyebrow">PLEASE ACCEPT THIS VERY SMALL TROPHY</p><h2 id="records-title">The hall of gone.</h2></div></div><div class="record-grid"><article><span class="record-label">01 / LONGEST BREAK</span><div id="longest"></div></article><article><span class="record-label">02 / QUICKEST COMEBACK</span><div id="shortest"></div></article><article><span class="record-label">03 / LONGEST WITHOUT A BRB</span><div id="streak"></div><small>Across all reasons in these VODs</small></article></div><p id="gap-mean" class="gap-note"></p></section>
 
       <section class="panel vod-panel">
         <div class="section-heading"><div><p class="eyebrow">A LEAGUE OF HIS OWN</p><h2>Streams, ranked by chair time.</h2></div><span class="section-side">Highest BRB share first</span></div>
@@ -78,7 +78,7 @@
         <div class="log-controls"><label class="search-label">Search receipts<input id="search" type="search" placeholder="Stream, reason, or quote"></label><label>Order<select id="log-sort"><option value="longest">Longest first</option><option value="shortest">Shortest first</option><option value="stream">Stream date (oldest first)</option></select></label></div>
         <div class="exports"><button id="csv-export" type="button">Export matching receipts (CSV)</button><button id="export" type="button">Export selected VOD reports (JSON)</button></div>
         <div class="table-scroll"><table class="receipt-table" role="table" aria-label="Break receipts">
-          <thead role="rowgroup"><tr role="row"><th scope="col">Clocked out</th><th scope="col">Gone for</th><th scope="col">Excuse</th><th scope="col">Famous last words</th></tr></thead>
+          <thead role="rowgroup"><tr role="row"><th scope="col">Clocked out</th><th scope="col">Gone for</th><th scope="col">Reason</th><th scope="col">Famous last words</th></tr></thead>
           <tbody id="breaks" role="rowgroup"></tbody>
         </table></div>
         <p id="empty" class="no-results" hidden>No receipts match. He’s escaped the filter.</p>

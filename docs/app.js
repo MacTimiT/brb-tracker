@@ -1,7 +1,17 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const A = globalThis.BRBStats;
-const reasonNames = {Pee: 'Pee breaks', Snack: 'Snack raids', Drink: 'Hydration runs', Stretch: 'Touching grass', Technical: 'Tech gremlins', Other: 'Side quests', Unknown: 'Unsolved mysteries'};
+const reasonNames = {
+  Pee: 'Pee breaks',
+  Snack: 'Snack raids',
+  Drink: 'Hydration runs',
+  Stretch: 'Stretch breaks',
+  Technical: 'Tech gremlins',
+  'Help Rachel': 'Helping Rachel',
+  'Mental Break': 'Mental breaks',
+  Other: 'Side quests',
+  Unknown: 'Unsolved mysteries',
+};
 const reasonName = reason => reasonNames[reason] ?? reason;
 const reasonLabels = item => A.assignedReasons(item).map(reasonName).join(' / ');
 const colors = {Pee: '#bc2028', Snack: '#985182', Drink: '#23748a', Stretch: '#527346', Technical: '#586582', 'Help Rachel': '#96701d', 'Mental Break': '#6a51a3', Other: '#8a6842', Unknown: '#77736b'};
@@ -97,13 +107,13 @@ function render() {
     : state.reportsStatus === 'unavailable' ? 'Reports could not be loaded.' : 'Waiting for the first “one sec.”';
   $('share-fill').style.width = `${stats.percent}%`;
   const otherName = state.reason === 'all' ? 'Not BRB' : 'Everything else';
-  const awayName = state.reason === 'all' ? 'BRB' : `BRB with ${state.reason}`;
-  $('clock-label').textContent = state.reason === 'all' ? 'TIME SPENT ON BRB' : `BRB TIME WITH ${state.reason.toUpperCase()}`;
+  const awayName = state.reason === 'all' ? 'BRB' : reasonName(state.reason);
+  $('clock-label').textContent = state.reason === 'all' ? 'TIME SPENT ON BRB' : 'MATCHING BRB TIME';
   $('other-label').textContent = `${otherName}${hasReports ? ' ' + fixed(stats.duration ? 100 - stats.percent : 0) + '%' : ''}`;
   $('away-label').textContent = `${awayName}${hasReports ? ' ' + fixed(stats.percent) + '%' : ''}`;
   $('count').textContent = integer(stats.count);
   $('away-percent').textContent = `${fixed(stats.percent)}%`;
-  $('away-metric-label').textContent = state.reason === 'all' ? 'STREAM SPENT BRB' : `BRB TIME WITH ${state.reason.toUpperCase()}`;
+  $('away-metric-label').textContent = state.reason === 'all' ? 'STREAM SPENT BRB' : 'MATCHING BRB SHARE';
   $('average').textContent = duration(stats.average);
   $('median').textContent = duration(stats.median);
   $('rate').textContent = fixed(stats.rate, 2);
@@ -113,7 +123,7 @@ function render() {
   renderRecord('longest', stats.longest);
   renderRecord('shortest', stats.shortest);
   renderRecord('streak', stats.longestStreak, true);
-  $('gap-mean').textContent = stats.meanGap == null ? '' : `Back at the desk for ${duration(stats.meanGap)} on average between breaks. A heroic effort. (All excuses.)`;
+  $('gap-mean').textContent = stats.meanGap == null ? '' : `Back at the desk for ${duration(stats.meanGap)} on average between breaks. A heroic effort. (All reasons.)`;
   renderVods();
   renderTimeline();
   renderLog();
@@ -132,22 +142,22 @@ function renderReasons(stats) {
   const groups = [...stats.groups].sort((a, b) => b[state.metric] - a[state.metric] || A.reasons.indexOf(a.reason) - A.reasons.indexOf(b.reason));
   $('reasons').replaceChildren();
   if (!groups.length) {
-    $('leaderboard-note').textContent = 'A spotless excuse sheet. For now.';
-    $('reasons').append(node('p', 'No matching side quests.', 'chart-empty'));
+    $('leaderboard-note').textContent = 'No breaks match these filters.';
     return;
   }
   const max = groups[0][state.metric];
   const tied = groups.filter(group => Math.abs(group[state.metric] - max) < 0.000001);
   $('leaderboard-note').textContent = tied.length > 1
-    ? `${tied.map(group => reasonName(group.reason)).join(' / ')} are sharing the podium.`
+    ? `Shared podium · ${tied.map(group => reasonName(group.reason)).join(' / ')}`
     : state.metric === 'seconds'
-      ? `Most expensive excuse: ${reasonName(groups[0].reason)}.`
-      : `${reasonName(groups[0].reason)} takes it: ${groups[0].count} of ${stats.count} breaks.`;
+      ? `Most time away · ${reasonName(groups[0].reason)}`
+      : `Most frequent · ${reasonName(groups[0].reason)} · ${groups[0].count} of ${stats.count} breaks`;
   groups.forEach((group, index) => {
     const button = node('button', null, 'reason-row'); button.type = 'button';
     button.dataset.focusKey = 'reason:' + group.reason;
     button.setAttribute('aria-pressed', String(state.reason === group.reason));
-    button.title = `Filter ${group.reason} · ${group.count} breaks · ${duration(group.seconds)} as primary reason`;
+    const countLabel = `${group.count} break${group.count === 1 ? '' : 's'}`;
+    button.title = `Filter by ${reasonName(group.reason)} · ${countLabel} · ${duration(group.seconds)} as primary reason`;
     const middle = node('span');
     const track = node('span', null, 'reason-track');
     const fill = node('span', null, 'reason-fill');
@@ -155,7 +165,7 @@ function renderReasons(stats) {
     fill.hidden = !group[state.metric];
     track.append(fill); middle.append(node('span', reasonName(group.reason), 'reason-name'), track);
     const values = node('span', state.metric === 'count' ? String(group.count) : duration(group.seconds), 'reason-values');
-    values.append(node('small', state.metric === 'count' ? duration(group.seconds) : `${group.count} breaks`));
+    values.append(node('small', state.metric === 'count' ? duration(group.seconds) : countLabel));
     button.append(node('span', String(index + 1).padStart(2, '0'), 'reason-position'), middle, values);
     button.onclick = () => applyFilters({reason: state.reason === group.reason ? 'all' : group.reason});
     $('reasons').append(button);
@@ -405,6 +415,7 @@ async function refreshReports(announce = false) {
 
 $('vod').onchange = event => applyFilters({vod: event.target.value});
 $('month').onchange = event => applyFilters({month: event.target.value});
+for (const reason of A.reasons) $('reason').add(new Option(reasonName(reason), reason));
 $('reason').onchange = event => applyFilters({reason: event.target.value});
 $('reason-metric').onchange = event => { state.metric = event.target.value; render(); };
 $('search').oninput = event => { state.query = event.target.value; state.receiptLimit = pageSize; renderLog(); };

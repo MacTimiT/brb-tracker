@@ -87,7 +87,7 @@ test('leaderboard switches between counts and total minutes and supports click f
   assert.equal(d.getElementById('count').textContent, '1');
   dom.window.close();
 });
-test('new reasons show in leaderboard rows, podium copy and receipts', async () => {
+test('reason labels agree across filters, the leaderboard, the timeline, and receipts', async () => {
   const report = structuredClone(sample.reports[0]);
   report.is_demo = false;
   report.breaks = [
@@ -96,12 +96,19 @@ test('new reasons show in leaderboard rows, podium copy and receipts', async () 
   ];
   const dom = await page({schema_version: 1, reports: [report]});
   const d = dom.window.document;
-  assert.deepEqual([...d.querySelectorAll('.reason-name')].map(row => row.textContent), ['Help Rachel', 'Mental Break']);
-  assert.match(d.getElementById('leaderboard-note').textContent, /Help Rachel \/ Mental Break/);
+  assert.deepEqual([...d.querySelectorAll('#reason option')].map(option => option.textContent), [
+    'All reasons', 'Pee breaks', 'Snack raids', 'Hydration runs', 'Stretch breaks',
+    'Tech gremlins', 'Helping Rachel', 'Mental breaks', 'Side quests', 'Unsolved mysteries',
+  ]);
+  assert.deepEqual([...d.querySelectorAll('.reason-name')].map(row => row.textContent), ['Helping Rachel', 'Mental breaks']);
+  assert.deepEqual([...d.querySelectorAll('#timeline-legend li')].map(label => label.textContent), ['Helping Rachel', 'Mental breaks']);
+  assert.match(d.getElementById('leaderboard-note').textContent, /Helping Rachel \/ Mental breaks/);
   change(dom, 'reason-metric', 'seconds');
-  assert.match(d.getElementById('leaderboard-note').textContent, /Mental Break/);
+  assert.match(d.getElementById('leaderboard-note').textContent, /Mental breaks/);
+  change(dom, 'reason', 'Mental Break');
+  assert.match(d.getElementById('away-label').textContent, /^Mental breaks /);
   d.querySelector('.receipt-open').click();
-  assert.match(d.getElementById('receipt-title').textContent, /Mental Break/);
+  assert.match(d.getElementById('receipt-title').textContent, /Mental breaks/);
   dom.window.close();
 });
 test('search and ordering affect the receipt list while analytics keep their scope', async () => {
@@ -198,9 +205,9 @@ test('secondary reasons show in receipts and select the same break once', async 
   change(dom, 'reason', 'Help Rachel');
   assert.equal(d.getElementById('count').textContent, '1');
   assert.equal(d.getElementById('total').textContent, total);
-  assert.match(d.querySelector('.reason-tag').textContent, /Pee breaks \/ Help Rachel/);
+  assert.match(d.querySelector('.reason-tag').textContent, /Pee breaks \/ Helping Rachel/);
   d.querySelector('.receipt-open').click();
-  assert.match(d.getElementById('receipt-title').textContent, /Help Rachel/);
+  assert.match(d.getElementById('receipt-title').textContent, /Helping Rachel/);
   dom.window.close();
 });
 
