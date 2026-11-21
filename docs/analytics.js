@@ -16,7 +16,6 @@
   function validate(data) {
     if (!data || typeof data !== 'object' || data.schema_version !== 1) throw Error('Use a version 1 BRB report.');
     const list = Array.isArray(data.reports) ? data.reports : [data];
-    if (list.length > 500) throw Error('Load at most 500 VODs at once.');
     const seen = new Set();
     for (const report of list) {
       if (!report || report.schema_version !== 1 || typeof report.id !== 'string' || !report.id || typeof report.title !== 'string' || !Number.isFinite(report.duration_seconds) || report.duration_seconds < 0 || !Number.isFinite(report.sample_interval_seconds) || report.sample_interval_seconds <= 0 || !Array.isArray(report.breaks)) throw Error('That VOD report is missing its title, timing, or breaks.');
@@ -75,15 +74,17 @@
       });
       consider(report.duration_seconds);
     }
+    const entriesByReport = new Map(reports.map(report => [report, []]));
+    for (const item of entries) entriesByReport.get(item.report).push(item);
     const vods = reports.map(report => {
-      const items = entries.filter(item => item.report === report);
+      const items = entriesByReport.get(report);
       const seconds = sum(items.map(item => item.seconds));
       const hours = report.duration_seconds / 3600;
       return {report, count: items.length, seconds, percent: report.duration_seconds ? seconds / report.duration_seconds * 100 : 0, rate: hours ? items.length / hours : 0};
     }).sort((a, b) => b.percent - a.percent || b.seconds - a.seconds || a.report.title.localeCompare(b.report.title));
     const ordered = [...entries].sort((a, b) => b.seconds - a.seconds || a.start_seconds - b.start_seconds);
     return {
-      reports, entries, duration, away, count: entries.length,
+      reports, entries, entriesByReport, duration, away, count: entries.length,
       percent: duration ? away / duration * 100 : 0,
       average: entries.length ? away / entries.length : null,
       median: median(entries.map(item => item.seconds)),
@@ -95,19 +96,35 @@
     };
   }
 
+  function twitchAverage(report, matches) {
+    const entry = matches?.[report.video_id];
+    if (!entry || report.is_demo ||
+        entry.vod_started_at !== report.stream_started_at ||
+        entry.vod_duration_seconds !== report.duration_seconds ||
+        !Number.isSafeInteger(entry.average_viewers) || entry.average_viewers <= 0) return null;
+    return entry.average_viewers;
+  }
+
   function twitchViewerHours(vods, matches) {
     let hours = 0;
     let matched = 0;
     for (const {report, seconds} of vods) {
-      const entry = matches?.[report.video_id];
-      if (!entry || report.is_demo ||
-          entry.vod_started_at !== report.stream_started_at ||
-          entry.vod_duration_seconds !== report.duration_seconds ||
-          !Number.isSafeInteger(entry.average_viewers) || entry.average_viewers <= 0) continue;
-      hours += seconds * entry.average_viewers / 3600;
+      const average = twitchAverage(report, matches);
+      if (average == null) continue;
+      hours += seconds * average / 3600;
       matched++;
     }
     return {hours: matched ? hours : null, matched};
+  }
+
+  function chronological(a, b) {
+    const byDate = (a.report.vod_date ?? '9999-12-31').localeCompare(b.report.vod_date ?? '9999-12-31');
+    if (byDate) return byDate;
+    const startA = Date.parse(a.report.stream_started_at);
+    const startB = Date.parse(b.report.stream_started_at);
+    if (Number.isFinite(startA) && Number.isFinite(startB) && startA !== startB) return startA - startB;
+    if (Number.isFinite(startA) !== Number.isFinite(startB)) return Number.isFinite(startA) ? -1 : 1;
+    return key(a.report).localeCompare(key(b.report)) || a.start_seconds - b.start_seconds;
   }
 
   function csv(entries) {
@@ -120,7 +137,7 @@
     for (const item of entries) rows.push([item.report.title, item.report.vod_date, item.report.vod_date_source, item.report.analyzed_at, item.start_seconds, item.end_seconds, item.seconds, item.reason, item.evidence, item.report.video_id ? `https://www.youtube.com/watch?v=${item.report.video_id}&t=${Math.floor(item.start_seconds)}s` : '', (item.additional_reasons ?? []).join(' / ')]);
     return rows.map(row => row.map(cell).join(',')).join('\r\n') + '\r\n';
   }
-  const api = {reasons, key, assignedReasons, month, validDate, median, validate, compute, twitchViewerHours, csv};
+  const api = {reasons, key, assignedReasons, month, validDate, median, validate, compute, twitchAverage, twitchViewerHours, chronological, csv};
   root.BRBStats = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(globalThis);

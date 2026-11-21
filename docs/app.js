@@ -5,12 +5,18 @@ const reasonNames = {Pee: 'Pee breaks', Snack: 'Snack raids', Drink: 'Hydration 
 const reasonName = reason => reasonNames[reason] ?? reason;
 const reasonLabels = item => A.assignedReasons(item).map(reasonName).join(' / ');
 const colors = {Pee: '#bc2028', Snack: '#985182', Drink: '#23748a', Stretch: '#527346', Technical: '#586582', 'Help Rachel': '#96701d', 'Mental Break': '#6a51a3', Other: '#8a6842', Unknown: '#77736b'};
-const state = {published: [], vod: 'all', month: 'all', reason: 'all', metric: 'count', query: '', sort: 'longest', loading: true, logEntries: []};
-let twitchMatches = null;
-let selectedVods = [];
+const pageSize = 24;
+const state = {
+  published: [], vod: 'all', month: 'all', reason: 'all', metric: 'count',
+  query: '', sort: 'longest', loading: true, reportsStatus: 'loading',
+  twitchStatus: 'loading', twitchMatches: null, stats: null, receipt: null,
+  logEntries: [], receiptLimit: pageSize, vodLimit: pageSize, timelineLimit: pageSize,
+};
 let twitchRequest;
+let publicationRequest;
 const integer = value => Math.round(value).toLocaleString('en-US');
 const fixed = (value, places = 1) => Number(value).toFixed(places);
+const hoursLabel = hours => hours.toLocaleString('en-US', {maximumFractionDigits: 1}) + ' h';
 function duration(value) {
   if (value == null) return '—';
   const seconds = Math.round(value);
@@ -41,32 +47,58 @@ function updateOptions() {
   $('search').value = state.query;
   $('log-sort').value = state.sort;
 }
+function renderReceiptTwitch() {
+  if (!state.receipt) return;
+  const {report, seconds} = state.receipt;
+  const average = A.twitchAverage(report, state.twitchMatches);
+  const note = $('receipt-twitch');
+  note.hidden = average == null;
+  if (average != null) {
+    note.textContent = `Est. Twitch viewer-hours · ${hoursLabel(seconds * average / 3600)} · ${integer(average)} average viewers`;
+  }
+}
+
 function renderTwitchViewerHours() {
-  const {hours, matched} = A.twitchViewerHours(selectedVods, twitchMatches);
-  $('twitch-viewer-hours').textContent = hours == null
-    ? '—'
-    : hours.toLocaleString('en-US', {maximumFractionDigits: 1}) + ' h';
-  $('twitch-coverage').textContent = matched
-    ? `${matched} of ${selectedVods.length} VODs matched`
-    : 'No matched Twitch data';
+  if (!state.stats) return;
+  const vods = state.stats.vods;
+  const {hours, matched} = A.twitchViewerHours(vods, state.twitchMatches);
+  $('twitch-viewer-hours').textContent = hours == null ? '—' : hoursLabel(hours);
+  const coverage = matched ? `${matched} of ${vods.length} VODs matched` : 'No matched Twitch data';
+  $('twitch-coverage').textContent = {
+    loading: 'Loading Twitch data…',
+    unavailable: 'Twitch data unavailable',
+    stale: `${coverage} · previously loaded`,
+    ready: coverage,
+  }[state.twitchStatus];
+  for (const cell of $('vod-table').querySelectorAll('[data-twitch-index]')) {
+    const {report, seconds} = vods[Number(cell.dataset.twitchIndex)];
+    const average = A.twitchAverage(report, state.twitchMatches);
+    cell.querySelector('strong').textContent = average == null ? '—' : hoursLabel(seconds * average / 3600);
+    cell.querySelector('small').textContent = average == null ? '' : `${integer(average)} avg viewers`;
+  }
+  renderReceiptTwitch();
 }
 
 function render() {
+  const focusKey = document.activeElement?.dataset.focusKey;
   updateOptions();
   const selected = selectedReports();
   const stats = A.compute(selected, state.reason);
-  selectedVods = stats.vods;
-  renderTwitchViewerHours();
+  state.stats = stats;
   const hasReports = selected.length > 0;
-  $('empty-board').hidden = hasReports || state.loading;
+  $('empty-board').hidden = hasReports || state.loading || state.reportsStatus !== 'ready';
   $('analytics-board').hidden = !hasReports;
-  $('scope-summary').textContent = state.loading ? 'Checking the receipts…' : `${selected.length} VOD${selected.length === 1 ? '' : 's'} · ${duration(stats.duration)} clocked`;
+  $('scope-summary').textContent = state.loading ? 'Checking the receipts…'
+    : state.reportsStatus === 'unavailable' ? 'Reports unavailable'
+    : `${selected.length} VOD${selected.length === 1 ? '' : 's'} · ${duration(stats.duration)} clocked`;
   $('refresh').disabled = state.loading;
   $('total').textContent = hasReports ? duration(stats.away) : '—';
-  $('one-secs').textContent = hasReports ? `${integer(stats.away)} “one secs” and counting.` : 'Waiting for the first “one sec.”';
+  $('one-secs').textContent = hasReports ? `${integer(stats.away)} “one secs” and counting.`
+    : state.reportsStatus === 'unavailable' ? 'Reports could not be loaded.' : 'Waiting for the first “one sec.”';
   $('share-fill').style.width = `${stats.percent}%`;
   const otherName = state.reason === 'all' ? 'Not BRB' : 'Everything else';
   const awayName = state.reason === 'all' ? 'BRB' : `BRB with ${state.reason}`;
+  $('clock-label').textContent = state.reason === 'all' ? 'TIME SPENT ON BRB' : `BRB TIME WITH ${state.reason.toUpperCase()}`;
   $('other-label').textContent = `${otherName}${hasReports ? ' ' + fixed(stats.duration ? 100 - stats.percent : 0) + '%' : ''}`;
   $('away-label').textContent = `${awayName}${hasReports ? ' ' + fixed(stats.percent) + '%' : ''}`;
   $('count').textContent = integer(stats.count);
@@ -82,9 +114,18 @@ function render() {
   renderRecord('shortest', stats.shortest);
   renderRecord('streak', stats.longestStreak, true);
   $('gap-mean').textContent = stats.meanGap == null ? '' : `Back at the desk for ${duration(stats.meanGap)} on average between breaks. A heroic effort. (All excuses.)`;
-  renderVods(stats);
-  renderTimeline(stats);
-  renderLog(stats);
+  renderVods();
+  renderTimeline();
+  renderLog();
+  if (focusKey) {
+    const replacement = [...document.querySelectorAll('[data-focus-key]')].find(e => e.dataset.focusKey === focusKey);
+    (replacement ?? $(focusKey.split(':')[0]))?.focus({preventScroll: true});
+  }
+}
+
+function applyFilters(filters) {
+  Object.assign(state, filters, {receiptLimit: pageSize, vodLimit: pageSize, timelineLimit: pageSize});
+  render();
 }
 
 function renderReasons(stats) {
@@ -104,6 +145,7 @@ function renderReasons(stats) {
       : `${reasonName(groups[0].reason)} takes it: ${groups[0].count} of ${stats.count} breaks.`;
   groups.forEach((group, index) => {
     const button = node('button', null, 'reason-row'); button.type = 'button';
+    button.dataset.focusKey = 'reason:' + group.reason;
     button.setAttribute('aria-pressed', String(state.reason === group.reason));
     button.title = `Filter ${group.reason} · ${group.count} breaks · ${duration(group.seconds)} as primary reason`;
     const middle = node('span');
@@ -115,7 +157,7 @@ function renderReasons(stats) {
     const values = node('span', state.metric === 'count' ? String(group.count) : duration(group.seconds), 'reason-values');
     values.append(node('small', state.metric === 'count' ? duration(group.seconds) : `${group.count} breaks`));
     button.append(node('span', String(index + 1).padStart(2, '0'), 'reason-position'), middle, values);
-    button.onclick = () => { state.reason = state.reason === group.reason ? 'all' : group.reason; render(); };
+    button.onclick = () => applyFilters({reason: state.reason === group.reason ? 'all' : group.reason});
     $('reasons').append(button);
   });
 }
@@ -139,69 +181,149 @@ function renderRecord(id, item, streak = false) {
   container.append(node('strong', item ? duration(item.seconds) + (!streak && item.truncated ? '+' : '') : '—', 'record-value'));
   if (!item) { container.append(node('span', 'No contender on file.', 'record-title')); return; }
   container.append(node('span', streak ? item.report.title : reasonName(item.reason), 'record-title'));
-  const button = node('button', streak ? `From ${stamp(item.start_seconds)} ↗` : 'Show receipt ↗', 'record-link');
+  const button = node('button', streak ? `View timeline · from ${stamp(item.start_seconds)}` : 'Show receipt', 'record-link');
   button.onclick = () => {
     if (!streak) { openReceipt(item); return; }
-    state.vod = A.key(item.report); render();
-    $('timeline').scrollIntoView?.({behavior: 'smooth', block: 'center'});
+    applyFilters({vod: A.key(item.report)});
+    const heading = $('timeline-title');
+    heading.focus({preventScroll: true});
+    heading.scrollIntoView?.({block: 'center'});
   };
   container.append(button);
 }
-function renderVods(stats) {
-  $('vod-table').replaceChildren();
-  stats.vods.forEach((row, index) => {
-    const tr = node('tr');
-    const title = node('td');
-    const button = node('button', row.report.title, 'vod-name');
-    button.onclick = () => { state.vod = A.key(row.report); render(); };
-    title.append(node('span', String(index + 1).padStart(2, '0'), 'vod-rank'), button);
-    tr.append(title, node('td', row.report.vod_date || 'Unknown'), node('td', duration(row.report.duration_seconds)), node('td', row.count), node('td', duration(row.seconds)), node('td', `${fixed(row.percent)}%`, 'share-number'), node('td', fixed(row.rate, 2)));
-    $('vod-table').append(tr);
-  });
+function tableCell(label, value, className) {
+  const cell = node('td', null, className);
+  cell.setAttribute('role', 'cell');
+  if (label) {
+    const caption = node('span', label, 'table-label');
+    caption.setAttribute('aria-hidden', 'true');
+    cell.append(caption);
+  }
+  if (value != null) cell.append(node('span', value));
+  return cell;
 }
-function renderTimeline(stats) {
-  $('timeline').replaceChildren();
-  for (const report of stats.reports) {
+
+function renderVods() {
+  const {vods} = state.stats;
+  const rows = vods.slice(0, state.vodLimit).map((row, index) => {
+    const tr = node('tr');
+    tr.setAttribute('role', 'row');
+    const title = tableCell(null, null, 'vod-title');
+    const button = node('button', row.report.title, 'vod-name');
+    button.type = 'button';
+    button.dataset.focusKey = 'vod:' + A.key(row.report);
+    button.onclick = () => applyFilters({vod: A.key(row.report)});
+    title.append(node('span', String(index + 1).padStart(2, '0'), 'vod-rank'), button);
+    const twitch = tableCell('Est. Twitch viewer-hours', null, 'vod-twitch');
+    twitch.dataset.twitchIndex = index;
+    twitch.append(node('strong'), node('small'));
+    tr.append(title,
+      tableCell('VOD date', row.report.vod_date || 'Unknown', 'vod-date'),
+      tableCell('Length', duration(row.report.duration_seconds)),
+      tableCell('Breaks', row.count),
+      tableCell('Time away', duration(row.seconds)),
+      tableCell('BRB share', `${fixed(row.percent)}%`, 'share-number'),
+      tableCell('Breaks / h', fixed(row.rate, 2)), twitch);
+    return tr;
+  });
+  $('vod-table').replaceChildren(...rows);
+  $('more-vods').hidden = vods.length <= state.vodLimit;
+  renderTwitchViewerHours();
+}
+
+function renderTimeline() {
+  const stats = state.stats;
+  const reasons = new Set(stats.entries.map(item => item.reason));
+  $('timeline-key').hidden = !reasons.size;
+  $('timeline-legend').replaceChildren(...A.reasons.filter(reason => reasons.has(reason)).map(reason => {
+    const label = node('li', reasonName(reason));
+    const swatch = node('span', null, 'reason-swatch');
+    swatch.setAttribute('aria-hidden', 'true');
+    swatch.style.backgroundColor = colors[reason];
+    label.prepend(swatch);
+    return label;
+  }));
+  const rows = stats.reports.slice(0, state.timelineLimit).map(report => {
     const row = node('div', null, 'timeline-row');
+    const name = node('p', report.title, 'timeline-name');
+    name.tabIndex = -1;
+    const items = stats.entriesByReport.get(report);
     const track = node('div', null, 'timeline-track');
-    for (const item of stats.entries.filter(entry => entry.report === report)) {
+    const marks = items.map(item => {
       const mark = node('button', null, 'break-mark');
+      mark.type = 'button';
       mark.style.left = `${report.duration_seconds ? item.start_seconds / report.duration_seconds * 100 : 0}%`;
       mark.style.width = `${report.duration_seconds ? item.seconds / report.duration_seconds * 100 : 0}%`;
       mark.style.backgroundColor = colors[item.reason];
       mark.setAttribute('aria-label', `${reasonLabels(item)}, ${stamp(item.start_seconds)}, ${duration(item.seconds)}`);
-      mark.title = mark.getAttribute('aria-label'); mark.onclick = () => openReceipt(item);
-      track.append(mark);
+      mark.title = mark.getAttribute('aria-label');
+      mark.onclick = () => openReceipt(item);
+      return mark;
+    });
+    track.append(...marks);
+    if (marks.length) {
+      track.onclick = event => {
+        if (event.target.closest('button')) return;
+        let nearest = 16;
+        let target = null;
+        for (const [index, mark] of marks.entries()) {
+          const bounds = mark.getBoundingClientRect();
+          const gap = Math.max(bounds.left - event.clientX, event.clientX - bounds.right, 0);
+          if (gap <= nearest) { nearest = gap; target = index; }
+        }
+        if (target != null) openReceipt(items[target], marks[target]);
+      };
     }
-    const axis = node('div', null, 'timeline-axis'); axis.append(node('span', '0:00'), node('span', stamp(report.duration_seconds)));
-    row.append(node('p', report.title, 'timeline-name'), track, axis); $('timeline').append(row);
-  }
+    const axis = node('div', null, 'timeline-axis');
+    axis.append(node('span', '0:00'), node('span', stamp(report.duration_seconds)));
+    row.append(name, track, axis);
+    return row;
+  });
+  $('timeline').replaceChildren(...rows);
+  $('more-timelines').hidden = stats.reports.length <= state.timelineLimit;
 }
-function renderLog(stats) {
+
+function renderLog() {
+  const {entries: scoped, count} = state.stats;
   const query = state.query.trim().toLocaleLowerCase();
-  const entries = stats.entries.filter(item => !query || `${item.report.title} ${reasonLabels(item)} ${A.assignedReasons(item).join(" ")} ${item.evidence}`.toLocaleLowerCase().includes(query));
-  if (state.sort !== 'stream') entries.sort((a, b) => state.sort === 'longest' ? b.seconds - a.seconds : a.seconds - b.seconds);
+  const entries = scoped.filter(item => !query || `${item.report.title} ${reasonLabels(item)} ${A.assignedReasons(item).join(" ")} ${item.evidence}`.toLocaleLowerCase().includes(query));
+  if (state.sort === 'stream') entries.sort(A.chronological);
+  else entries.sort((a, b) => state.sort === 'longest' ? b.seconds - a.seconds : a.seconds - b.seconds);
   state.logEntries = entries;
-  $('breaks').replaceChildren();
-  $('log-count').textContent = query ? `${entries.length} / ${stats.count}` : `(${entries.length})`;
+  $('log-count').textContent = query ? `${entries.length} / ${count}` : `(${entries.length})`;
   $('empty').hidden = entries.length > 0;
-  for (const item of entries) {
-    const row = node('tr');
-    const source = node('td'); source.append(node('strong', item.report.title), node('small', item.report.vod_date || 'Date unknown'), node('small', `${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}`));
-    const reason = node('td'); reason.append(node('span', reasonLabels(item), 'reason-tag'));
-    if (item.reviewed) { const checked = node('span', '✓', 'reviewed'); checked.title = 'Reviewed'; reason.append(checked); }
-    const quote = node('td'); quote.append(node('div', item.evidence ? `“${item.evidence}”` : 'No quote on file.', 'quote-preview'));
-    const action = node('td'); const button = node('button', '↗', 'receipt-open'); button.setAttribute('aria-label', `Open ${A.assignedReasons(item).join(' / ')} receipt at ${stamp(item.start_seconds)}`); button.onclick = () => openReceipt(item); action.append(button);
-    row.append(source, node('td', duration(item.seconds) + (item.truncated ? '+' : '')), reason, quote, action);
-    $('breaks').append(row);
-  }
+  $('csv-export').disabled = !entries.length;
+  $('more-receipts').hidden = entries.length <= state.receiptLimit;
+  const rows = entries.slice(0, state.receiptLimit).map(item => {
+    const row = node('tr', null, 'receipt-row');
+    row.setAttribute('role', 'row');
+    const source = tableCell(null, null, 'receipt-source');
+    const button = node('button', item.report.title, 'receipt-open');
+    button.type = 'button';
+    button.setAttribute('aria-label', `Open ${A.assignedReasons(item).join(' / ')} receipt at ${stamp(item.start_seconds)} for ${item.report.title}`);
+    button.onclick = () => openReceipt(item);
+    row.onclick = event => {
+      if (!event.target.closest('button') && !window.getSelection()?.toString()) {
+        openReceipt(item, button);
+      }
+    };
+    source.append(button, node('small', item.report.vod_date || 'Date unknown'), node('small', `${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}`));
+    const reason = tableCell(null, null, 'receipt-reason');
+    reason.append(node('span', reasonLabels(item), 'reason-tag'));
+    const quote = tableCell(null, null, 'receipt-quote-cell');
+    quote.append(node('div', item.evidence ? `“${item.evidence}”` : 'No quote on file.', 'quote-preview'));
+    row.append(source, tableCell(null, duration(item.seconds) + (item.truncated ? '+' : ''), 'receipt-duration'), reason, quote);
+    return row;
+  });
+  $('breaks').replaceChildren(...rows);
 }
-function openReceipt(item) {
+function openReceipt(item, trigger) {
+  if (trigger) trigger.focus({preventScroll: true});
+  state.receipt = item;
   $('receipt-title').textContent = `${reasonLabels(item)} · ${duration(item.seconds)}${item.truncated ? '+' : ''}`;
   $('receipt-meta').textContent = `${item.report.title} · ${item.report.vod_date || 'Date unknown'} · ${stamp(item.start_seconds)} → ${stamp(item.end_seconds)}${item.truncated ? ' · Still BRB when the VOD ends.' : ''}`;
   $('receipt-quote').textContent = item.evidence || 'No quote on file.';
-  $('receipt-review').textContent = item.reviewed ? 'Reviewed.' : '';
-  $('receipt-review').hidden = !item.reviewed;
+  renderReceiptTwitch();
   const url = watchURL(item);
   $('receipt-watch').hidden = !url;
   if (url) $('receipt-watch').href = url; else $('receipt-watch').removeAttribute('href');
@@ -213,57 +335,98 @@ function download(value, type, filename) {
   const anchor = node('a'); anchor.href = url; anchor.download = filename; anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+const liveSite = window.location.origin === 'https://mactimit.github.io';
 function dataUrl(file) {
-  return window.location.origin === 'https://mactimit.github.io'
-    ? `https://raw.githubusercontent.com/MacTimiT/brb-tracker/main/docs/data/${file}`
-    : `data/${file}`;
+  return liveSite ? `https://raw.githubusercontent.com/MacTimiT/brb-tracker/main/docs/data/${file}` : `data/${file}`;
 }
+
+function fetchJson(url, cache = 'no-store') {
+  const options = {cache};
+  if (typeof AbortSignal.timeout === 'function') options.signal = AbortSignal.timeout(12000);
+  return fetch(url, options).then(response => {
+    if (!response.ok) throw Error('The receipts didn’t arrive. Try Refresh.');
+    return response.json();
+  });
+}
+
 function refreshTwitchMatches() {
   if (twitchRequest) return;
-  twitchRequest = (async () => {
-    try {
-      const response = await fetch(dataUrl('twitch-viewership.json'), {cache: 'no-store'});
-      if (!response.ok) return;
-      const data = await response.json();
-      if (data.schema_version === 1 && data.matches && typeof data.matches === 'object') {
-        twitchMatches = data.matches;
-        renderTwitchViewerHours();
-      }
-    } catch {
-      // Leave the last available estimates in place if the optional data fails.
-    } finally {
-      twitchRequest = null;
+  twitchRequest = fetchJson(dataUrl('twitch-viewership.json')).then(data => {
+    if (data.schema_version !== 1 || !data.matches || typeof data.matches !== 'object' || Array.isArray(data.matches)) {
+      throw Error('Twitch data is invalid.');
     }
-  })();
+    state.twitchMatches = data.matches;
+    state.twitchStatus = 'ready';
+  }).catch(() => {
+    state.twitchStatus = state.twitchMatches ? 'stale' : 'unavailable';
+  }).finally(() => {
+    twitchRequest = null;
+    renderTwitchViewerHours();
+  });
 }
-async function fetchReports() {
-  const response = await fetch(dataUrl('reports.json'), {cache: 'no-store'});
-  if (!response.ok) throw Error('The receipts didn’t arrive. Try Refresh.');
-  return A.validate(await response.json()).filter(report => !report.is_demo);
+
+function refreshPublication() {
+  if (!liveSite || publicationRequest) return;
+  const url = 'https://api.github.com/repos/MacTimiT/brb-tracker/commits?sha=main&path=docs/data/reports.json&per_page=1';
+  publicationRequest = fetchJson(url, 'default').then(commits => {
+    const date = commits[0]?.commit?.committer?.date;
+    if (!date || !Number.isFinite(Date.parse(date))) return;
+    const time = $('published-time');
+    time.dateTime = date;
+    time.textContent = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(date));
+    $('publication').hidden = false;
+  }).catch(() => {
+    // Publication metadata is optional and can be rate limited by GitHub.
+  }).finally(() => { publicationRequest = null; });
 }
-async function initialize() {
-  try { state.published = await fetchReports(); }
-  catch (error) { notice(error.message); }
-  finally { state.loading = false; render(); }
-}
-$('vod').onchange = event => { state.vod = event.target.value; render(); };
-$('month').onchange = event => { state.month = event.target.value; state.vod = 'all'; render(); };
-$('reason').onchange = event => { state.reason = event.target.value; render(); };
-$('reason-metric').onchange = event => { state.metric = event.target.value; render(); };
-$('search').oninput = event => { state.query = event.target.value; renderLog(A.compute(selectedReports(), state.reason)); };
-$('log-sort').onchange = event => { state.sort = event.target.value; render(); };
-$('refresh').onclick = async () => {
-  state.loading = true; render();
-  const reports = fetchReports();
+
+async function refreshReports(announce = false) {
+  state.loading = true;
+  const reports = fetchJson(dataUrl('reports.json'));
   refreshTwitchMatches();
-  try { state.published = await reports; notice('Fresh receipts. Board updated.'); }
-  catch (error) { notice(error.message); }
-  finally { state.loading = false; render(); }
-};
+  refreshPublication();
+  render();
+  try {
+    const next = A.validate(await reports).filter(report => !report.is_demo);
+    if (announce) {
+      const changed = JSON.stringify(next) !== JSON.stringify(state.published);
+      notice(changed ? 'New report data loaded.' : 'Same report data received.');
+    }
+    state.published = next;
+    state.reportsStatus = 'ready';
+  } catch (error) {
+    state.reportsStatus = state.published.length ? 'stale' : 'unavailable';
+    notice(state.reportsStatus === 'stale' ? `${error.message} Showing previously loaded reports.` : error.message);
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+$('vod').onchange = event => applyFilters({vod: event.target.value});
+$('month').onchange = event => applyFilters({month: event.target.value});
+$('reason').onchange = event => applyFilters({reason: event.target.value});
+$('reason-metric').onchange = event => { state.metric = event.target.value; render(); };
+$('search').oninput = event => { state.query = event.target.value; state.receiptLimit = pageSize; renderLog(); };
+$('log-sort').onchange = event => { state.sort = event.target.value; state.receiptLimit = pageSize; renderLog(); };
+$('refresh').onclick = () => refreshReports(true);
+
+for (const [id, limit, renderItems, focusSelector] of [
+  ['more-vods', 'vodLimit', renderVods, '.vod-name'],
+  ['more-timelines', 'timelineLimit', renderTimeline, '.timeline-name'],
+  ['more-receipts', 'receiptLimit', renderLog, '.receipt-open'],
+]) {
+  $(id).onclick = () => {
+    const first = state[limit];
+    state[limit] += pageSize;
+    renderItems();
+    document.querySelectorAll(focusSelector)[first]?.focus();
+  };
+}
 $('export').title = 'Download reports in the current month and stream filters as JSON';
 $('export').onclick = () => download(JSON.stringify({schema_version: 1, reports: selectedReports()}, null, 2), 'application/json', 'gone4hope-reports.json');
 $('csv-export').title = 'Download the receipts matching the current filters and search';
 $('csv-export').onclick = () => download(A.csv(state.logEntries), 'text/csv;charset=utf-8', 'gone4hope-receipts.csv');
+$('receipt-dialog').onclose = () => { state.receipt = null; };
 $('twitch-viewer-hours-help').onclick = () => $('twitch-viewer-hours-dialog').showModal();
-initialize();
-refreshTwitchMatches();
+refreshReports();

@@ -9,10 +9,13 @@ async function page(data = sample, url = 'http://localhost/', twitch = null) {
   const requests = [];
   dom.window.fetch = async path => {
     requests.push(path);
+    if (path.startsWith('https://api.github.com/')) {
+      return {ok: true, json: async () => [{commit: {committer: {date: '2026-11-20T22:24:40Z'}}}]};
+    }
     if (path.endsWith('/twitch-viewership.json')) {
       return {ok: twitch !== null, json: async () => structuredClone(twitch)};
     }
-    return {ok: true, json: async () => structuredClone(data)};
+    return {ok: data !== null, json: async () => structuredClone(data)};
   };
   dom.requests = requests;
   for (const dialog of dom.window.document.querySelectorAll('dialog')) {
@@ -59,8 +62,10 @@ test('live Pages dashboard reads main directly at startup and on refresh', async
   data.reports[0].is_demo = false;
   const dom = await page(data, 'https://mactimit.github.io/brb-tracker/');
   const path = 'https://raw.githubusercontent.com/MacTimiT/brb-tracker/main/docs/data/';
-  const sources = [path + 'reports.json', path + 'twitch-viewership.json'];
+  const sources = [path + 'reports.json', path + 'twitch-viewership.json',
+    'https://api.github.com/repos/MacTimiT/brb-tracker/commits?sha=main&path=docs/data/reports.json&per_page=1'];
   assert.deepEqual(dom.requests, sources);
+  assert.equal(dom.window.document.getElementById('published-time').dateTime, '2026-11-20T22:24:40Z');
   assert.equal(dom.window.document.getElementById('count').textContent, '6');
   data.reports[0].breaks.pop();
   dom.window.document.getElementById('refresh').click();
@@ -217,6 +222,10 @@ test('estimated Twitch viewer-hours follow the filters and explain their coverag
   const d = dom.window.document;
   assert.equal(d.getElementById('twitch-viewer-hours').textContent, '73.3 h');
   assert.equal(d.getElementById('twitch-coverage').textContent, '1 of 2 VODs matched');
+  assert.equal(d.querySelector('.vod-twitch strong').textContent, '73.3 h');
+  assert.match(d.querySelector('.vod-twitch small').textContent, /200 avg viewers/);
+  d.querySelector('.receipt-open').click();
+  assert.match(d.getElementById('receipt-twitch').textContent, /200 average viewers/);
   change(dom, 'reason', 'Pee');
   assert.equal(d.getElementById('twitch-viewer-hours').textContent, '30 h');
   change(dom, 'vod', 'fixture0002');
@@ -226,5 +235,72 @@ test('estimated Twitch viewer-hours follow the filters and explain their coverag
   assert.equal(dialog.open, true);
   assert.match(dialog.textContent, /BRB seconds ÷ 3,600/);
   assert.match(dialog.textContent, /average across the whole Twitch broadcast/);
+  dom.window.close();
+});
+
+test('reason and stream buttons keep focus and receipt rows include both review states', async () => {
+  const data = structuredClone(sample); data.reports[0].is_demo = false;
+  data.reports[0].breaks[0].reviewed = false;
+  data.reports[0].breaks[1].reviewed = true;
+  const dom = await page(data); const d = dom.window.document;
+  assert.equal(d.querySelectorAll('.receipt-row').length, 6);
+  assert.equal(d.querySelectorAll('.receipt-row .reviewed').length, 0);
+  const reason = d.querySelector('.reason-row');
+  reason.focus();
+  const key = reason.dataset.focusKey;
+  reason.click();
+  assert.equal(d.activeElement.dataset.focusKey, key);
+  const vod = d.querySelector('.vod-name');
+  vod.focus(); vod.click();
+  assert.equal(d.activeElement.dataset.focusKey, vod.dataset.focusKey);
+  const cell = d.querySelector('.receipt-row .receipt-duration');
+  cell.click();
+  assert.equal(d.getElementById('receipt-dialog').open, true);
+  dom.window.close();
+});
+
+test('missing sources are distinct from empty or unmatched data', async () => {
+  const outage = await page(null);
+  assert.equal(outage.window.document.getElementById('empty-board').hidden, true);
+  assert.match(outage.window.document.getElementById('scope-summary').textContent, /unavailable/);
+  outage.window.close();
+  const data = structuredClone(sample); data.reports[0].is_demo = false;
+  const dom = await page(data); const d = dom.window.document;
+  assert.equal(d.getElementById('analytics-board').hidden, false);
+  assert.match(d.getElementById('twitch-coverage').textContent, /unavailable/);
+  change(dom, 'search', 'impossible-search-value', 'input');
+  assert.equal(d.getElementById('csv-export').disabled, true);
+  assert.equal(d.getElementById('export').disabled, false);
+  dom.window.close();
+});
+
+test('large archives load with incremental rows and chronological receipts', async () => {
+  const base = sample.reports[0];
+  const reports = Array.from({length: 501}, (_, i) => ({
+    ...base,
+    id: `test-vod-${i}`, video_id: null, is_demo: false,
+    vod_date: i ? '2026-11-20' : '2026-11-09',
+    breaks: i ? base.breaks.slice(0, 1) : base.breaks.slice(0, 2),
+  })).reverse();
+  const dom = await page({schema_version: 1, reports}); const d = dom.window.document;
+  assert.equal(d.getElementById('count').textContent, '502');
+  change(dom, 'log-sort', 'stream');
+  assert.match(d.querySelector('.receipt-row').textContent, /2026-11-09/);
+  assert.equal(d.querySelectorAll('.receipt-row').length, 24);
+  assert.equal(d.querySelectorAll('.timeline-row').length, 24);
+  d.getElementById('more-receipts').click();
+  assert.equal(d.querySelectorAll('.receipt-row').length, 48);
+  assert.equal(d.activeElement.className, 'receipt-open');
+  dom.window.close();
+});
+
+test('timeline colors identify primary reasons under a secondary reason filter', async () => {
+  const data = structuredClone(sample);
+  const report = data.reports[0]; report.is_demo = false;
+  report.breaks = [{...report.breaks[0], reason: 'Pee', additional_reasons: ['Drink']}];
+  const dom = await page(data); const d = dom.window.document;
+  change(dom, 'reason', 'Drink');
+  assert.equal(d.getElementById('timeline-legend').textContent, 'Pee breaks');
+  assert.equal(d.querySelector('.reason-swatch').style.backgroundColor, d.querySelector('.break-mark').style.backgroundColor);
   dom.window.close();
 });

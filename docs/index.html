@@ -8,24 +8,24 @@
   <title>GONE4HOPE · The BRB department</title>
   <link rel="icon" href="assets/gamin4hope-profile.jpg">
   <link rel="preload" href="assets/fonts/barlow-condensed-extrabold.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="style.css?v=gone4hope-7">
-  <script src="analytics.js?v=gone4hope-5" defer></script>
-  <script src="app.js?v=gone4hope-7" defer></script>
+  <link rel="stylesheet" href="style.css?v=gone4hope-8">
+  <script src="analytics.js?v=gone4hope-6" defer></script>
+  <script src="app.js?v=gone4hope-8" defer></script>
 </head>
 <body>
   <header class="masthead wrap">
     <a class="brand" href="./" aria-label="GONE4HOPE home"><img src="assets/gamin4hope-profile.jpg" width="44" height="44" alt="Gamin4Hope"><span>GONE<span class="red">4</span>HOPE<small>THE BRB DEPARTMENT</small></span></a>
-    <nav aria-label="Main navigation"><a href="#excuses">The excuses</a><a href="#receipts">The receipts</a></nav>
+    <nav aria-label="Main navigation"><a href="#filters">Filters</a><a href="#excuses">Reasons</a><a href="#receipts">Receipts</a></nav>
   </header>
   <main class="wrap">
     <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-copy"><p class="eyebrow">GAMIN4HOPE’S MOST CONSISTENT ABILITY</p><h1 id="hero-title">BE RIGHT<br><span>BACK.</span></h1><p class="hero-line">Chat kept the seat warm.<br>We kept the times.</p></div>
-      <div class="punch-clock"><div class="clock-heading"><span>TIME ON SIDE QUESTS</span><span class="clock-icon" aria-hidden="true">Ⅱ</span></div><strong id="total">—</strong><p id="one-secs">Waiting for the first “one sec.”</p><div class="occupancy" aria-hidden="true"><span id="share-fill"></span></div><div class="occupancy-labels"><span id="other-label">Not BRB</span><span id="away-label">BRB</span></div><div class="clock-bottom"><span>THE CHAIR’S DOING OVERTIME</span><span aria-hidden="true">↗</span></div></div>
+      <div class="hero-copy"><p class="eyebrow">GAMIN4HOPE’S MOST CONSISTENT ABILITY</p><h1 id="hero-title">BE RIGHT<br><span>BACK.</span></h1><p class="hero-line">Chat kept the seat warm.<br> We kept the times.</p></div>
+      <div class="punch-clock"><div class="clock-heading"><span id="clock-label">TIME SPENT ON BRB</span><span class="clock-icon" aria-hidden="true"></span></div><strong id="total">—</strong><p id="one-secs">Waiting for the first “one sec.”</p><div class="occupancy" aria-hidden="true"><span id="share-fill"></span></div><div class="occupancy-labels"><span id="other-label">Not BRB</span><span id="away-label">BRB</span></div><div class="clock-bottom"><span>THE CHAIR’S DOING OVERTIME</span><span class="link-arrow" aria-hidden="true"></span></div></div>
     </section>
 
-    <section class="controls" aria-label="Scoreboard filters">
-      <div class="data-state"><span class="mode" id="data-mode">Published VODs</span><span id="scope-summary">Checking the receipts…</span></div>
-      <div class="filter-row"><label>Stream<select id="vod"><option value="all">All streams</option></select></label><label>Month<select id="month"><option value="all">All dates</option></select></label><label>Excuse<select id="reason"><option value="all">All excuses</option><option value="Pee">Pee</option><option value="Snack">Snack</option><option value="Drink">Drink</option><option value="Stretch">Stretch</option><option value="Technical">Technical</option><option value="Help Rachel">Help Rachel</option><option value="Mental Break">Mental Break</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select></label><div class="control-buttons"><button id="refresh" title="Refresh published reports">↻ <span>Refresh</span></button></div></div>
+    <section class="controls" id="filters" aria-label="Scoreboard filters">
+      <div class="data-state"><span class="mode" id="data-mode">Published VODs</span><span id="scope-summary">Checking the receipts…</span><span id="publication" hidden>Last published <time id="published-time" title="Time of the latest published report change on GitHub"></time></span></div>
+      <div class="filter-row"><label>Stream<select id="vod"><option value="all">All streams</option></select></label><label>Month<select id="month"><option value="all">All dates</option></select></label><label>Excuse<select id="reason"><option value="all">All excuses</option><option value="Pee">Pee</option><option value="Snack">Snack</option><option value="Drink">Drink</option><option value="Stretch">Stretch</option><option value="Technical">Technical</option><option value="Help Rachel">Help Rachel</option><option value="Mental Break">Mental Break</option><option value="Other">Other</option><option value="Unknown">Unknown</option></select></label><div class="control-buttons"><button id="refresh" title="Refresh published reports">Refresh</button></div></div>
       <p id="notice" role="status" hidden></p>
     </section>
 
@@ -55,13 +55,37 @@
 
       <section class="records" aria-labelledby="records-title"><div class="section-heading"><div><p class="eyebrow">PLEASE ACCEPT THIS VERY SMALL TROPHY</p><h2 id="records-title">The hall of gone.</h2></div></div><div class="record-grid"><article><span class="record-label">01 / LONGEST SIDE QUEST</span><div id="longest"></div></article><article><span class="record-label">02 / QUICKEST COMEBACK</span><div id="shortest"></div></article><article><span class="record-label">03 / LONGEST WITHOUT A BRB</span><div id="streak"></div><small>Across all excuses in these VODs</small></article></div><p id="gap-mean" class="gap-note"></p></section>
 
-      <section class="panel vod-panel"><div class="section-heading"><div><p class="eyebrow">A LEAGUE OF HIS OWN</p><h2>Streams, ranked by chair time.</h2></div><span class="section-side">Most BRB → least BRB</span></div><div class="table-scroll"><table class="vod-table"><thead><tr><th>STREAM</th><th>VOD DATE</th><th>LENGTH</th><th>BREAKS</th><th>TIME AWAY</th><th>BRB SHARE</th><th>BREAKS / H</th></tr></thead><tbody id="vod-table"></tbody></table></div></section>
+      <section class="panel vod-panel">
+        <div class="section-heading"><div><p class="eyebrow">A LEAGUE OF HIS OWN</p><h2>Streams, ranked by chair time.</h2></div><span class="section-side">Highest BRB share first</span></div>
+        <div class="table-scroll"><table class="vod-table" role="table" aria-label="Streams, ranked by BRB share">
+          <thead role="rowgroup"><tr role="row"><th scope="col">Stream</th><th scope="col">VOD date</th><th scope="col">Length</th><th scope="col">Breaks</th><th scope="col">Time away</th><th scope="col" aria-sort="descending">BRB share</th><th scope="col">Breaks / h</th><th scope="col">Est. Twitch viewer-hours</th></tr></thead>
+          <tbody id="vod-table" role="rowgroup"></tbody>
+        </table></div>
+        <button class="show-more" id="more-vods" type="button" hidden>Show more streams</button>
+      </section>
 
-      <div class="split bottom-charts"><section class="panel"><div class="section-heading"><div><p class="eyebrow">EARLY EXIT OR LATE GAME?</p><h2>When he vanishes.</h2></div></div><div id="phases" class="column-chart phase-chart" aria-label="Break starts by stream quarter"></div><p class="chart-caption">Break starts, grouped by how far into the VOD they happen</p></section><section class="panel"><div class="section-heading"><div><p class="eyebrow">RED MEANS THE CHAIR’S IN CHARGE</p><h2>The escape timeline.</h2></div></div><div id="timeline"></div></section></div>
+      <div class="split bottom-charts">
+        <section class="panel"><div class="section-heading"><div><p class="eyebrow">EARLY EXIT OR LATE GAME?</p><h2>When he vanishes.</h2></div></div><div id="phases" class="column-chart phase-chart" aria-label="Break starts by stream quarter"></div><p class="chart-caption">Break starts, grouped by how far into the VOD they happen</p></section>
+        <section class="panel"><div class="section-heading"><div><p class="eyebrow">BRB BREAKS OVER TIME</p><h2 id="timeline-title" tabindex="-1">The escape timeline.</h2></div></div>
+          <div id="timeline-key" hidden><p class="chart-caption">Colors show the primary reason.</p><ul id="timeline-legend" aria-label="Timeline colors"></ul></div>
+          <div id="timeline"></div>
+          <button class="show-more" id="more-timelines" type="button" hidden>Show more timelines</button>
+        </section>
+      </div>
 
-      <section class="panel receipt-panel" id="receipts"><div class="section-heading"><div><p class="eyebrow">CHAT, ROLL THE TAPE</p><h2>The receipts. <span id="log-count"></span></h2></div><div class="exports"><button id="csv-export">↓ CSV</button><button id="export">↓ JSON</button></div></div><div class="log-controls"><label class="search-label"><span class="sr-only">Search receipts</span><input id="search" type="search" placeholder="Find a stream, excuse, or suspicious quote…"></label><label>Order<select id="log-sort"><option value="longest">Longest first</option><option value="shortest">Shortest first</option><option value="stream">Stream order</option></select></label></div><div class="table-scroll"><table class="receipt-table"><thead><tr><th>CLOCKED OUT</th><th>GONE FOR</th><th>EXCUSE</th><th>FAMOUS LAST WORDS</th><th><span class="sr-only">Open receipt</span></th></tr></thead><tbody id="breaks"></tbody></table></div><p id="empty" class="no-results" hidden>No receipts match. He’s escaped the filter.</p></section>
+      <section class="panel receipt-panel" id="receipts">
+        <div class="section-heading"><div><p class="eyebrow">CHAT, ROLL THE TAPE</p><h2>The receipts. <span id="log-count"></span></h2></div></div>
+        <div class="log-controls"><label class="search-label">Search receipts<input id="search" type="search" placeholder="Stream, reason, or quote"></label><label>Order<select id="log-sort"><option value="longest">Longest first</option><option value="shortest">Shortest first</option><option value="stream">Stream date (oldest first)</option></select></label></div>
+        <div class="exports"><button id="csv-export" type="button">Export matching receipts (CSV)</button><button id="export" type="button">Export selected VOD reports (JSON)</button></div>
+        <div class="table-scroll"><table class="receipt-table" role="table" aria-label="Break receipts">
+          <thead role="rowgroup"><tr role="row"><th scope="col">Clocked out</th><th scope="col">Gone for</th><th scope="col">Excuse</th><th scope="col">Famous last words</th></tr></thead>
+          <tbody id="breaks" role="rowgroup"></tbody>
+        </table></div>
+        <p id="empty" class="no-results" hidden>No receipts match. He’s escaped the filter.</p>
+        <button class="show-more" id="more-receipts" type="button" hidden>Show more receipts</button>
+      </section>
     </div>
-    <footer><strong>THANKS FOR HOLDING, CHAT.</strong><nav aria-label="More links"><a href="https://www.twitch.tv/gamin4hope" target="_blank" rel="noopener noreferrer">Watch Hope ↗</a><a href="https://linktr.ee/gamin4hope" target="_blank" rel="noopener noreferrer">His links ↗</a><a href="https://github.com/MacTimiT/brb-tracker">The code ↗</a></nav></footer>
+    <footer><strong>THANKS FOR HOLDING, CHAT.</strong><nav aria-label="More links"><a href="https://www.twitch.tv/gamin4hope" target="_blank" rel="noopener noreferrer">Watch Hope<span class="link-arrow" aria-hidden="true"></span></a><a href="https://linktr.ee/gamin4hope" target="_blank" rel="noopener noreferrer">His links<span class="link-arrow" aria-hidden="true"></span></a><a href="https://github.com/MacTimiT/brb-tracker">The code<span class="link-arrow" aria-hidden="true"></span></a></nav></footer>
   </main>
 
   <dialog id="twitch-viewer-hours-dialog" aria-labelledby="twitch-viewer-hours-title">
@@ -73,6 +97,6 @@
     <p>Viewer averages from <a href="https://twitchtracker.com/gamin4hope/streams" target="_blank" rel="noopener noreferrer">TwitchTracker</a>.</p>
   </dialog>
 
-  <dialog id="receipt-dialog" aria-labelledby="receipt-title"><form method="dialog"><button class="close" aria-label="Close receipt">×</button></form><p class="eyebrow">EXHIBIT BRB</p><h2 id="receipt-title"></h2><p id="receipt-meta"></p><blockquote id="receipt-quote"></blockquote><p id="receipt-review"></p><a class="primary watch-link" id="receipt-watch" target="_blank" rel="noopener noreferrer">Roll the tape ↗</a></dialog>
+  <dialog id="receipt-dialog" aria-labelledby="receipt-title"><form method="dialog"><button class="close" aria-label="Close receipt">×</button></form><p class="eyebrow">EXHIBIT BRB</p><h2 id="receipt-title"></h2><p id="receipt-meta"></p><blockquote id="receipt-quote"></blockquote><p id="receipt-twitch" hidden></p><a class="primary watch-link" id="receipt-watch" target="_blank" rel="noopener noreferrer">Roll the tape<span class="link-arrow" aria-hidden="true"></span></a></dialog>
 </body>
 </html>
