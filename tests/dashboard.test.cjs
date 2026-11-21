@@ -4,8 +4,8 @@ const fs = require('node:fs');
 const {JSDOM} = require('jsdom');
 const path = require('node:path');
 const sample = JSON.parse(fs.readFileSync('tests/fixtures/dashboard-sample.json', 'utf8'));
-async function page(data = sample) {
-  const dom = new JSDOM(fs.readFileSync('docs/index.html', 'utf8'), {url: 'http://localhost/', runScripts: 'outside-only'});
+async function page(data = sample, url = 'http://localhost/') {
+  const dom = new JSDOM(fs.readFileSync('docs/index.html', 'utf8'), {url, runScripts: 'outside-only'});
   const requests = [];
   dom.window.fetch = async path => {
     requests.push(path);
@@ -49,6 +49,20 @@ test('real published reports render automatically; reason filters keep the full 
   assert.equal(d.getElementById('away-percent').textContent, '3.8%');
   assert.equal(d.querySelectorAll('#breaks tr').length, 3);
   assert.equal(d.getElementById('streak').querySelector('.record-value').textContent, '41m 20s');
+  dom.window.close();
+});
+test('live Pages dashboard reads main directly at startup and on refresh', async () => {
+  const data = structuredClone(sample);
+  data.reports[0].is_demo = false;
+  const dom = await page(data, 'https://mactimit.github.io/brb-tracker/');
+  const source = 'https://raw.githubusercontent.com/MacTimiT/brb-tracker/main/docs/data/reports.json';
+  assert.deepEqual(dom.requests, [source]);
+  assert.equal(dom.window.document.getElementById('count').textContent, '6');
+  data.reports[0].breaks.pop();
+  dom.window.document.getElementById('refresh').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(dom.requests, [source, source]);
+  assert.equal(dom.window.document.getElementById('count').textContent, '5');
   dom.window.close();
 });
 test('leaderboard switches between counts and total minutes and supports click filtering', async () => {

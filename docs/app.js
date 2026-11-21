@@ -199,7 +199,10 @@ function download(value, type, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 async function fetchReports() {
-  const response = await fetch('data/reports.json', {cache: 'no-store'});
+  const url = window.location.origin === 'https://mactimit.github.io'
+    ? 'https://raw.githubusercontent.com/MacTimiT/brb-tracker/main/docs/data/reports.json'
+    : 'data/reports.json';
+  const response = await fetch(url, {cache: 'no-store'});
   if (!response.ok) throw Error('The receipts didn’t arrive. Try Refresh.');
   return A.validate(await response.json()).filter(report => !report.is_demo);
 }

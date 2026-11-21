@@ -23,7 +23,7 @@ Open **GitHub publishing settings** using the gear button. Use a fine-grained Gi
 
 Choose one primary reason for each break and add other reasons when the transcript supports them. The leaderboard counts every assigned reason and attributes the time away to the primary reason. Overall totals count each break once.
 
-Tap **Publish to dashboard** on a reviewed report. This sends report JSON, including its transcript quotes, to the repository. Publishing the same YouTube VOD replaces its published report. GitHub Pages deploys automatically from `docs/`. The dashboard provides filters, timelines, timestamp links, and CSV and JSON exports.
+Tap **Publish to dashboard** on a reviewed report. This sends report JSON, including its transcript quotes, to the repository. Publishing the same YouTube VOD replaces its published report. The live dashboard reads the report file from the public `main` branch on page load and on **Refresh**. GitHub may cache the data for up to five minutes. Pages deploys when the site files change. Local dashboard previews read their local copy of `docs/data/reports.json`.
 
 ## Run the optional Python analyzer
 
