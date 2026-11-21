@@ -1,6 +1,10 @@
 package dev.mactimit.brb_tracker
 
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.content.Context
+import android.os.Build
+import android.os.Process
 import android.util.AtomicFile
 import org.json.JSONArray
 import org.json.JSONObject
@@ -9,12 +13,14 @@ import java.time.Instant
 import java.util.UUID
 
 class JobStore(context: Context) {
+    private val appContext = context.applicationContext
     private val media = VodFiles(context)
     private val queueOrder = AtomicFile(File(context.noBackupFilesDir, "brb-queue-order.json"))
     private val directory = File(context.noBackupFilesDir, "brb-jobs").apply { mkdirs() }
     companion object {
         private val lock = Any()
         private val pending = setOf("queued", "running")
+        private val internalFields = setOf("input", "report", "diagnostic", "worker_pid", "worker_started_ms")
     }
     private fun sourceId(input: JSONObject) = runCatching { Detection.videoId(input.getString("url")) }.getOrNull()
     private fun jobs() = directory.listFiles().orEmpty().filter { it.extension == "json" }
@@ -104,7 +110,7 @@ class JobStore(context: Context) {
             if (media.video(key).isFile) input.put("reuse_media", key) else input.remove("reuse_media")
             job.put("status", "queued").put("stage", "Queued").put("progress", 0.0)
                 .put("queued_at", Instant.now().toString())
-            for (field in listOf("error", "phase", "phase_progress")) job.remove(field)
+            for (field in listOf("error", "phase", "phase_progress", "worker_pid", "worker_started_ms")) job.remove(field)
             save(job)
         }
         attempts.size
@@ -149,7 +155,7 @@ class JobStore(context: Context) {
         JSONArray(snapshot.map { job ->
             JSONObject().apply {
                 for (key in job.keys()) {
-                    if (key != "input" && key != "report" && key != "diagnostic") put(key, job.get(key))
+                    if (key !in internalFields) put(key, job.get(key))
                 }
                 val key = mediaId(job)
                 val video = media.video(key)
@@ -196,9 +202,28 @@ class JobStore(context: Context) {
     fun recoverInterrupted() = synchronized(lock) {
         for (job in jobs()) {
             if (job.optString("status") == "running") update(job.getString("id")) {
+                val lastStage = it.optString("stage", "Preparing")
+                val reason = stopReason(it)
                 it.put("status", "failed").put("stage", "Failed").put("phase", "failed").put("phase_progress", JSONObject.NULL)
-                    .put("error", "Android stopped the analysis. Submit the VOD again.")
+                    .put("error", "$reason Last step: $lastStage. Use Retry scan to try again.")
             }
+        }
+    }
+    private fun stopReason(job: JSONObject): String {
+        val pid = job.optInt("worker_pid")
+        val started = job.optLong("worker_started_ms")
+        val reason = if (Build.VERSION.SDK_INT >= 30 && pid > 0 && pid != Process.myPid() && started > 0) {
+            runCatching {
+                appContext.getSystemService(ActivityManager::class.java)
+                    .getHistoricalProcessExitReasons(appContext.packageName, pid, 1)
+                    .firstOrNull { it.timestamp >= started }?.reason
+            }.getOrNull()
+        } else null
+        return when (reason) {
+            ApplicationExitInfo.REASON_LOW_MEMORY -> "Android stopped the scan because the phone ran low on memory."
+            ApplicationExitInfo.REASON_ANR -> "Android stopped the scan after the app became unresponsive."
+            ApplicationExitInfo.REASON_CRASH, ApplicationExitInfo.REASON_CRASH_NATIVE -> "The app crashed during the scan."
+            else -> "Android interrupted the scan."
         }
     }
     fun delete(id: String) = synchronized(lock) {

@@ -145,7 +145,11 @@ class AnalysisService : Service() {
                         cancelled = false
                         speechExpected = false
                         jobProgress = JobProgress()
-                        store.update(next) { it.put("status", "running").put("stage", "Preparing") }
+                        store.update(next) {
+                            it.put("status", "running").put("stage", "Preparing")
+                                .put("worker_pid", android.os.Process.myPid())
+                                .put("worker_started_ms", System.currentTimeMillis())
+                        }
                         activeId = next
                     }
                 } ?: break
@@ -277,11 +281,12 @@ class AnalysisService : Service() {
                 val format = VodMetadata.format(input.optInt("download_height", 480))
                 val metadataRequest = request(url).apply {
                     addOption("--match-filter", "!is_live")
-                    addOption("--dump-single-json")
                     addOption("--skip-download")
+                    addOption("--print", VodMetadata.printTemplate)
                     addOption("-f", format)
                 }
-                val metadata = JSONObject(YoutubeDL.execute(metadataRequest, id, null).out)
+                val metadata = VodMetadata.parse(YoutubeDL.execute(metadataRequest, id, null).out)
+                checkCancelled()
                 check(!metadata.optBoolean("is_live", false)) { "Wait until the livestream has ended before analyzing its VOD" }
                 val estimate = VodMetadata.estimatedDownloadBytes(metadata)
                 if (estimate != null) {

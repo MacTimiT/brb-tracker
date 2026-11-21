@@ -94,6 +94,22 @@ class ScanQueueTest {
         }
     }
 
+    @Test fun interruptedScanKeepsItsLastStepAndCanBeRetried() {
+        val id = store.create(input("queuevideo9")).getString("id")
+        try {
+            store.update(id) { it.put("status", "running").put("stage", JobPhase.METADATA.label) }
+            store.recoverInterrupted()
+            val recovered = store.get(id)
+            assertEquals("failed", recovered.getString("status"))
+            assertTrue(recovered.getString("error").contains(JobPhase.METADATA.label))
+            assertEquals(1, store.retryFailed(id))
+            assertFalse(store.get(id).has("error"))
+        } finally {
+            store.cancelQueued(id)
+            store.delete(id)
+        }
+    }
+
     @Test fun reorderAndRetryPersistAndBulkDeletionSkipsQueuedMedia() {
         val first = store.create(input("queuevideo3")).getString("id")
         val second = store.create(input("queuevideo4")).getString("id")

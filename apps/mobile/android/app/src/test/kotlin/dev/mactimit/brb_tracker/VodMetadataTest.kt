@@ -34,8 +34,10 @@ class VodMetadataTest {
     }
 
     @Test fun preflightUsesTheSelectedFormatSizeWhenAvailable() {
-        val metadata = JSONObject("""{"filesize":900,"requested_downloads":[{"filesize_approx":600}]}""")
+        val metadata = VodMetadata.parse("  {\"title\":\"Test VOD\",\"filesize\":600,\"filesize_approx\":900}\n")
         assertEquals(600L, VodMetadata.estimatedDownloadBytes(metadata))
+        assertEquals(900L, VodMetadata.estimatedDownloadBytes(JSONObject().put("filesize_approx", 900)))
         assertEquals(null, VodMetadata.estimatedDownloadBytes(JSONObject()))
+        assertThrows(IllegalStateException::class.java) { VodMetadata.parse("\n") }
     }
 }

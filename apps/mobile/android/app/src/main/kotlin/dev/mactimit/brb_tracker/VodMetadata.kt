@@ -7,6 +7,15 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 object VodMetadata {
+    // Printing only the fields the scan needs keeps format manifests and captions out of Android's heap.
+    const val printTemplate = "%(.{title,is_live,live_start_timestamp,release_timestamp,release_date,timestamp,upload_date,filesize,filesize_approx})j"
+
+    fun parse(output: String): JSONObject {
+        val json = output.trim()
+        check(json.isNotEmpty()) { "YouTube returned no VOD details. If the stream is still live, wait until it ends." }
+        return JSONObject(json)
+    }
+
     fun date(metadata: JSONObject): JSONObject {
         for (field in listOf("live_start_timestamp", "release_timestamp")) {
             val seconds = metadata.optDouble(field, Double.NaN)
@@ -31,12 +40,9 @@ object VodMetadata {
         return JSONObject().put("vod_date", JSONObject.NULL).put("vod_date_source", "unknown").put("stream_started_at", JSONObject.NULL)
     }
     fun estimatedDownloadBytes(metadata: JSONObject): Long? {
-        val candidates = listOfNotNull(metadata.optJSONArray("requested_downloads")?.optJSONObject(0), metadata)
-        for (candidate in candidates) {
-            for (field in listOf("filesize", "filesize_approx")) {
-                val bytes = candidate.optLong(field, 0)
-                if (bytes in 1..(4L shl 30)) return bytes
-            }
+        for (field in listOf("filesize", "filesize_approx")) {
+            val bytes = metadata.optLong(field, 0)
+            if (bytes in 1..(4L shl 30)) return bytes
         }
         return null
     }

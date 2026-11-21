@@ -41,6 +41,37 @@ class LocalAnalysisTest {
         assertTrue("Bundled Python and yt-dlp did not run: $output", Regex("20\\d{2}\\.\\d{2}\\.\\d{2}").containsMatchIn(output))
     }
 
+    @Test fun metadataPreflightPrintsOnlyTheSelectedVideoDetails() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        YoutubeDL.init(context)
+        val fixture = File.createTempFile("vod-info", ".json", context.cacheDir)
+        try {
+            fixture.writeText("""
+                {
+                  "id": "fixture0001", "title": "Test VOD", "is_live": false, "release_date": "20261112",
+                  "formats": [
+                    {"format_id":"360p","url":"https://example.org/360.mp4","height":360,"ext":"mp4","vcodec":"avc1","acodec":"none","filesize":3600000},
+                    {"format_id":"480p","url":"https://example.org/480.mp4","height":480,"ext":"mp4","vcodec":"avc1","acodec":"none","filesize":4800000}
+                  ]
+                }
+            """.trimIndent())
+            val request = YoutubeDLRequest(emptyList<String>()).apply {
+                addOption("--load-info-json", fixture.absolutePath)
+                addOption("--match-filter", "!is_live")
+                addOption("--skip-download")
+                addOption("--print", VodMetadata.printTemplate)
+                addOption("-f", VodMetadata.format(360))
+            }
+            val metadata = VodMetadata.parse(YoutubeDL.execute(request, "metadata-test", null).out)
+            assertEquals("Test VOD", metadata.getString("title"))
+            assertEquals("2026-11-12", VodMetadata.date(metadata).getString("vod_date"))
+            assertEquals(3_600_000L, VodMetadata.estimatedDownloadBytes(metadata))
+            assertFalse(metadata.has("formats"))
+        } finally {
+            fixture.delete()
+        }
+    }
+
     @Test fun recognizesBannerCloseToLeftEdgeOfDownloadedFrame() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val frame = android.graphics.Bitmap.createBitmap(640, 360, android.graphics.Bitmap.Config.ARGB_8888)
