@@ -69,7 +69,7 @@ object VodMetadata {
     fun format(height: Int, alternateTo: String? = null): String {
         require(height in listOf(360, 480)) { "Choose 360p or 480p" }
         val alternate = if (alternateTo != null) {
-            "[protocol~='^https?$']" + if (formatId.matches(alternateTo)) "[format_id!=$alternateTo]" else ""
+            "[protocol~='^https?$']" + if (formatId.matches(alternateTo)) "[format_id!='$alternateTo']" else ""
         } else ""
         val compatible = "[height<=$height][ext=mp4][vcodec^=avc1]$alternate"
         // Prefer AVC video-only; combined MP4 is a compatibility fallback.

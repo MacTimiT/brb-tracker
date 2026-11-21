@@ -39,7 +39,7 @@ class VodMetadataTest {
         assertTrue(VodMetadata.format(360).startsWith("bestvideo[height<=360]"))
         assertTrue(VodMetadata.format(480).contains("/best[height<=480]"))
         assertThrows(IllegalArgumentException::class.java) { VodMetadata.format(720) }
-        assertEquals(2, VodMetadata.format(360, "134-0").split("[format_id!=134-0]").size - 1)
+        assertEquals(2, VodMetadata.format(360, "134-0").split("[format_id!='134-0']").size - 1)
         assertFalse(VodMetadata.format(360, "bad]filter").contains("bad]filter"))
     }
 
