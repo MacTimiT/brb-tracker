@@ -833,6 +833,73 @@
         "ocr": 604418,
         "total": 1668041
       }
+    },
+    {
+      "schema_version": 1,
+      "id": "b1bdc991-16ca-465c-ac5e-d451bd85595a",
+      "title": "I Caught Up on Overwatch Lore & Ranked, then some Minecraft SMP 👊",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=gXDQqXp9AKs",
+      "video_id": "gXDQqXp9AKs",
+      "duration_seconds": 21880,
+      "sample_interval_seconds": 5,
+      "vod_date": "2026-11-02",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-02T15:00:45Z",
+      "analyzed_at": "2026-11-22T19:18:50.644946Z",
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1,
+      "frames_checked": 4404,
+      "ocr_calls": 5858,
+      "banner_cache_hits": 26,
+      "source_width": 640,
+      "source_height": 360,
+      "transcript_source": "youtube-captions",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "warnings": [
+        "Sampled every 5.0s with 1s transition refinement. Short screens between samples can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed.",
+        "Android could not decode 1 sampled frames; inspect break boundaries."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 9499,
+          "end_seconds": 9599,
+          "reason": "Pee",
+          "suggested_reason": "Pee",
+          "evidence": "Do not know why they did that. Yeah, I did see I've seen a lot of the original lore. All right, big surprise. I have to pee. I'm going",
+          "confidence": "keyword",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 9615,
+          "end_seconds": 9617,
+          "reason": "Unknown",
+          "suggested_reason": "Unknown",
+          "evidence": "Yo, I got back and the first thing I read is what Rex Studios. Um, all righty then. We're We're going to",
+          "confidence": "unknown",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 12965,
+          "end_seconds": 13280,
+          "reason": "Pee",
+          "suggested_reason": "Unknown",
+          "evidence": ">> [laughter] >> Not not even a little, but it was a win. We got to take a win. A win is a win. We're going to get one more game in for sure before we get into the Minecraft.",
+          "confidence": "manual",
+          "reviewed": true,
+          "truncated": false
+        }
+      ],
+      "timings_ms": {
+        "download": 138452,
+        "decode": 1203714,
+        "ocr": 578785,
+        "total": 1952348
+      }
     }
   ]
 }
