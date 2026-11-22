@@ -47,6 +47,21 @@ test('reason filters retain VOD exposure and do not hide breaks from streak calc
   assert.equal(data.longestStreak.seconds, 620);
   assert.equal(data.longestStreak.report.id, 'long');
 });
+test('unknown breaks under 15 seconds are omitted from dashboard statistics and receipts', () => {
+  const vod = report('brief-banner', 150, [
+    [10, 12, 'Unknown'], [20, 22, 'Drink'], [40, 54.9, 'Unknown'], [70, 85, 'Unknown'],
+  ]);
+  const data = A.compute([vod]);
+  assert.deepEqual(data.entriesByReport.get(vod).map(item => [item.index, item.seconds]), [[1, 2], [3, 15]]);
+  assert.equal(data.count, 2);
+  assert.equal(data.away, 17);
+  assert.equal(data.vods[0].seconds, 17);
+  assert.equal(data.distribution[0].count, 2);
+  assert.equal(data.meanGap, 48);
+  assert.equal(data.longestStreak.seconds, 65);
+  assert.equal(A.compute([vod], 'Unknown').count, 1);
+  assert.equal(vod.breaks.length, 4);
+});
 test('quarter boundaries and duration buckets include each boundary exactly once', () => {
   const phases = A.compute([report('phases', 100, [[0, 1], [25, 26], [50, 51], [75, 76]])]);
   assert.deepEqual(phases.phases.map(phase => phase.count), [1, 1, 1, 1]);

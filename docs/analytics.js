@@ -4,6 +4,7 @@
   const sum = values => values.reduce((total, value) => total + value, 0);
   const key = report => report.video_id || report.id;
   const assignedReasons = item => [item.reason, ...(item.additional_reasons ?? [])];
+  const countsAsBreak = item => item.reason !== 'Unknown' || item.end_seconds - item.start_seconds >= 15;
   const median = values => {
     if (!values.length) return null;
     const sorted = [...values].sort((a, b) => a - b);
@@ -38,7 +39,9 @@
   }
 
   function compute(reports, reason = 'all') {
-    const all = reports.flatMap(report => report.breaks.map((item, index) => ({...item, report, index, seconds: item.end_seconds - item.start_seconds})));
+    const all = reports.flatMap(report => report.breaks.flatMap((item, index) => countsAsBreak(item)
+      ? [{...item, report, index, seconds: item.end_seconds - item.start_seconds}]
+      : []));
     const entries = all.filter(item => reason === 'all' || assignedReasons(item).includes(reason));
     const duration = sum(reports.map(report => report.duration_seconds));
     const away = sum(entries.map(item => item.seconds));
@@ -59,7 +62,7 @@
     });
     let longestStreak = null;
     const gaps = [];
-    // Attendance streaks use every break, even when a reason is filtered out.
+    // Attendance streaks use every counted break, even when a reason is filtered out.
     // Boundaries never cross from one VOD into another.
     for (const report of reports) {
       let cursor = 0;
@@ -67,7 +70,7 @@
         const candidate = {report, start_seconds: cursor, end_seconds: end, seconds: end - cursor};
         if (longestStreak === null || candidate.seconds > longestStreak.seconds) longestStreak = candidate;
       };
-      report.breaks.forEach((item, index) => {
+      report.breaks.filter(countsAsBreak).forEach((item, index) => {
         consider(item.start_seconds);
         if (index > 0) gaps.push(item.start_seconds - cursor);
         cursor = item.end_seconds;
