@@ -4,6 +4,10 @@ BRB Tracker scans Gamin4Hope VODs for the “Be Right Back” screen, times each
 
 [Download the Android app](https://github.com/MacTimiT/brb-tracker/releases/latest) · [Open the dashboard](https://mactimit.github.io/brb-tracker/)
 
+## Scan a stream on Windows
+
+The [Windows x64 preview](https://github.com/MacTimiT/brb-tracker/releases/tag/windows-v0.1.0) downloads and scans YouTube VODs or scans a video already on your computer. Extract the ZIP and open **brb_tracker_windows.exe**. The media download cap defaults to **5 Mbps** and can be changed in the app. Reports and completed downloads are saved locally. [Windows usage and build guide](apps/windows/README.md)
+
 ## Scan a stream on Android
 
 1. Download the signed APK under **Assets** and open it on a 64-bit Android 8.0 or newer phone. Update by opening the newer APK. [Updates from older previews](docs/android-updates.md)

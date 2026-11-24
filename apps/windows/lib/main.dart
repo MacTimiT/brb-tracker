@@ -52,6 +52,8 @@ class _ScanPageState extends State<ScanPage> {
   bool cancelled = false;
   String phase = '';
   String? error;
+  String? scanFolder;
+  String? downloadedVideo;
   String? reportPath;
   Map<String, dynamic>? report;
   double? fraction;
@@ -125,6 +127,8 @@ class _ScanPageState extends State<ScanPage> {
       cancelled = false;
       phase = 'Preparing the scan';
       error = null;
+      scanFolder = null;
+      downloadedVideo = null;
       report = null;
       reportPath = null;
       fraction = null;
@@ -135,6 +139,7 @@ class _ScanPageState extends State<ScanPage> {
     try {
       final root = await Directory(output.text.trim()).create(recursive: true);
       final scan = await root.createTemp('Scan-');
+      scanFolder = scan.path;
       final app = File(Platform.resolvedExecutable).parent.path;
       final process = await Process.start('$app\\worker\\brb-worker.exe', [
         '--runtime',
@@ -179,7 +184,11 @@ class _ScanPageState extends State<ScanPage> {
       if (mounted) {
         setState(() {
           busy = false;
-          phase = cancelled ? 'Scan cancelled' : phase;
+          if (cancelled) {
+            phase = 'Scan cancelled';
+          } else if (error != null) {
+            phase = 'Scan failed';
+          }
         });
       }
     }
@@ -207,6 +216,8 @@ class _ScanPageState extends State<ScanPage> {
           report = event['report'] as Map<String, dynamic>;
           phase = 'Scan complete';
           fraction = 1;
+        case 'media':
+          downloadedVideo = event['path'] as String;
         case 'error':
           error = event['message'] as String;
           phase = 'Scan failed';
@@ -237,10 +248,10 @@ class _ScanPageState extends State<ScanPage> {
     if (worker case final Process process) await terminate(process);
   }
 
-  Future<void> openReportFolder() async {
+  Future<void> openScanFolder() async {
     try {
       await Process.start('explorer.exe', [
-        File(reportPath!).parent.path,
+        scanFolder!,
       ], mode: ProcessStartMode.detached);
     } on ProcessException catch (e) {
       if (mounted) setState(() => error = e.message);
@@ -535,6 +546,17 @@ class _ScanPageState extends State<ScanPage> {
                                     color: Theme.of(context).colorScheme.error,
                                   ),
                                 ),
+                              if (downloadedVideo case final String videoPath)
+                                SelectableText('Saved video · $videoPath'),
+                              if (!busy && scanFolder != null)
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: OutlinedButton.icon(
+                                    onPressed: openScanFolder,
+                                    icon: const Icon(Icons.folder_open),
+                                    label: const Text('Open results folder'),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -559,14 +581,6 @@ class _ScanPageState extends State<ScanPage> {
                                 Text(warning.toString()),
                               const SizedBox(height: 10),
                               SelectableText(reportPath!),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: OutlinedButton.icon(
-                                  onPressed: openReportFolder,
-                                  icon: const Icon(Icons.folder_open),
-                                  label: const Text('Open results folder'),
-                                ),
-                              ),
                               for (final item in completed['breaks'] as List)
                                 ListTile(
                                   title: Text(
