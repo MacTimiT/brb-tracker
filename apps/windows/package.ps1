@@ -19,6 +19,7 @@ $repo = (Get-Location).Path
 $stage = Join-Path $repo 'apps/windows/build/package'
 $bundle = Join-Path $stage 'BRB Tracker'
 $tmp = Join-Path $env:RUNNER_TEMP 'brb-windows-tools'
+$zip = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
 $null = New-Item -Force -ItemType Directory $bundle, $tmp
 
 Invoke-Checked { python -m pip install -e '.[dev]' 'pyinstaller>=6.15,<7' }
@@ -68,9 +69,9 @@ Copy-Item "$tmp/deno/deno.exe" $tools
 Get-VerifiedFile `
     'https://github.com/UB-Mannheim/tesseract/releases/download/v5.4.0.20240606/tesseract-ocr-w64-setup-5.4.0.20240606.exe' `
     "$tmp/tesseract-setup.exe" 'c885fff6998e0608ba4bb8ab51436e1c6775c2bafc2559a19b423e18678b60c9'
-$installer = Start-Process "$tmp/tesseract-setup.exe" -ArgumentList "/S /D=$tmp\tesseract" -Wait -PassThru
-if ($installer.ExitCode -ne 0) { throw "Tesseract setup failed with code $($installer.ExitCode)" }
+Invoke-Checked { & $zip x "$tmp/tesseract-setup.exe" "-o$tmp/tesseract" -y -bso0 }
 Copy-Item "$tmp/tesseract/*.dll", "$tmp/tesseract/tesseract.exe" $tools
+Copy-Item "$tmp/tesseract/doc/LICENSE" "$tools/Tesseract-LICENSE.txt"
 Copy-Item 'apps/mobile/android/app/src/main/assets/tessdata/eng.traineddata' "$tools/tessdata"
 Copy-Item 'apps/windows/README.md', 'apps/windows/THIRD_PARTY_NOTICES.txt', 'apps/mobile/LICENSE' $bundle
 
@@ -91,7 +92,6 @@ try {
 }
 
 $archive = Join-Path $stage 'BRB-Tracker-Windows-x64.zip'
-$zip = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
 Invoke-Checked { & $zip a -tzip -mx=3 $archive $bundle }
 $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
 "$hash  BRB-Tracker-Windows-x64.zip" | Set-Content "$archive.sha256" -Encoding ascii
