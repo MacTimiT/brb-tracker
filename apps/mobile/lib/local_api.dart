@@ -1,9 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
+import 'package:brb_client/stream_catalog.dart';
 
 /// All processing calls cross into Android, never an HTTP analysis service.
-class LocalApi {
+class LocalApi implements StreamArchive {
   LocalApi({MethodChannel? channel})
     : channel =
           channel ?? const MethodChannel('dev.mactimit.brb_tracker/local');
@@ -11,11 +12,13 @@ class LocalApi {
   Future<List<dynamic>> list() async =>
       jsonDecode(await channel.invokeMethod<String>('list') ?? '[]')
           as List<dynamic>;
+  @override
   Future<Map<String, dynamic>?> cachedStreams() async {
     final cached = await channel.invokeMethod<String>('cached_streams');
     return cached == null ? null : jsonDecode(cached) as Map<String, dynamic>;
   }
 
+  @override
   Future<Map<String, dynamic>> listStreams(int start) async => jsonDecode(
     (await channel.invokeMethod<String>('list_streams', {'start': start}))!,
   ) as Map<String, dynamic>;

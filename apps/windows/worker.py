@@ -13,6 +13,46 @@ from brb_tracker.pipeline import analyze
 from brb_tracker.sources import download, video_id
 from brb_tracker.transcript import read_transcript
 
+ARCHIVE_URL = "https://www.youtube.com/@Gamin4Hope/streams"
+PAGE_SIZE = 20
+
+
+def archive_page(start):
+    from yt_dlp import YoutubeDL
+
+    if not 1 <= start <= 100_000:
+        raise ValueError("Invalid archive page.")
+    with YoutubeDL({
+        "extract_flat": "in_playlist", "skip_download": True, "quiet": True,
+        "playlist_items": f"{start}:{start + PAGE_SIZE}", "socket_timeout": 15,
+        "retries": 1, "extractor_retries": 1, "ignoreerrors": True,
+    }) as downloader:
+        info = downloader.extract_info(ARCHIVE_URL, download=False)
+    if not info or "entries" not in info:
+        raise ValueError("Could not load the YouTube stream archive.")
+    return format_archive_page(list(info["entries"]), start)
+
+
+def format_archive_page(entries, start):
+    unique = {}
+    for item in entries[:PAGE_SIZE]:
+        if not item or item.get("live_status") in {"is_live", "is_upcoming", "post_live"}:
+            continue
+        identifier = item.get("id", "")
+        if not isinstance(identifier, str):
+            continue
+        try:
+            video_id(f"https://youtu.be/{identifier}")
+        except ValueError:
+            continue
+        title = (item.get("title") or "").strip()
+        if title and title not in {"[Private video]", "[Deleted video]"}:
+            unique.setdefault(identifier, title)
+    return {
+        "streams": [{"id": key, "title": title} for key, title in unique.items()],
+        "next": start + PAGE_SIZE if len(entries) > PAGE_SIZE else None,
+    }
+
 
 def emit(event, **fields):
     # Child tools can write terminal status lines, so start the event on its own line.
@@ -97,7 +137,7 @@ def run(args):
 
     emit("progress", phase="Scanning video locally", fraction=0)
     options = dict(
-        title=metadata.get("title") or video.stem,
+        title=metadata.get("title") or args.title or video.stem,
         identifier=identifier,
         source_url=f"https://www.youtube.com/watch?v={identifier}" if identifier else "",
         interval=args.interval,
@@ -120,6 +160,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime", type=Path)
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--catalog-start", type=int)
+    parser.add_argument("--title")
     parser.add_argument("--video", type=Path)
     parser.add_argument("--url")
     parser.add_argument("--transcript", type=Path)
@@ -130,6 +172,9 @@ def main():
     parser.add_argument("--limit-mbps", type=float, default=5)
     args = parser.parse_args()
     try:
+        if args.catalog_start is not None:
+            emit("catalog", page=archive_page(args.catalog_start))
+            return 0
         configure_tools(args.runtime)
         if args.self_test:
             from yt_dlp.version import __version__

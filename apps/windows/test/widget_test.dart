@@ -10,8 +10,8 @@ void main() {
     expect(find.text('5'), findsOneWidget);
     expect(find.text('Media download cap'), findsOneWidget);
     expect(find.text('Choose local video'), findsOneWidget);
-    await tester.ensureVisible(find.text('Download and scan'));
-    await tester.tap(find.text('Download and scan'));
+    await tester.ensureVisible(find.text('Queue download and scan'));
+    await tester.tap(find.text('Queue download and scan'));
     await tester.pump();
     expect(find.text('Paste a link or choose a local video.'), findsOneWidget);
   });

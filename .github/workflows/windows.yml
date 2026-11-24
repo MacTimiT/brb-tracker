@@ -4,6 +4,7 @@ on:
     branches: ['**']
     paths:
       - 'apps/windows/**'
+      - 'apps/shared/**'
       - 'analyzer/**'
       - 'pyproject.toml'
       - '.github/workflows/windows.yml'
@@ -11,6 +12,7 @@ on:
   pull_request:
     paths:
       - 'apps/windows/**'
+      - 'apps/shared/**'
       - 'analyzer/**'
       - 'pyproject.toml'
       - '.github/workflows/windows.yml'

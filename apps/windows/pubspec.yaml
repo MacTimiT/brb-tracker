@@ -1,10 +1,12 @@
 name: brb_tracker_windows
 description: Desktop VOD download and local BRB scanning.
 publish_to: none
-version: 0.1.0+1
+version: 0.2.0+2
 environment:
   sdk: ^3.14.0
 dependencies:
+  brb_client:
+    path: ../shared/brb_client
   flutter:
     sdk: flutter
   file_selector: ^1.0.3

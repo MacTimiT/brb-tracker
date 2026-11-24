@@ -5,6 +5,8 @@ version: 0.6.0+11
 environment:
   sdk: ^3.14.0
 dependencies:
+  brb_client:
+    path: ../shared/brb_client
   flutter:
     sdk: flutter
   material_ui: ^1.1.0

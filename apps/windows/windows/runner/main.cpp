@@ -1,12 +1,25 @@
 #include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
+#include <memory>
 
 #include "flutter_window.h"
 #include "utils.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  HANDLE handle = ::CreateMutexW(nullptr, FALSE, L"Local\\BRBTrackerDesktopQueue");
+  const DWORD mutex_status = ::GetLastError();
+  if (!handle) {
+    return EXIT_FAILURE;
+  }
+  const std::unique_ptr<void, decltype(&::CloseHandle)> instance_guard(
+      handle, ::CloseHandle);
+  if (mutex_status == ERROR_ALREADY_EXISTS) {
+    ::MessageBoxW(nullptr, L"BRB Tracker is already open.", L"BRB Tracker",
+                  MB_OK | MB_ICONINFORMATION);
+    return EXIT_SUCCESS;
+  }
   // Attach to console when present (e.g., 'flutter run') or create a
   // new console when running with a debugger.
   if (!::AttachConsole(ATTACH_PARENT_PROCESS) && ::IsDebuggerPresent()) {

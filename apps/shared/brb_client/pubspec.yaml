@@ -1,0 +1,12 @@
+name: brb_client
+description: Shared Flutter stream archive and dashboard publishing for BRB Tracker.
+publish_to: none
+environment:
+  sdk: ^3.14.0
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_secure_storage: ^11.2.0
+  http: ^1.6.0
+  material_ui: ^1.1.0
+  url_launcher: ^6.3.2
