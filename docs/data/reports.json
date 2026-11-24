@@ -1027,6 +1027,52 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "gG8FwaS9T7Q",
+      "title": "I Played Overwatch in Quick Play, then Deadlock 👊",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=gG8FwaS9T7Q",
+      "video_id": "gG8FwaS9T7Q",
+      "vod_date": "2026-10-30",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-10-30T14:00:44Z",
+      "analyzed_at": "2026-11-24T18:15:47.257656Z",
+      "duration_seconds": 21920.055147,
+      "sample_interval_seconds": 5.0,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 5s; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 9490.0,
+          "end_seconds": 9740.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": ">> All right. It's It's going to take a couple minutes. I have to pee anyway. Kadazi, you get to hang out for just maybe like two or three. >> Amazing.",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 14845.0,
+          "end_seconds": 15100.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": ">> All right. >> I'll be right back, brother. >> Who would have guessed? >> Yeah. No one would have ever guessed that.",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
