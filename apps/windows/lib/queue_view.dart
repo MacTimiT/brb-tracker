@@ -5,7 +5,7 @@ import 'package:file_selector/file_selector.dart';
 
 import 'scan_queue.dart';
 
-class QueueView extends StatelessWidget {
+class QueueView extends StatefulWidget {
   const QueueView({
     super.key,
     required this.queue,
@@ -18,6 +18,14 @@ class QueueView extends StatelessWidget {
   final Future<void> Function(String folder) openReport;
   final void Function(Object) showError;
   final void Function(ScanJob job, File? download) rescan;
+
+  @override
+  State<QueueView> createState() => _QueueViewState();
+}
+
+class _QueueViewState extends State<QueueView> {
+  bool downloadedOnly = false;
+  ScanQueue get queue => widget.queue;
 
   Future<void> export(ScanJob job, File download) async {
     final suffix = download.path.split('.').last;
@@ -42,8 +50,10 @@ class QueueView extends StatelessWidget {
       context: context,
       builder: (dialog) => AlertDialog(
         title: const Text('Delete downloaded video?'),
-        content: const Text(
-          'The report, reasons and checked status will still be available.',
+        content: Text(
+          job.status == ScanStatus.completed
+              ? 'The report, reasons and checked status will still be available.'
+              : 'The scan entry will stay in history.',
         ),
         actions: [
           TextButton(
@@ -60,11 +70,34 @@ class QueueView extends StatelessWidget {
     if (confirmed == true) queue.deleteDownload(job);
   }
 
+  Future<void> removeFromHistory(BuildContext context, ScanJob job) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Remove this scan from history?'),
+        content: const Text(
+          'The scan folder and any saved video files will stay on disk.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('Keep scan'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Remove scan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) queue.removeFromHistory(job);
+  }
+
   Future<void> act(Future<void> Function() action) async {
     try {
       await action();
     } catch (error) {
-      showError(error);
+      if (mounted) widget.showError(error);
     }
   }
 
@@ -72,7 +105,11 @@ class QueueView extends StatelessWidget {
   Widget build(BuildContext context) {
     final jobs = queue.jobs;
     final waiting = jobs.where((job) => job.status == ScanStatus.queued);
-    final history = jobs.where((job) => !job.pending).toList().reversed;
+    final history = [
+      for (final job in jobs.reversed)
+        if (!job.pending) (job, job.downloads.firstOrNull),
+    ];
+    final downloadCount = history.where((entry) => entry.$2 != null).length;
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -156,7 +193,7 @@ class QueueView extends StatelessWidget {
               ),
             ),
           ),
-        if (history.isNotEmpty)
+        if (history.isNotEmpty || downloadedOnly)
           Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Wrap(
@@ -167,7 +204,15 @@ class QueueView extends StatelessWidget {
                   'Scan history',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                if (history.any((job) => job.status == ScanStatus.failed))
+                FilterChip(
+                  label: Text('Downloaded only ($downloadCount)'),
+                  selected: downloadedOnly,
+                  onSelected: (selected) =>
+                      setState(() => downloadedOnly = selected),
+                ),
+                if (history.any(
+                  (entry) => entry.$1.status == ScanStatus.failed,
+                ))
                   TextButton(
                     onPressed: () => act(() async => queue.retryFailed()),
                     child: const Text('Retry failed scans'),
@@ -175,38 +220,64 @@ class QueueView extends StatelessWidget {
               ],
             ),
           ),
-        for (final job in history) historyCard(context, job),
+        if (downloadedOnly && downloadCount == 0 && history.isNotEmpty)
+          const ListTile(title: Text('No downloaded videos in scan history')),
+        for (final (job, download) in history)
+          if (!downloadedOnly || download != null)
+            historyCard(context, job, download),
       ],
     );
   }
 
-  Widget historyCard(BuildContext context, ScanJob job) {
-    final download = job.downloads.firstOrNull;
+  Widget historyCard(BuildContext context, ScanJob job, File? download) {
+    final status = switch (job.status) {
+      ScanStatus.completed => 'Scan complete',
+      ScanStatus.cancelled => 'Scan cancelled',
+      _ => 'Scan failed',
+    };
     return Card(
       child: ListTile(
         title: Text(job.title),
-        subtitle: Text(
-          job.error ??
-              switch (job.status) {
-                ScanStatus.completed => 'Scan complete',
-                ScanStatus.cancelled => 'Scan cancelled',
-                _ => 'Scan failed',
-              },
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(status),
+                Icon(
+                  download == null ? Icons.cloud_outlined : Icons.download_done,
+                  size: 16,
+                  color: download == null
+                      ? null
+                      : Theme.of(context).colorScheme.primary,
+                ),
+                Text(
+                  download == null ? 'No saved download' : 'Video downloaded',
+                ),
+              ],
+            ),
+            if (job.error case final String error) Text(error),
+          ],
         ),
         onTap: job.status == ScanStatus.completed
-            ? () => openReport(job.folder)
+            ? () => widget.openReport(job.folder)
             : null,
         trailing: PopupMenuButton<String>(
           tooltip: 'Scan actions',
           onSelected: (value) => act(() async {
             if (value == 'rescan') {
-              rescan(job, download);
+              widget.rescan(job, download);
             } else if (value == 'export' && download != null) {
               await export(job, download);
             } else if (value == 'delete' && download != null) {
               await deleteDownload(context, job);
             } else if (value == 'retry') {
               queue.retry(job);
+            } else if (value == 'remove') {
+              if (context.mounted) await removeFromHistory(context, job);
             } else {
               await Process.start('explorer.exe', [
                 job.folder,
@@ -214,7 +285,7 @@ class QueueView extends StatelessWidget {
             }
           }),
           itemBuilder: (_) => [
-            if (job.status != ScanStatus.completed)
+            if (job.canRemoveFromHistory)
               const PopupMenuItem(value: 'retry', child: Text('Retry scan')),
             if (job.status == ScanStatus.completed)
               PopupMenuItem(
@@ -234,6 +305,11 @@ class QueueView extends StatelessWidget {
               value: 'folder',
               child: Text('Open scan folder'),
             ),
+            if (job.canRemoveFromHistory)
+              const PopupMenuItem(
+                value: 'remove',
+                child: Text('Remove from history'),
+              ),
           ],
         ),
       ),

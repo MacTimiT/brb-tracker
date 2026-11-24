@@ -87,6 +87,9 @@ class ScanJob {
   bool get pending =>
       status == ScanStatus.queued || status == ScanStatus.running;
 
+  bool get canRemoveFromHistory =>
+      status == ScanStatus.failed || status == ScanStatus.cancelled;
+
   String? argument(String name) {
     final index = arguments.indexOf(name);
     return index >= 0 && index + 1 < arguments.length
@@ -100,15 +103,16 @@ class ScanJob {
         FileSystemEntityType.directory) {
       return [];
     }
-    return [
-      for (final extension in ['mp4', 'mkv', 'webm'])
-        if (FileSystemEntity.typeSync(
-              '${media.path}${Platform.pathSeparator}vod.$extension',
-              followLinks: false,
-            ) ==
-            FileSystemEntityType.file)
-          File('${media.path}${Platform.pathSeparator}vod.$extension'),
-    ];
+    final files = <File>[];
+    for (final extension in ['mp4', 'mkv', 'webm']) {
+      final file = File('${media.path}${Platform.pathSeparator}vod.$extension');
+      if (FileSystemEntity.typeSync(file.path, followLinks: false) ==
+              FileSystemEntityType.file &&
+          file.statSync().size > 0) {
+        files.add(file);
+      }
+    }
+    return files;
   }
 
   Map<String, dynamic> toJson() => {
@@ -228,6 +232,18 @@ class ScanQueue extends ChangeNotifier {
     } finally {
       _notify();
     }
+  }
+
+  void removeFromHistory(ScanJob job) {
+    _requireReady();
+    final index = _jobs.indexOf(job);
+    if (index < 0) return;
+    if (job == active || !job.canRemoveFromHistory) {
+      throw StateError('Only failed or cancelled scans can be removed.');
+    }
+
+    _jobs.removeAt(index);
+    _persist(onFailure: () => _jobs.insert(index, job));
   }
 
   void moveUp(ScanJob job) {
@@ -387,10 +403,11 @@ class ScanQueue extends ChangeNotifier {
     _notify();
   }
 
-  void _persist() {
+  void _persist({VoidCallback? onFailure}) {
     try {
       _write();
     } on FileSystemException catch (e) {
+      onFailure?.call();
       storageError = 'Could not save the scan queue. $e';
       rethrow;
     } finally {

@@ -1,7 +1,7 @@
 name: brb_tracker_windows
 description: Desktop VOD download and local BRB scanning.
 publish_to: none
-version: 0.4.0+5
+version: 0.4.1+6
 environment:
   sdk: ^3.14.0
 dependencies:
