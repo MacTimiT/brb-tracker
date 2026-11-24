@@ -1119,6 +1119,52 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "SHbc1XDdJ-E",
+      "title": "Slowly Improving my Doomfist Gameplay 👀 (14/40 Hours Played)",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=SHbc1XDdJ-E",
+      "video_id": "SHbc1XDdJ-E",
+      "vod_date": "2026-10-22",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-10-22T14:01:33Z",
+      "analyzed_at": "2026-11-24T19:05:53.579686Z",
+      "duration_seconds": 21915.062857,
+      "sample_interval_seconds": 5.0,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 5s; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 8610.0,
+          "end_seconds": 8865.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "like skins in Overwatch guy, but like this one's sick. I just like formal. Then Doom is banned. Yeah, probably. [laughter] Listen, I we haven't had a pee break",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 10055.0,
+          "end_seconds": 10365.0,
+          "reason": "Help Rachel",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "Oh, I'd have to convert. All right. I hear a couple kids freaking out in the living room here. Let me go help out. All right, I'll be right back. I can I'm hearing him like give me a",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
