@@ -900,6 +900,76 @@
         "ocr": 578785,
         "total": 1952348
       }
+    },
+    {
+      "schema_version": 1,
+      "id": "rHgIE7SB3kI",
+      "title": "I Beat one of my \"GM\" Stream Snipers 😱",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=rHgIE7SB3kI",
+      "video_id": "rHgIE7SB3kI",
+      "vod_date": "2026-11-20",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-20T15:00:34Z",
+      "analyzed_at": "2026-11-24T17:30:47.850299Z",
+      "duration_seconds": 25492.863129,
+      "sample_interval_seconds": 5.0,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 5s; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 7490.0,
+          "end_seconds": 7615.0,
+          "reason": "Pee",
+          "additional_reasons": [
+            "Drink"
+          ],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "Okay. Awesome. All right. P drink back. I'll be here. Give me just a second. Again, I apologize for making you guys wait. I",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 11230.0,
+          "end_seconds": 11350.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "going to lie. I don't want to keep making these pee breaks. All right, I better do it. I'll be right back.",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 12055.0,
+          "end_seconds": 12245.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "use. Woo! Uhhill battle. Yeah, that one's kind of crazy. [laughter] All right, I'll be right back. Oh, yeah. I didn't actually pee last",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 16585.0,
+          "end_seconds": 16835.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "three people, including my wife. I'm pretty sure. All right, pee time. P time and then one more game. I promise you guys get one",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
