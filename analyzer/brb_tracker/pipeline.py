@@ -27,9 +27,10 @@ def analyze(
     if profile not in PROFILES:
         raise ValueError("Unknown screen detector profile")
     video = video.resolve(strict=True)
+    process_options = {"creationflags": subprocess.CREATE_NO_WINDOW} if hasattr(subprocess, "CREATE_NO_WINDOW") else {}
     info = json.loads(subprocess.check_output([
         "ffprobe", "-v", "error", "-show_format", "-show_streams", "-of", "json", str(video)
-    ], timeout=30))
+    ], timeout=30, **process_options))
     duration = float(info["format"]["duration"])
     if not math.isfinite(duration) or duration <= 0:
         raise ValueError("Video duration must be positive and finite")
@@ -41,7 +42,7 @@ def analyze(
         "ffmpeg", "-v", "error", "-nostdin", "-i", str(video), "-an", "-sn",
         "-vf", f"fps=1/{interval}:start_time=0,scale={width}:{height}",
         "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1",
-    ], stdout=subprocess.PIPE)
+    ], stdout=subprocess.PIPE, **process_options)
     count = 0
     try:
         def observations():

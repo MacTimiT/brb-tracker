@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from typing import Callable
 from urllib.parse import parse_qs, urlparse
 
 
@@ -25,14 +26,20 @@ def video_id(url: str) -> str:
     return candidate
 
 
-def download(url: str, directory: Path) -> tuple[Path, Path | None, dict]:
+def download(
+    url: str, directory: Path, *, height: int = 480, rate_limit: int | None = None,
+    progress: Callable[[dict], None] | None = None, runtime: Path | None = None,
+    fetch_captions: bool = True,
+) -> tuple[Path, Path | None, dict]:
     import yt_dlp
 
     identifier = video_id(url)
+    if height not in (360, 480, 720, 1080) or (rate_limit is not None and rate_limit <= 0):
+        raise ValueError("Invalid download quality or speed limit")
     directory.mkdir(parents=True, exist_ok=True)
     options = {
         "outtmpl": str(directory / "vod.%(ext)s"),
-        "format": "best[height<=480][ext=mp4]/best[height<=480]/bestvideo[height<=480]+bestaudio",
+        "format": f"best[height<={height}][ext=mp4]/best[height<={height}]/bestvideo[height<={height}]+bestaudio",
         "merge_output_format": "mp4",
         "noplaylist": True,
         "writesubtitles": True,
@@ -45,6 +52,21 @@ def download(url: str, directory: Path) -> tuple[Path, Path | None, dict]:
         "quiet": True,
         "no_warnings": False,
     }
+    if rate_limit is not None:
+        # Use yt-dlp's own downloader and one fragment at a time so media transfers
+        # share one limit. FFmpeg can still merge tracks locally afterward.
+        transport = "[protocol~='^(https?|m3u8_native|http_dash_segments)$']"
+        quality = f"[height<={height}]{transport}"
+        options.update(
+            ratelimit=rate_limit, concurrent_fragment_downloads=1, hls_prefer_native=True,
+            format=f"best{quality}[ext=mp4]/best{quality}/bestvideo{quality}+bestaudio{transport}",
+        )
+    if runtime is not None:
+        options.update(
+            ffmpeg_location=str(runtime),
+            js_runtimes={"deno": {"path": str(runtime / "deno.exe")}},
+            skip_unavailable_fragments=False,
+        )
     canonical = f"https://www.youtube.com/watch?v={identifier}"
     with yt_dlp.YoutubeDL(options) as ydl:
         info = ydl.extract_info(canonical, download=False)
@@ -53,18 +75,25 @@ def download(url: str, directory: Path) -> tuple[Path, Path | None, dict]:
         # Subtitle failures must not prevent video-only OCR analysis. Fetch
         # captions separately, then download media with caption writes disabled.
         caption_error = None
-        try:
-            with yt_dlp.YoutubeDL({**options, "skip_download": True}) as caption_ydl:
-                caption_ydl.download([canonical])
-        except yt_dlp.utils.DownloadError as exc:
-            caption_error = str(exc)
-        with yt_dlp.YoutubeDL({**options, "writesubtitles": False, "writeautomaticsub": False}) as media_ydl:
+        if fetch_captions:
+            try:
+                with yt_dlp.YoutubeDL({**options, "skip_download": True}) as caption_ydl:
+                    caption_ydl.download([canonical])
+            except yt_dlp.utils.DownloadError:
+                caption_error = "YouTube captions could not be downloaded; reason suggestions may be unavailable."
+        with yt_dlp.YoutubeDL({
+            **options, "writesubtitles": False, "writeautomaticsub": False,
+            "progress_hooks": [progress] if progress is not None else [],
+        }) as media_ydl:
             media_ydl.download([canonical])
-    videos = [p for p in directory.iterdir() if p.suffix in {".mp4", ".mkv", ".webm"}]
+    videos = [p for p in directory.iterdir() if p.suffix in {".mp4", ".mkv", ".webm"} and p.is_file() and p.stat().st_size > 0]
     if not videos:
         raise RuntimeError("No video downloaded; check YouTube availability and disk space")
     captions = sorted(directory.glob("*.json3")) or sorted(directory.glob("*.vtt"))
     metadata = {"id": identifier, "title": info.get("title", identifier), "url": canonical}
+    for field in ("release_timestamp", "release_date", "upload_date"):
+        if info.get(field) is not None:
+            metadata[field] = info[field]
     if caption_error:
-        metadata["caption_warning"] = "YouTube captions could not be downloaded; reason suggestions may be unavailable."
+        metadata["caption_warning"] = caption_error
     return videos[0], captions[0] if captions else None, metadata

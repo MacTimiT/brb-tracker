@@ -1,0 +1,24 @@
+BRB Tracker for Windows uses and redistributes third-party components.
+
+Flutter and Dart are distributed under BSD-style licenses.
+The Flutter framework and package notices are included in flutter_assets/NOTICES.Z.
+Source: https://github.com/flutter/flutter
+
+The worker packages Python, yt-dlp, PyInstaller, Pydantic, Pillow and pytesseract.
+The Python package metadata and their license notices are distributed with the worker.
+Sources: https://www.python.org/ , https://github.com/yt-dlp/yt-dlp ,
+https://github.com/pyinstaller/pyinstaller , https://github.com/pydantic/pydantic ,
+https://github.com/python-pillow/Pillow , https://github.com/madmaze/pytesseract
+
+FFmpeg binaries are from FFmpeg-Builds and include their license in tools/FFmpeg-LICENSE.txt.
+Source and build scripts: https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/tag/autobuild-2026-11-24-12-41
+FFmpeg revision: https://github.com/FFmpeg/FFmpeg/tree/a8029b6528
+
+Tesseract 5.4.0 is Apache-2.0, with English trained data from tessdata_fast.
+Source and Windows build: https://github.com/UB-Mannheim/tesseract/releases/tag/v5.4.0.20240606
+Language model: https://github.com/tesseract-ocr/tessdata_fast
+License: https://www.apache.org/licenses/LICENSE-2.0
+
+Deno 2.9.8 is MIT. Source and notices: https://github.com/denoland/deno/tree/v2.9.8
+
+The Visual C++ runtime is a Microsoft Visual Studio redistributable component.
