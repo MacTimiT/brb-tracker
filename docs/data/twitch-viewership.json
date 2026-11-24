@@ -132,6 +132,13 @@
       "twitch_started_at": "2026-11-06T15:00+00:00",
       "vod_duration_seconds": 21692,
       "vod_started_at": "2026-11-06T15:01:16Z"
+    },
+    "w3Rci_QNESk": {
+      "average_viewers": 240,
+      "twitch_duration_minutes": 364,
+      "twitch_started_at": "2026-10-13T14:00+00:00",
+      "vod_duration_seconds": 21844.056236,
+      "vod_started_at": "2026-10-13T14:00:17Z"
     }
   },
   "schema_version": 1,
