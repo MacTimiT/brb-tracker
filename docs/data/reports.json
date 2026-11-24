@@ -1325,6 +1325,88 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "Ah-cEcNioIQ",
+      "title": "Achieved a 21% Winrate Today... 😅",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=Ah-cEcNioIQ",
+      "video_id": "Ah-cEcNioIQ",
+      "vod_date": "2026-10-26",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-10-26T14:00:28Z",
+      "analyzed_at": "2026-11-24T21:23:02.437327Z",
+      "duration_seconds": 21522.065125,
+      "sample_interval_seconds": 5.0,
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1.0,
+      "frames_checked": 4325,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 5s with 1s transition refinement; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 4193.0,
+          "end_seconds": 4305.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "you, but I chugged I feel like holiday should have alled the rat king. Okay, bro. I'm not going to lie. I chugged an entire protein shake and then had my freshen up right after. I absolutely",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 7979.0,
+          "end_seconds": 8139.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "I suppose when the goal is just to drum up traffic, it makes sense, but it makes it less rewarding for me or like less like something I can take pride in finishing now. I respect that.",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 10603.0,
+          "end_seconds": 10763.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "counter swaps fully. The May was definitely a counter swap. The Zen I could I think was a Were they Zen originally? I actually don't know, but I know the May was new.",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 12274.0,
+          "end_seconds": 12590.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "So, we're going to do that. We're going to get through it. We're gonna probably just play Overwatch all day. By the way, I'm not feeling World of Warcraft today. We might just We might just lock in on",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 16465.0,
+          "end_seconds": 16563.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "All right. Flex is trying not to get too angry. [laughter] >> [laughter] >> I'll be right back.",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
