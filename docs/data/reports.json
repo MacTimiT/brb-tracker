@@ -1165,6 +1165,63 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "3MLpjAQ105k",
+      "title": "Increasing my Ranked Doomfist Winrate to 19% 😅 (then yapping with a friend)",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=3MLpjAQ105k",
+      "video_id": "3MLpjAQ105k",
+      "vod_date": "2026-10-20",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-10-20T14:02:20Z",
+      "analyzed_at": "2026-11-24T19:34:45.775154Z",
+      "duration_seconds": 25640.054422,
+      "sample_interval_seconds": 5.0,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 5s; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 1680.0,
+          "end_seconds": 1775.0,
+          "reason": "Other",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "possibly. I do enjoy the character a lot. What's up, Resurrections? Welcome back. What game do I enjoy the most at the moment? Deadlock. Not even close. I am",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 8830.0,
+          "end_seconds": 9595.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "by herself. Well, she's home. Uh, she's either just now leaving. I think she just got back. Perfect timing. Okay, I'm going to pee, grab a",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 14325.0,
+          "end_seconds": 14700.0,
+          "reason": "Unknown",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "unknown",
+          "evidence": "this guy. He's been through a lot and I cannot stress enough how incredible this dude is. And I really want you guys to stick around for this conversation. It's going to be just chatting for a bit, but",
+          "reviewed": false,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
