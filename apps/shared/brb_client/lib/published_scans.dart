@@ -56,3 +56,59 @@ Set<String> parseDashboardPublishedScans(List<int> bytes) {
   }
   return ids;
 }
+
+class PublishedScanStatus extends ChangeNotifier {
+  PublishedScanStatus([this._load = loadDashboardPublishedScans]) {
+    dashboardPublication.addListener(_onPublished);
+  }
+
+  final Future<Set<String>> Function() _load;
+  Set<String>? _published;
+  final _justPublished = <String>{};
+  Future<void>? _refresh;
+  bool _disposed = false;
+  bool failed = false;
+
+  bool get hasSnapshot => _published != null;
+  bool get refreshing => _refresh != null;
+
+  bool contains(String id) =>
+      _published?.contains(id) == true || _justPublished.contains(id);
+
+  void _onPublished() {
+    if (dashboardPublication.value case (final String id, _)) {
+      _justPublished.add(id);
+      notifyListeners();
+    }
+  }
+
+  Future<void> refresh() {
+    if (_disposed) return Future<void>.value();
+    if (_refresh case final Future<void> pending) return pending;
+    final request = _fetch();
+    _refresh = request;
+    notifyListeners();
+    return request;
+  }
+
+  Future<void> _fetch() async {
+    try {
+      final ids = await Future<Set<String>>.sync(_load);
+      _published = ids;
+      _justPublished.removeAll(ids);
+      failed = false;
+    } catch (_) {
+      failed = true;
+    } finally {
+      _refresh = null;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    dashboardPublication.removeListener(_onPublished);
+    super.dispose();
+  }
+}

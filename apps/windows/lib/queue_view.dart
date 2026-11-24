@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:brb_client/published_scans.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:file_selector/file_selector.dart';
 
@@ -9,12 +10,14 @@ class QueueView extends StatefulWidget {
   const QueueView({
     super.key,
     required this.queue,
+    required this.publication,
     required this.openReport,
     required this.rescan,
     required this.showError,
   });
 
   final ScanQueue queue;
+  final PublishedScanStatus publication;
   final Future<void> Function(String folder) openReport;
   final void Function(Object) showError;
   final void Function(ScanJob job, File? download) rescan;
@@ -102,7 +105,12 @@ class _QueueViewState extends State<QueueView> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.publication,
+    builder: (context, _) => buildQueue(context),
+  );
+
+  Widget buildQueue(BuildContext context) {
     final jobs = queue.jobs;
     final waiting = jobs.where((job) => job.status == ScanStatus.queued);
     final history = [
@@ -210,6 +218,14 @@ class _QueueViewState extends State<QueueView> {
                   onSelected: (selected) =>
                       setState(() => downloadedOnly = selected),
                 ),
+                if (history.any((entry) => entry.$1.videoId != null))
+                  TextButton.icon(
+                    onPressed: widget.publication.refreshing
+                        ? null
+                        : widget.publication.refresh,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh published status'),
+                  ),
                 if (history.any(
                   (entry) => entry.$1.status == ScanStatus.failed,
                 ))
@@ -219,6 +235,13 @@ class _QueueViewState extends State<QueueView> {
                   ),
               ],
             ),
+          ),
+        if (widget.publication.failed &&
+            history.any((entry) => entry.$1.videoId != null))
+          Text(
+            widget.publication.hasSnapshot
+                ? 'Showing last synced publication status.'
+                : 'Publication status unavailable. Refresh to retry.',
           ),
         if (downloadedOnly && downloadCount == 0 && history.isNotEmpty)
           const ListTile(title: Text('No downloaded videos in scan history')),
@@ -235,7 +258,10 @@ class _QueueViewState extends State<QueueView> {
       ScanStatus.cancelled => 'Scan cancelled',
       _ => 'Scan failed',
     };
+    final publication = widget.publication;
+    final id = job.videoId;
     return Card(
+      key: ValueKey(job.folder),
       child: ListTile(
         title: Text(job.title),
         subtitle: Column(
@@ -257,6 +283,17 @@ class _QueueViewState extends State<QueueView> {
                 Text(
                   download == null ? 'No saved download' : 'Video downloaded',
                 ),
+                if (id != null && publication.contains(id)) ...[
+                  Icon(
+                    Icons.cloud_done_outlined,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const Text('Published'),
+                ] else if (id != null &&
+                    publication.hasSnapshot &&
+                    !publication.failed)
+                  const Text('Unpublished'),
               ],
             ),
             if (job.error case final String error) Text(error),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:brb_client/published_scans.dart';
 import 'package:brb_tracker_windows/main.dart';
 import 'package:brb_tracker_windows/scan_queue.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,6 +53,7 @@ void main() {
         ScanJob(
           folder: '${directory.path}/${status.name}',
           title: '${status.name} VOD',
+          videoId: status == ScanStatus.failed ? '9YP_ljMuDQM' : null,
           arguments: const [],
           status: status,
         ),
@@ -75,6 +77,13 @@ void main() {
     await tester.tap(find.text('Scans').hitTestable());
     await tester.pumpAndSettle();
     expect(find.text('Video downloaded'), findsOneWidget);
+    dashboardPublication.value = ('9YP_ljMuDQM', Object());
+    await tester.pumpAndSettle();
+    final failedTile = find.widgetWithText(ListTile, 'failed VOD');
+    expect(
+      find.descendant(of: failedTile, matching: find.text('Published')),
+      findsOneWidget,
+    );
     expect(find.text('No saved download'), findsNWidgets(2));
     await tester.tap(find.text('Downloaded only (1)'));
     await tester.pumpAndSettle();

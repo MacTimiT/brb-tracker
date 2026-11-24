@@ -4,6 +4,7 @@ import 'dart:ui' show AppExitResponse;
 
 import 'package:brb_client/github_publisher.dart';
 import 'package:brb_client/publishing_ui.dart';
+import 'package:brb_client/published_scans.dart';
 import 'package:brb_client/stream_catalog.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:material_ui/material_ui.dart';
@@ -55,6 +56,7 @@ class _ScanPageState extends State<ScanPage> {
         '${Platform.environment['USERPROFILE'] ?? Directory.current.path}\\Documents\\BRB Tracker',
   );
   late final AppLifecycleListener lifecycle;
+  final publication = PublishedScanStatus();
   XFile? video;
   XFile? transcript;
   int height = 480;
@@ -91,6 +93,9 @@ class _ScanPageState extends State<ScanPage> {
       worker,
     );
     lifecycle = AppLifecycleListener(
+      onResume: () {
+        if (tab != 1) publication.refresh();
+      },
       onExitRequested: () async {
         await queue.close();
         return AppExitResponse.exit;
@@ -101,6 +106,7 @@ class _ScanPageState extends State<ScanPage> {
   @override
   void dispose() {
     lifecycle.dispose();
+    publication.dispose();
     queue.dispose();
     url.dispose();
     limit.dispose();
@@ -290,7 +296,10 @@ class _ScanPageState extends State<ScanPage> {
           '$cap',
         ],
       );
-      if (tab == 1) setState(() => tab = 2);
+      if (tab == 1) {
+        setState(() => tab = 2);
+        publication.refresh();
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Added to the scan queue')));
@@ -404,7 +413,7 @@ class _ScanPageState extends State<ScanPage> {
           if (archiveOpened)
             StreamCatalog(
               api: archive,
-              active: tab == 0,
+              publication: publication,
               completed: queue.completed,
               openReport: openReport,
               queued: queue.queued,
@@ -416,6 +425,7 @@ class _ScanPageState extends State<ScanPage> {
             const SizedBox.shrink(),
           scanOptions(context),
           QueueView(
+            publication: publication,
             queue: queue,
             openReport: openReport,
             rescan: rescan,
@@ -425,10 +435,13 @@ class _ScanPageState extends State<ScanPage> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
-        onDestinationSelected: (value) => setState(() {
-          tab = value;
-          if (value == 0) archiveOpened = true;
-        }),
+        onDestinationSelected: (value) {
+          setState(() {
+            tab = value;
+            if (value == 0) archiveOpened = true;
+          });
+          if (value != 1) publication.refresh();
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.video_library_outlined),

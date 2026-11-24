@@ -20,6 +20,7 @@ class StreamCatalog extends StatefulWidget {
     required this.queued,
     required this.queueStream,
     this.active = true,
+    this.publication,
     this.loadPublished = loadDashboardPublishedScans,
   });
 
@@ -29,6 +30,7 @@ class StreamCatalog extends StatefulWidget {
   final Future<void> Function(String id, String title)? queueStream;
   final Future<void> Function(String jobId) openReport;
   final bool active;
+  final PublishedScanStatus? publication;
   final Future<Set<String>> Function() loadPublished;
 
   @override
@@ -43,62 +45,38 @@ class _StreamCatalogState extends State<StreamCatalog>
   bool loading = false;
   bool failed = false;
   StreamFilter filter = StreamFilter.all;
-  Set<String>? published;
-  final justPublished = <String>{};
-  Future<void>? publicationRefresh;
-  bool publicationFailed = false;
+  late final PublishedScanStatus publication;
+  bool get ownsPublication => widget.publication == null;
 
   @override
   void initState() {
     super.initState();
     scroll.addListener(loadNearEnd);
     WidgetsBinding.instance.addObserver(this);
-    dashboardPublication.addListener(onPublished);
-    if (widget.active) unawaited(syncPublication());
+    publication =
+        widget.publication ?? PublishedScanStatus(widget.loadPublished);
+    if (ownsPublication && widget.active) {
+      unawaited(Future<void>.microtask(publication.refresh));
+    }
     loadCached();
   }
 
   @override
   void didUpdateWidget(StreamCatalog oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.active && !oldWidget.active) unawaited(syncPublication());
+    if (ownsPublication && widget.active && !oldWidget.active) {
+      unawaited(Future<void>.microtask(publication.refresh));
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (widget.active && state == AppLifecycleState.resumed) {
-      unawaited(syncPublication());
+    if (ownsPublication &&
+        widget.active &&
+        state == AppLifecycleState.resumed) {
+      unawaited(publication.refresh());
     }
   }
-
-  void onPublished() {
-    if (dashboardPublication.value case (final String id, _)) {
-      setState(() => justPublished.add(id));
-      if (widget.active) unawaited(syncPublication());
-    }
-  }
-
-  Future<void> syncPublication() =>
-      publicationRefresh ??= fetchPublication().whenComplete(() {
-        if (mounted) setState(() => publicationRefresh = null);
-      });
-
-  Future<void> fetchPublication() async {
-    try {
-      final ids = await widget.loadPublished();
-      if (!mounted) return;
-      setState(() {
-        published = ids;
-        justPublished.removeAll(ids);
-        publicationFailed = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => publicationFailed = true);
-    }
-  }
-
-  bool isPublished(String id) =>
-      published?.contains(id) == true || justPublished.contains(id);
 
   Future<void> loadCached() async {
     try {
@@ -119,7 +97,7 @@ class _StreamCatalogState extends State<StreamCatalog>
 
   @override
   void dispose() {
-    dashboardPublication.removeListener(onPublished);
+    if (ownsPublication) publication.dispose();
     WidgetsBinding.instance.removeObserver(this);
     scroll.dispose();
     super.dispose();
@@ -165,25 +143,29 @@ class _StreamCatalogState extends State<StreamCatalog>
   }
 
   Future<void> refresh() async {
-    final publication = syncPublication();
-    if (mounted) setState(() {});
+    final published = publication.refresh();
     if (loading) {
-      await publication;
+      await published;
       return;
     }
     next = 1;
-    await Future.wait([loadPage(), publication]);
+    await Future.wait([loadPage(), published]);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: publication,
+    builder: (context, _) => buildArchive(context),
+  );
+
+  Widget buildArchive(BuildContext context) {
     final entries = streams.entries
         .where((entry) {
           final scanned = widget.completed.containsKey(entry.key);
           return switch (filter) {
             StreamFilter.all => true,
             StreamFilter.unpublished =>
-              published != null && !isPublished(entry.key),
+              publication.hasSnapshot && !publication.contains(entry.key),
             StreamFilter.unscanned => !scanned,
             StreamFilter.scanned => scanned,
           };
@@ -207,7 +189,7 @@ class _StreamCatalogState extends State<StreamCatalog>
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       TextButton.icon(
-                        onPressed: publicationRefresh != null ? null : refresh,
+                        onPressed: publication.refreshing ? null : refresh,
                         icon: const Icon(Icons.refresh),
                         label: const Text('Refresh VODs'),
                       ),
@@ -222,7 +204,7 @@ class _StreamCatalogState extends State<StreamCatalog>
                           selected: filter == value,
                           onSelected:
                               value == StreamFilter.unpublished &&
-                                  published == null
+                                  !publication.hasSnapshot
                               ? null
                               : (_) {
                                   if (filter == value) return;
@@ -232,13 +214,13 @@ class _StreamCatalogState extends State<StreamCatalog>
                         ),
                     ],
                   ),
-                  if (publicationFailed)
+                  if (publication.failed)
                     Text(
-                      published == null
+                      !publication.hasSnapshot
                           ? 'Could not sync published scans. Use Refresh VODs to retry.'
                           : 'Could not sync published scans. Showing the last synced status.',
                     )
-                  else if (publicationRefresh != null)
+                  else if (publication.refreshing)
                     const Text('Syncing published scans…'),
                 ],
               ),
@@ -286,7 +268,7 @@ class _StreamCatalogState extends State<StreamCatalog>
           final entry = entries[index - 1];
           final reportId = widget.completed[entry.key];
           final queued = widget.queued.contains(entry.key);
-          final uploaded = isPublished(entry.key);
+          final uploaded = publication.contains(entry.key);
           final statuses = [
             if (uploaded) 'Published',
             if (reportId != null) 'Scanned on this device',
@@ -294,8 +276,8 @@ class _StreamCatalogState extends State<StreamCatalog>
             if (!uploaded &&
                 reportId == null &&
                 !queued &&
-                published != null &&
-                !publicationFailed)
+                publication.hasSnapshot &&
+                !publication.failed)
               'No report yet',
           ];
           return ListTile(
