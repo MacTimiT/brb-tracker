@@ -1279,6 +1279,52 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "w3Rci_QNESk",
+      "title": "I got 10 Hours in Quick Play on Doomfist, then Played Ranked 😱",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=w3Rci_QNESk",
+      "video_id": "w3Rci_QNESk",
+      "vod_date": "2026-10-13",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-10-13T14:00:17Z",
+      "analyzed_at": "2026-11-24T20:19:58.661959Z",
+      "duration_seconds": 21844.056236,
+      "sample_interval_seconds": 5.0,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 5s; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 10465.0,
+          "end_seconds": 10695.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": ">> Uh chicken butt. >> Oh, W. Yeah. Yeah, that's what that would have been my actual first guess. Seeing as he's away for a second, chat, I'm going to pee. May as well. Got the",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 20005.0,
+          "end_seconds": 20135.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "here to hate watch, now's your time. Now's your time. Uh, but I do I do need to pee like unironically. So, we're going to pee that way. I'm like",
+          "reviewed": false,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
