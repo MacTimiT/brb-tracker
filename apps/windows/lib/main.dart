@@ -370,6 +370,7 @@ class _ScanPageState extends State<ScanPage> {
                                     width: 160,
                                     child: DropdownButtonFormField<int>(
                                       initialValue: height,
+                                      isExpanded: true,
                                       decoration: const InputDecoration(
                                         labelText: 'Max quality',
                                       ),
@@ -395,17 +396,26 @@ class _ScanPageState extends State<ScanPage> {
                                     width: 160,
                                     child: DropdownButtonFormField<int>(
                                       initialValue: interval,
+                                      isExpanded: true,
                                       decoration: const InputDecoration(
                                         labelText: 'Sample every',
                                       ),
                                       items: const [
                                         DropdownMenuItem(
                                           value: 2,
-                                          child: Text('2 seconds'),
+                                          child: Text(
+                                            '2 seconds',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
                                         DropdownMenuItem(
                                           value: 5,
-                                          child: Text('5 seconds'),
+                                          child: Text(
+                                            '5 seconds',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
                                       ],
                                       onChanged: busy
@@ -419,17 +429,26 @@ class _ScanPageState extends State<ScanPage> {
                                     width: 185,
                                     child: DropdownButtonFormField<String>(
                                       initialValue: profile,
+                                      isExpanded: true,
                                       decoration: const InputDecoration(
                                         labelText: 'Banner profile',
                                       ),
                                       items: const [
                                         DropdownMenuItem(
                                           value: 'gamin4hope',
-                                          child: Text('Gamin4Hope'),
+                                          child: Text(
+                                            'Gamin4Hope',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
                                         DropdownMenuItem(
                                           value: 'full_frame',
-                                          child: Text('Full frame'),
+                                          child: Text(
+                                            'Full frame',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
                                       ],
                                       onChanged: busy

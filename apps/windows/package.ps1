@@ -37,7 +37,7 @@ Copy-Item 'apps/windows/build/windows/x64/runner/Release/*' $bundle -Recurse -Fo
 # Supply the native runtime alongside the executable for a portable installation.
 $vs = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
 $install = & $vs -latest -products '*' -property installationPath
-$crt = Get-ChildItem "$install/VC/Redist/MSVC/*/x64/Microsoft.VC143.CRT" -Directory |
+$crt = Get-Item "$install/VC/Redist/MSVC/*/x64/Microsoft.VC143.CRT" |
     Sort-Object { [version]$_.Parent.Parent.Name } -Descending |
     Select-Object -First 1
 if (!$crt) { throw 'Visual C++ runtime not found' }
