@@ -1,4 +1,5 @@
 import re
+import time
 from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qs, urlparse
@@ -24,6 +25,30 @@ def video_id(url: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_-]{11}", candidate):
         raise ValueError("Expected one YouTube video, not a channel or playlist")
     return candidate
+
+
+def limit_response(response, rate: int):
+    """Pace native downloader reads with a high-resolution clock."""
+    original_read = response.read
+    block_size = max(1, min(rate // 10, 64 * 1024))
+
+    def read(size=-1):
+        chunks = []
+        while size != 0:
+            start = time.perf_counter()
+            chunk = original_read(block_size if size < 0 else min(size, block_size))
+            if not chunk:
+                break
+            delay = len(chunk) / rate - (time.perf_counter() - start)
+            if delay > 0:
+                time.sleep(delay)
+            chunks.append(chunk)
+            if size > 0:
+                size -= len(chunk)
+        return b"".join(chunks)
+
+    response.read = read
+    return response
 
 
 def download(
@@ -58,7 +83,8 @@ def download(
         transport = "[protocol~='^(https?|m3u8_native|http_dash_segments)$']"
         quality = f"[height<={height}]{transport}"
         options.update(
-            ratelimit=rate_limit, concurrent_fragment_downloads=1, hls_prefer_native=True,
+            concurrent_fragment_downloads=1, hls_prefer_native=True,
+            buffersize=max(1, min(rate_limit // 10, 64 * 1024)), noresizebuffer=True,
             format=f"best{quality}[ext=mp4]/best{quality}/bestvideo{quality}+bestaudio{transport}",
         )
     if runtime is not None:
@@ -68,6 +94,11 @@ def download(
             skip_unavailable_fragments=False,
         )
     canonical = f"https://www.youtube.com/watch?v={identifier}"
+    class MediaDownloader(yt_dlp.YoutubeDL):
+        def urlopen(self, request):
+            response = super().urlopen(request)
+            return limit_response(response, rate_limit) if rate_limit is not None else response
+
     with yt_dlp.YoutubeDL(options) as ydl:
         info = ydl.extract_info(canonical, download=False)
         if info.get("is_live"):
@@ -77,11 +108,11 @@ def download(
         caption_error = None
         if fetch_captions:
             try:
-                with yt_dlp.YoutubeDL({**options, "skip_download": True}) as caption_ydl:
+                with MediaDownloader({**options, "skip_download": True}) as caption_ydl:
                     caption_ydl.download([canonical])
             except yt_dlp.utils.DownloadError:
                 caption_error = "YouTube captions could not be downloaded; reason suggestions may be unavailable."
-        with yt_dlp.YoutubeDL({
+        with MediaDownloader({
             **options, "writesubtitles": False, "writeautomaticsub": False,
             "progress_hooks": [progress] if progress is not None else [],
         }) as media_ydl:
