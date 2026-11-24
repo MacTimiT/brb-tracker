@@ -7,7 +7,9 @@ import 'package:brb_client/publishing_ui.dart';
 import 'package:brb_client/stream_catalog.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import 'banner_check.dart';
 import 'desktop_worker.dart';
 import 'queue_view.dart';
 import 'report_page.dart';
@@ -59,8 +61,12 @@ class _ScanPageState extends State<ScanPage> {
   int interval = 2;
   String profile = 'gamin4hope';
   bool firefoxSession = false;
+  bool keepDownloads = true;
+  bool speechFallback = true;
+  late final File settings;
   late final ScanQueue queue;
   late final DesktopArchive archive;
+  final worker = DesktopWorker();
   int tab = 1;
   bool archiveOpened = false;
 
@@ -72,7 +78,10 @@ class _ScanPageState extends State<ScanPage> {
         Directory(
           '${Platform.environment['LOCALAPPDATA'] ?? Directory.systemTemp.path}${Platform.pathSeparator}BRB Tracker',
         );
-    final worker = DesktopWorker();
+    settings = File(
+      '${directory.path}${Platform.pathSeparator}scan-options.json',
+    );
+    restoreOptions();
     queue = ScanQueue(
       File('${directory.path}${Platform.pathSeparator}scan-queue.json'),
       worker.scan,
@@ -97,6 +106,80 @@ class _ScanPageState extends State<ScanPage> {
     limit.dispose();
     output.dispose();
     super.dispose();
+  }
+
+  void restoreOptions() {
+    try {
+      if (!settings.existsSync()) return;
+      final options =
+          jsonDecode(settings.readAsStringSync()) as Map<String, dynamic>;
+      if ([360, 480, 720, 1080].contains(options['height'])) {
+        height = options['height'] as int;
+      }
+      if ([2, 5].contains(options['interval'])) {
+        interval = options['interval'] as int;
+      }
+      if (['gamin4hope', 'full_frame'].contains(options['profile'])) {
+        profile = options['profile'] as String;
+      }
+      if (options['limit'] case final num cap when validCap(cap.toDouble())) {
+        limit.text = '$cap';
+      }
+      if (options['output'] case final String folder
+          when folder.trim().isNotEmpty) {
+        output.text = folder;
+      }
+      firefoxSession = options['firefox'] == true;
+      keepDownloads = options['keep_downloads'] != false;
+      speechFallback = options['speech'] != false;
+    } catch (_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showError(
+          'Saved scan options could not be read. Check Scan options before queuing.',
+        );
+      });
+    }
+  }
+
+  void saveOptions() {
+    try {
+      settings.parent.createSync(recursive: true);
+      final temp = File('${settings.path}.tmp')
+        ..writeAsStringSync(
+          jsonEncode({
+            'height': height,
+            'interval': interval,
+            'profile': profile,
+            'limit': speedLimit,
+            'output': output.text.trim(),
+            'firefox': firefoxSession,
+            'keep_downloads': keepDownloads,
+            'speech': speechFallback,
+          }),
+          flush: true,
+        );
+      temp.renameSync(settings.path);
+    } catch (_) {
+      showError('Scan options could not be saved.');
+    }
+  }
+
+  void changeOption(VoidCallback update) {
+    setState(update);
+    saveOptions();
+  }
+
+  Future<void> openDashboard() async {
+    try {
+      if (!await launchUrl(
+        Uri.parse('https://mactimit.github.io/brb-tracker/'),
+        mode: LaunchMode.externalApplication,
+      )) {
+        throw StateError('Windows could not open the dashboard.');
+      }
+    } catch (error) {
+      showError(error);
+    }
   }
 
   Future<void> chooseFile({required bool captions}) async {
@@ -127,7 +210,10 @@ class _ScanPageState extends State<ScanPage> {
   Future<void> chooseOutput() async {
     try {
       final path = await getDirectoryPath();
-      if (mounted && path != null) output.text = path;
+      if (mounted && path != null) {
+        output.text = path;
+        saveOptions();
+      }
     } on Exception catch (e) {
       showError(e);
     }
@@ -169,6 +255,7 @@ class _ScanPageState extends State<ScanPage> {
     required String? id,
     String? localVideo,
     String? localTranscript,
+    String? previousReport,
   }) {
     final cap = localVideo == null ? speedLimit : 0.0;
     if (cap == null || !validCap(cap) || output.text.trim().isEmpty) {
@@ -176,6 +263,7 @@ class _ScanPageState extends State<ScanPage> {
       return;
     }
     try {
+      saveOptions();
       queue.add(
         title: title,
         videoId: id,
@@ -184,6 +272,9 @@ class _ScanPageState extends State<ScanPage> {
           if (link.isNotEmpty) ...['--url', link],
           if (localVideo != null) ...['--video', localVideo],
           if (localTranscript != null) ...['--transcript', localTranscript],
+          if (previousReport != null) ...['--previous-report', previousReport],
+          if (localVideo == null && !keepDownloads) '--delete-after-scan',
+          if (speechFallback) '--speech-fallback',
           if (localVideo == null && firefoxSession) '--firefox-session',
           if (localVideo != null || title != 'YouTube VOD') ...[
             '--title',
@@ -206,6 +297,36 @@ class _ScanPageState extends State<ScanPage> {
     } catch (error) {
       showError(error);
     }
+  }
+
+  void rescan(ScanJob job, File? downloaded) {
+    final localPath = downloaded?.path ?? job.argument('--video');
+    final link = job.argument('--url') ?? '';
+    if (localPath == null && link.isEmpty) {
+      showError('Choose the original video in Scan options to scan it again.');
+      return;
+    }
+    final original = job.argument('--transcript');
+    final explicitCaptions = original != null && File(original).existsSync()
+        ? original
+        : null;
+    final media = downloaded?.parent;
+    final savedCaptions = media
+        ?.listSync(followLinks: false)
+        .whereType<File>()
+        .where(
+          (file) => file.path.endsWith('.json3') || file.path.endsWith('.vtt'),
+        )
+        .firstOrNull
+        ?.path;
+    enqueue(
+      title: job.title,
+      link: link,
+      id: job.videoId,
+      localVideo: localPath,
+      localTranscript: explicitCaptions ?? savedCaptions,
+      previousReport: job.reportPath,
+    );
   }
 
   bool validCap(double cap) =>
@@ -251,6 +372,21 @@ class _ScanPageState extends State<ScanPage> {
         title: const Text('BRB Tracker'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.image_search),
+            tooltip: 'Check a BRB banner',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    BannerCheckPage(worker: worker, profile: profile),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.open_in_browser),
+            tooltip: 'Open dashboard',
+            onPressed: openDashboard,
+          ),
+          IconButton(
             icon: const Icon(Icons.folder_open),
             tooltip: 'Open saved report',
             onPressed: chooseReport,
@@ -279,7 +415,12 @@ class _ScanPageState extends State<ScanPage> {
           else
             const SizedBox.shrink(),
           scanOptions(context),
-          QueueView(queue: queue, openReport: openReport, showError: showError),
+          QueueView(
+            queue: queue,
+            openReport: openReport,
+            rescan: rescan,
+            showError: showError,
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -379,6 +520,7 @@ class _ScanPageState extends State<ScanPage> {
                               width: 204,
                               child: TextFormField(
                                 controller: limit,
+                                onChanged: (_) => saveOptions(),
                                 enabled: video == null,
                                 decoration: const InputDecoration(
                                   labelText: 'Media download cap',
@@ -412,7 +554,7 @@ class _ScanPageState extends State<ScanPage> {
                                 onChanged: video != null
                                     ? null
                                     : (value) =>
-                                          setState(() => height = value!),
+                                          changeOption(() => height = value!),
                               ),
                             ),
                             SizedBox(
@@ -421,13 +563,13 @@ class _ScanPageState extends State<ScanPage> {
                                 initialValue: interval,
                                 isExpanded: true,
                                 decoration: const InputDecoration(
-                                  labelText: 'Sample every',
+                                  labelText: 'Scan speed',
                                 ),
                                 items: const [
                                   DropdownMenuItem(
                                     value: 2,
                                     child: Text(
-                                      '2 seconds',
+                                      'Detailed · 2s',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -435,14 +577,14 @@ class _ScanPageState extends State<ScanPage> {
                                   DropdownMenuItem(
                                     value: 5,
                                     child: Text(
-                                      '5 seconds',
+                                      'Fast · 5s',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
                                 onChanged: (value) =>
-                                    setState(() => interval = value!),
+                                    changeOption(() => interval = value!),
                               ),
                             ),
                             SizedBox(
@@ -472,7 +614,7 @@ class _ScanPageState extends State<ScanPage> {
                                   ),
                                 ],
                                 onChanged: (value) =>
-                                    setState(() => profile = value!),
+                                    changeOption(() => profile = value!),
                               ),
                             ),
                           ],
@@ -486,14 +628,38 @@ class _ScanPageState extends State<ScanPage> {
                           ),
                           value: firefoxSession,
                           onChanged: video == null
-                              ? (checked) => setState(
+                              ? (checked) => changeOption(
                                   () => firefoxSession = checked ?? false,
                                 )
                               : null,
                         ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Keep downloaded VODs'),
+                          subtitle: const Text(
+                            'Keep a local copy for rescanning or export. Reports are always saved.',
+                          ),
+                          value: keepDownloads,
+                          onChanged: (value) =>
+                              changeOption(() => keepDownloads = value ?? true),
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text(
+                            'Transcribe speech when captions are unavailable',
+                          ),
+                          subtitle: const Text(
+                            'Uses on-device English speech recognition before detected breaks.',
+                          ),
+                          value: speechFallback,
+                          onChanged: (value) => changeOption(
+                            () => speechFallback = value ?? true,
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: output,
+                          onChanged: (_) => saveOptions(),
 
                           decoration: InputDecoration(
                             labelText: 'Save videos and reports in',

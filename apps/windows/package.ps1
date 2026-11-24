@@ -22,7 +22,7 @@ $tmp = Join-Path $env:RUNNER_TEMP 'brb-windows-tools'
 $zip = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
 $null = New-Item -Force -ItemType Directory $bundle, $tmp
 
-Invoke-Checked { python -m pip install -e '.[dev]' 'pyinstaller>=6.15,<7' }
+Invoke-Checked { python -m pip install -e '.[dev]' 'pyinstaller>=6.15,<7' 'vosk==0.3.45' }
 Invoke-Checked { python -m pytest -q tests/test_windows_download.py }
 Push-Location 'apps/windows'
 try {
@@ -45,7 +45,7 @@ if (!$crt) { throw 'Visual C++ runtime not found' }
 Copy-Item "$($crt.FullName)/*.dll" $bundle
 
 Invoke-Checked {
-    python -m PyInstaller --noconfirm --onedir --name brb-worker --collect-all yt_dlp --collect-all yt_dlp_ejs --recursive-copy-metadata brb-tracker `
+    python -m PyInstaller --noconfirm --onedir --name brb-worker --collect-all yt_dlp --collect-all yt_dlp_ejs --collect-all vosk --copy-metadata vosk --recursive-copy-metadata brb-tracker `
         --distpath $tmp --workpath "$tmp/work" --specpath $tmp apps/windows/worker.py
 }
 Copy-Item "$tmp/brb-worker" "$bundle/worker" -Recurse
@@ -73,13 +73,17 @@ Invoke-Checked { & $zip x "$tmp/tesseract-setup.exe" "-o$tmp/tesseract" -y -bso0
 Copy-Item "$tmp/tesseract/*.dll", "$tmp/tesseract/tesseract.exe" $tools
 Copy-Item "$tmp/tesseract/doc/LICENSE" "$tools/Tesseract-LICENSE.txt"
 Copy-Item 'apps/mobile/android/app/src/main/assets/tessdata/eng.traineddata' "$tools/tessdata"
+Get-VerifiedFile `
+    'https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip' `
+    "$tmp/vosk-model.zip" '30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498'
+Expand-Archive "$tmp/vosk-model.zip" $tools
 Copy-Item 'apps/windows/README.md', 'apps/windows/THIRD_PARTY_NOTICES.txt', 'apps/mobile/LICENSE' $bundle
 
 $fixture = Join-Path $repo 'apps/mobile/android/app/src/androidTest/assets/synthetic.mp4'
 $result = Join-Path $tmp 'smoke scan'
 $worker = Join-Path $bundle 'worker/brb-worker.exe'
 Invoke-Checked { & $worker --runtime $tools --self-test }
-Invoke-Checked { & $worker --runtime $tools --video $fixture --output $result --profile full_frame --limit-mbps 5 }
+Invoke-Checked { & $worker --runtime $tools --video $fixture --output $result --profile full_frame --limit-mbps 5 --speech-fallback }
 $report = Get-Content "$result/report.json" -Raw | ConvertFrom-Json
 if ($report.breaks.Count -lt 1 -or $report.schema_version -ne 1) { throw 'Windows scan smoke test found no breaks' }
 

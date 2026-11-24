@@ -28,6 +28,64 @@ class FakeWorker implements WorkerSession {
 Future<void> settle() => Future<void>.delayed(Duration.zero);
 
 void main() {
+  test('makes a canonical watch link from a VOD ID or older source URL', () {
+    expect(
+      youtubeWatchAt({
+        'source_url': 'https://www.youtube.com/live/9YP_ljMuDQM',
+      }, 6235.8).toString(),
+      'https://www.youtube.com/watch?v=9YP_ljMuDQM&t=6235s',
+    );
+    expect(
+      youtubeWatchAt({'video_id': 'rHgIE7SB3kI'}, 0)?.queryParameters['t'],
+      '0s',
+    );
+    expect(youtubeWatchAt({'video_id': 'rHgIE7SB3kI'}, -1), isNull);
+    expect(
+      youtubeWatchAt({
+        'source_url': 'https://example.com/watch?v=rHgIE7SB3kI',
+      }, 6),
+      isNull,
+    );
+  });
+
+  test(
+    'deletes only a saved download and preserves the report and VOD checkmark',
+    () {
+      final folder = Directory.systemTemp.createTempSync('brb-download-test');
+      addTearDown(() => folder.deleteSync(recursive: true));
+      final queueFile = File('${folder.path}/queue.json');
+      final job = ScanJob(
+        folder: folder.path,
+        title: 'VOD',
+        videoId: 'rHgIE7SB3kI',
+        arguments: [],
+        status: ScanStatus.completed,
+      );
+      queueFile.writeAsStringSync(
+        jsonEncode({
+          'version': 1,
+          'jobs': [job.toJson()],
+        }),
+      );
+      final media = Directory('${folder.path}/Video')..createSync();
+      File('${media.path}/vod.mp4').writeAsStringSync('video');
+      final captions = File('${media.path}/vod.en.vtt')
+        ..writeAsStringSync('captions');
+      final report = File(job.reportPath)..writeAsStringSync('report');
+      final queue = ScanQueue(
+        queueFile,
+        (_) async => throw StateError('Unexpected scan'),
+      )..load();
+      addTearDown(queue.dispose);
+
+      queue.deleteDownload(queue.jobs.single);
+
+      expect(job.downloads, isEmpty);
+      expect(queue.completed[job.videoId], folder.path);
+      expect(report.existsSync(), isTrue);
+      expect(captions.existsSync(), isTrue);
+    },
+  );
   test('processes one scan at a time and keeps each job’s speed cap', () async {
     final folder = Directory.systemTemp.createTempSync('brb-queue-test');
     final file = File('${folder.path}/queue.json');

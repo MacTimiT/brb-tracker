@@ -27,5 +27,9 @@ void main() {
     await tester.tap(find.text('Queue download and scan'));
     await tester.pump();
     expect(find.text('Paste a link or choose a local video.'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(BrbTracker(stateDirectory: directory));
+    await tester.ensureVisible(signIn);
+    expect(tester.widget<CheckboxListTile>(signIn).value, isTrue);
   });
 }

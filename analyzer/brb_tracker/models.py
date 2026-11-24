@@ -67,6 +67,9 @@ class Report(BaseModel):
     analyzed_at: datetime | None = None
     duration_seconds: float = Field(ge=0)
     sample_interval_seconds: float = Field(gt=0)
+    adaptive_scan: bool = False
+    boundary_refinement_seconds: float | None = None
+    frames_checked: int | None = None
     transcript_source: str = "none"
     detector_profile: Literal["full_frame", "gamin4hope"] = "full_frame"
     is_demo: bool = False

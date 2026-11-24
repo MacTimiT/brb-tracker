@@ -22,3 +22,6 @@ License: https://www.apache.org/licenses/LICENSE-2.0
 Deno 2.9.8 is MIT. Source and notices: https://github.com/denoland/deno/tree/v2.9.8
 
 The Visual C++ runtime is a Microsoft Visual Studio redistributable component.
+
+Vosk and the small English speech model are distributed under Apache-2.0.
+Sources: https://github.com/alphacep/vosk-api , https://alphacephei.com/vosk/models

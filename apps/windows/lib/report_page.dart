@@ -4,6 +4,10 @@ import 'dart:io';
 import 'package:brb_client/github_publisher.dart';
 import 'package:brb_client/publishing_ui.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'scan_queue.dart';
 
 class ReportPage extends StatefulWidget {
   const ReportPage({super.key, required this.file, required this.report});
@@ -57,14 +61,49 @@ class _ReportPageState extends State<ReportPage> {
     }
   }
 
+  Future<void> watch(Uri link) async {
+    try {
+      if (!await launchUrl(link, mode: LaunchMode.externalApplication)) {
+        throw StateError('Windows could not open the browser.');
+      }
+    } catch (error) {
+      if (mounted) showError(error);
+    }
+  }
+
+  Future<void> copy(String text, String message) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (error) {
+      if (mounted) showError(error);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final report = widget.report;
-    final breaks = report['breaks'] as List;
+    final breaks = (report['breaks'] as List).cast<Map<String, dynamic>>();
+    final timeAway = breaks.fold<num>(
+      0,
+      (total, item) =>
+          total + (item['end_seconds'] as num) - (item['start_seconds'] as num),
+    );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Break report'),
         actions: [
+          IconButton(
+            tooltip: 'Copy report JSON',
+            icon: const Icon(Icons.copy),
+            onPressed: () => copy(
+              const JsonEncoder.withIndent('  ').convert(report),
+              'Report copied',
+            ),
+          ),
           IconButton(
             tooltip: 'GitHub publishing settings',
             onPressed: publishing
@@ -83,7 +122,7 @@ class _ReportPageState extends State<ReportPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${breaks.length} breaks · ${stamp(report['duration_seconds'] as num)} stream',
+            '${breaks.length} breaks · ${stamp(timeAway)} away · ${stamp(breaks.isEmpty ? 0 : timeAway / breaks.length)} average',
           ),
           if (report['vod_date'] case final String date)
             Text('VOD date · $date'),
@@ -99,28 +138,73 @@ class _ReportPageState extends State<ReportPage> {
               label: Text(publishing ? 'Publishing…' : 'Publish to dashboard'),
             ),
           ),
-          for (final warning in report['warnings'] as List? ?? const [])
-            Text(warning.toString()),
+          ExpansionTile(
+            title: const Text('Scan details'),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Stream length · ${stamp(report['duration_seconds'] as num)}',
+              ),
+              if (report['sample_interval_seconds'] case final num interval)
+                Text('Sample interval · ${interval}s'),
+              if (report['frames_checked'] case final num frames)
+                Text('Frames checked · $frames'),
+              if (report['transcript_source'] case final String source)
+                Text('Transcript · $source'),
+              for (final warning in report['warnings'] as List? ?? const [])
+                Text(warning.toString()),
+            ],
+          ),
           const SizedBox(height: 12),
-          for (final (index, item)
-              in breaks.cast<Map<String, dynamic>>().indexed)
+          if (breaks.isEmpty) const Text('No BRB screens detected.'),
+          for (final (index, item) in breaks.indexed)
             Card(
-              child: ListTile(
-                title: Text(
-                  '${stamp(item['start_seconds'] as num)} – ${stamp(item['end_seconds'] as num)}',
-                ),
-                subtitle: Text(
-                  [
-                    item['reason'],
-                    ...(item['additional_reasons'] as List? ?? const []),
-                    if ((item['evidence'] as String).isNotEmpty)
-                      '\n${item['evidence']}',
-                  ].join(' · '),
-                ),
-                trailing: IconButton(
-                  onPressed: publishing ? null : () => review(index, item),
-                  tooltip: 'Edit reasons',
-                  icon: const Icon(Icons.edit_outlined),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        '${stamp(item['start_seconds'] as num)} – ${stamp(item['end_seconds'] as num)}',
+                      ),
+                      subtitle: Text(
+                        [
+                          item['reason'],
+                          ...(item['additional_reasons'] as List? ?? const []),
+                          if ((item['evidence'] as String).isNotEmpty)
+                            '\n${item['evidence']}',
+                        ].join(' · '),
+                      ),
+                      trailing: IconButton(
+                        onPressed: publishing
+                            ? null
+                            : () => review(index, item),
+                        tooltip: 'Edit reasons',
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                    ),
+                    if (youtubeWatchAt(report, item['start_seconds'] as num)
+                        case final Uri link)
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () => watch(link),
+                            icon: const Icon(Icons.play_circle_outline),
+                            label: const Text('Watch at timestamp'),
+                          ),
+                          IconButton(
+                            onPressed: () =>
+                                copy(link.toString(), 'Timestamp link copied'),
+                            tooltip: 'Copy timestamp link',
+                            icon: const Icon(Icons.link),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:file_selector/file_selector.dart';
 
 import 'scan_queue.dart';
 
@@ -9,12 +10,55 @@ class QueueView extends StatelessWidget {
     super.key,
     required this.queue,
     required this.openReport,
+    required this.rescan,
     required this.showError,
   });
 
   final ScanQueue queue;
   final Future<void> Function(String folder) openReport;
   final void Function(Object) showError;
+  final void Function(ScanJob job, File? download) rescan;
+
+  Future<void> export(ScanJob job, File download) async {
+    final suffix = download.path.split('.').last;
+    final location = await getSaveLocation(
+      initialDirectory:
+          '${Platform.environment['USERPROFILE'] ?? Directory.current.path}${Platform.pathSeparator}Downloads',
+      suggestedName: '${job.videoId ?? 'BRB-VOD'}.$suffix',
+      acceptedTypeGroups: [
+        XTypeGroup(label: 'Video', extensions: [suffix]),
+      ],
+    );
+    if (location == null) return;
+    if (File(location.path).existsSync() &&
+        await FileSystemEntity.identical(download.path, location.path)) {
+      return;
+    }
+    await download.copy(location.path);
+  }
+
+  Future<void> deleteDownload(BuildContext context, ScanJob job) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Delete downloaded video?'),
+        content: const Text(
+          'The report, reasons and checked status will still be available.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Delete video'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) queue.deleteDownload(job);
+  }
 
   Future<void> act(Future<void> Function() action) async {
     try {
@@ -131,47 +175,68 @@ class QueueView extends StatelessWidget {
               ],
             ),
           ),
-        for (final job in history)
-          Card(
-            child: ListTile(
-              title: Text(job.title),
-              subtitle: Text(
-                job.error ??
-                    switch (job.status) {
-                      ScanStatus.completed => 'Scan complete',
-                      ScanStatus.cancelled => 'Scan cancelled',
-                      _ => 'Scan failed',
-                    },
-              ),
-              onTap: job.status == ScanStatus.completed
-                  ? () => openReport(job.folder)
-                  : null,
-              trailing: PopupMenuButton<String>(
-                tooltip: 'Scan actions',
-                onSelected: (value) => act(() async {
-                  if (value == 'retry') {
-                    queue.retry(job);
-                  } else {
-                    await Process.start('explorer.exe', [
-                      job.folder,
-                    ], mode: ProcessStartMode.detached);
-                  }
-                }),
-                itemBuilder: (_) => [
-                  if (job.status != ScanStatus.completed)
-                    const PopupMenuItem(
-                      value: 'retry',
-                      child: Text('Retry scan'),
-                    ),
-                  const PopupMenuItem(
-                    value: 'folder',
-                    child: Text('Open scan folder'),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        for (final job in history) historyCard(context, job),
       ],
+    );
+  }
+
+  Widget historyCard(BuildContext context, ScanJob job) {
+    final download = job.downloads.firstOrNull;
+    return Card(
+      child: ListTile(
+        title: Text(job.title),
+        subtitle: Text(
+          job.error ??
+              switch (job.status) {
+                ScanStatus.completed => 'Scan complete',
+                ScanStatus.cancelled => 'Scan cancelled',
+                _ => 'Scan failed',
+              },
+        ),
+        onTap: job.status == ScanStatus.completed
+            ? () => openReport(job.folder)
+            : null,
+        trailing: PopupMenuButton<String>(
+          tooltip: 'Scan actions',
+          onSelected: (value) => act(() async {
+            if (value == 'rescan') {
+              rescan(job, download);
+            } else if (value == 'export' && download != null) {
+              await export(job, download);
+            } else if (value == 'delete' && download != null) {
+              await deleteDownload(context, job);
+            } else if (value == 'retry') {
+              queue.retry(job);
+            } else {
+              await Process.start('explorer.exe', [
+                job.folder,
+              ], mode: ProcessStartMode.detached);
+            }
+          }),
+          itemBuilder: (_) => [
+            if (job.status != ScanStatus.completed)
+              const PopupMenuItem(value: 'retry', child: Text('Retry scan')),
+            if (job.status == ScanStatus.completed)
+              PopupMenuItem(
+                value: 'rescan',
+                child: Text(
+                  download != null ? 'Rescan saved download' : 'Rescan VOD',
+                ),
+              ),
+            if (download != null) ...[
+              const PopupMenuItem(value: 'export', child: Text('Export video')),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Delete downloaded video'),
+              ),
+            ],
+            const PopupMenuItem(
+              value: 'folder',
+              child: Text('Open scan folder'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

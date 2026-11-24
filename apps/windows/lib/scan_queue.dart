@@ -36,6 +36,23 @@ String? youtubeVideoId(String link) {
   return id != null && RegExp(r'^[A-Za-z0-9_-]{11}$').hasMatch(id) ? id : null;
 }
 
+Uri? youtubeWatchAt(Map<String, dynamic> report, num seconds) {
+  if (!seconds.isFinite || seconds < 0) return null;
+  final value = report['video_id'];
+  final source = report['source_url'];
+  final id = value is String && RegExp(r'^[A-Za-z0-9_-]{11}$').hasMatch(value)
+      ? value
+      : source is String
+      ? youtubeVideoId(source)
+      : null;
+  return id == null
+      ? null
+      : Uri.https('www.youtube.com', '/watch', {
+          'v': id,
+          't': '${seconds.floor()}s',
+        });
+}
+
 class ScanJob {
   ScanJob({
     required this.folder,
@@ -69,6 +86,30 @@ class ScanJob {
   String get reportPath => '$folder${Platform.pathSeparator}report.json';
   bool get pending =>
       status == ScanStatus.queued || status == ScanStatus.running;
+
+  String? argument(String name) {
+    final index = arguments.indexOf(name);
+    return index >= 0 && index + 1 < arguments.length
+        ? arguments[index + 1]
+        : null;
+  }
+
+  List<File> get downloads {
+    final media = Directory('$folder${Platform.pathSeparator}Video');
+    if (FileSystemEntity.typeSync(media.path, followLinks: false) !=
+        FileSystemEntityType.directory) {
+      return [];
+    }
+    return [
+      for (final extension in ['mp4', 'mkv', 'webm'])
+        if (FileSystemEntity.typeSync(
+              '${media.path}${Platform.pathSeparator}vod.$extension',
+              followLinks: false,
+            ) ==
+            FileSystemEntityType.file)
+          File('${media.path}${Platform.pathSeparator}vod.$extension'),
+    ];
+  }
 
   Map<String, dynamic> toJson() => {
     'folder': folder,
@@ -167,6 +208,26 @@ class ScanQueue extends ChangeNotifier {
     _jobs.add(job);
     _persist();
     _pump();
+  }
+
+  void deleteDownload(ScanJob job) {
+    _requireReady();
+    if (job.pending) throw StateError('Wait for this scan to finish.');
+    final downloads = job.downloads;
+    final inputs = _jobs
+        .where((item) => item.pending)
+        .map((item) => item.argument('--video')?.toLowerCase())
+        .toSet();
+    if (downloads.any((file) => inputs.contains(file.path.toLowerCase()))) {
+      throw StateError('A queued scan is using this download.');
+    }
+    try {
+      for (final file in downloads) {
+        file.deleteSync();
+      }
+    } finally {
+      _notify();
+    }
   }
 
   void moveUp(ScanJob job) {
