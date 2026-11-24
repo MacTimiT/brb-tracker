@@ -1222,6 +1222,63 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "h86gM3_bFRI",
+      "title": "I went 1-9 on Doomfist, so I played Zarya 😭",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=h86gM3_bFRI",
+      "video_id": "h86gM3_bFRI",
+      "vod_date": "2026-10-15",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-10-15T14:00:48Z",
+      "analyzed_at": "2026-11-24T19:58:45.255476Z",
+      "duration_seconds": 21497.080454,
+      "sample_interval_seconds": 5.0,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 5s; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 8515.0,
+          "end_seconds": 8620.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "No, I have not been playing Doom since then. This is a recent thing. All right, let me pee. I know I have to pee again. Big surprise. We're going to pee. I'll be right back.",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 11655.0,
+          "end_seconds": 11795.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "Bald people usually seem more angry to me than Yeah, it's cuz we're all bitter about our hairline. [laughter] All right, let me pee. We'll get at least a couple more games in though",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 17685.0,
+          "end_seconds": 17785.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "bait. You know what I'm saying? Aaria is muscle mommy. That is the nickname we have for Zarya. That is the nickname we have for Zarya. All right, let me pee real quick. Big",
+          "reviewed": false,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
