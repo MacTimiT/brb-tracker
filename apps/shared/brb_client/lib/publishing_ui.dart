@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'github_publisher.dart';
+import 'published_scans.dart';
 
 const _storage = FlutterSecureStorage();
 
@@ -17,8 +18,8 @@ Future<void> publishReport(
   Map<String, dynamic> report,
 ) async {
   final token = await _storage.read(key: 'github_token');
-  final owner = await _storage.read(key: 'github_owner') ?? 'MacTimiT';
-  final repo = await _storage.read(key: 'github_repo') ?? 'brb-tracker';
+  final owner = await _storage.read(key: 'github_owner') ?? dashboardOwner;
+  final repo = await _storage.read(key: 'github_repo') ?? dashboardRepository;
   if (!context.mounted) return;
   if (token == null || token.isEmpty) {
     await showPublishingSettings(context);
@@ -53,6 +54,12 @@ Future<void> publishReport(
       repo: repo,
       report: report,
     );
+    final videoId = publishedVideoId(report);
+    if (owner.toLowerCase() == dashboardOwner.toLowerCase() &&
+        repo.toLowerCase() == dashboardRepository.toLowerCase() &&
+        videoId != null) {
+      dashboardPublication.value = (videoId, Object());
+    }
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -85,8 +92,8 @@ class PublishingSettings extends StatefulWidget {
 }
 
 class _PublishingSettingsState extends State<PublishingSettings> {
-  final owner = TextEditingController(text: 'MacTimiT');
-  final repo = TextEditingController(text: 'brb-tracker');
+  final owner = TextEditingController(text: dashboardOwner);
+  final repo = TextEditingController(text: dashboardRepository);
   final token = TextEditingController();
   bool savedToken = false;
   bool busy = true;
@@ -103,8 +110,8 @@ class _PublishingSettingsState extends State<PublishingSettings> {
       final repoValue = await _storage.read(key: 'github_repo');
       final saved = await _storage.read(key: 'github_token');
       if (!mounted) return;
-      owner.text = ownerValue ?? 'MacTimiT';
-      repo.text = repoValue ?? 'brb-tracker';
+      owner.text = ownerValue ?? dashboardOwner;
+      repo.text = repoValue ?? dashboardRepository;
       savedToken = saved?.isNotEmpty == true;
     } catch (e) {
       if (mounted) error = 'Could not read secure settings: $e';

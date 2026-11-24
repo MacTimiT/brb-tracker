@@ -538,6 +538,7 @@ class _HomeState extends State<Home> with WidgetsBindingObserver {
           children: [
             StreamCatalog(
               api: api,
+              active: tab == 0,
               completed: completed,
               queued: queued,
               openReport: openJob,

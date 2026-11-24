@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
+
+import 'published_scans.dart';
 
 abstract interface class StreamArchive {
   Future<Map<String, dynamic>?> cachedStreams();
   Future<Map<String, dynamic>> listStreams(int start);
 }
 
-enum StreamFilter { all, unscanned, scanned }
+enum StreamFilter { all, unpublished, unscanned, scanned }
 
 class StreamCatalog extends StatefulWidget {
   const StreamCatalog({
@@ -15,7 +19,8 @@ class StreamCatalog extends StatefulWidget {
     required this.openReport,
     required this.queued,
     required this.queueStream,
-    this.showRefreshButton = false,
+    this.active = true,
+    this.loadPublished = loadDashboardPublishedScans,
   });
 
   final StreamArchive api;
@@ -23,26 +28,77 @@ class StreamCatalog extends StatefulWidget {
   final Set<String> queued;
   final Future<void> Function(String id, String title)? queueStream;
   final Future<void> Function(String jobId) openReport;
-  final bool showRefreshButton;
+  final bool active;
+  final Future<Set<String>> Function() loadPublished;
 
   @override
   State<StreamCatalog> createState() => _StreamCatalogState();
 }
 
-class _StreamCatalogState extends State<StreamCatalog> {
+class _StreamCatalogState extends State<StreamCatalog>
+    with WidgetsBindingObserver {
   final scroll = ScrollController();
   final streams = <String, String>{};
   int? next = 1;
   bool loading = false;
   bool failed = false;
   StreamFilter filter = StreamFilter.all;
+  Set<String>? published;
+  final justPublished = <String>{};
+  Future<void>? publicationRefresh;
+  bool publicationFailed = false;
 
   @override
   void initState() {
     super.initState();
     scroll.addListener(loadNearEnd);
+    WidgetsBinding.instance.addObserver(this);
+    dashboardPublication.addListener(onPublished);
+    if (widget.active) unawaited(syncPublication());
     loadCached();
   }
+
+  @override
+  void didUpdateWidget(StreamCatalog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active) unawaited(syncPublication());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (widget.active && state == AppLifecycleState.resumed) {
+      unawaited(syncPublication());
+    }
+  }
+
+  void onPublished() {
+    if (dashboardPublication.value case (final String id, _)) {
+      setState(() => justPublished.add(id));
+      if (widget.active) unawaited(syncPublication());
+    }
+  }
+
+  Future<void> syncPublication() =>
+      publicationRefresh ??= fetchPublication().whenComplete(() {
+        if (mounted) setState(() => publicationRefresh = null);
+      });
+
+  Future<void> fetchPublication() async {
+    try {
+      final ids = await widget.loadPublished();
+      if (!mounted) return;
+      setState(() {
+        published = ids;
+        justPublished.removeAll(ids);
+        publicationFailed = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => publicationFailed = true);
+    }
+  }
+
+  bool isPublished(String id) =>
+      published?.contains(id) == true || justPublished.contains(id);
 
   Future<void> loadCached() async {
     try {
@@ -63,6 +119,8 @@ class _StreamCatalogState extends State<StreamCatalog> {
 
   @override
   void dispose() {
+    dashboardPublication.removeListener(onPublished);
+    WidgetsBinding.instance.removeObserver(this);
     scroll.dispose();
     super.dispose();
   }
@@ -107,9 +165,14 @@ class _StreamCatalogState extends State<StreamCatalog> {
   }
 
   Future<void> refresh() async {
-    if (loading) return;
+    final publication = syncPublication();
+    if (mounted) setState(() {});
+    if (loading) {
+      await publication;
+      return;
+    }
     next = 1;
-    await loadPage();
+    await Future.wait([loadPage(), publication]);
   }
 
   @override
@@ -119,6 +182,8 @@ class _StreamCatalogState extends State<StreamCatalog> {
           final scanned = widget.completed.containsKey(entry.key);
           return switch (filter) {
             StreamFilter.all => true,
+            StreamFilter.unpublished =>
+              published != null && !isPublished(entry.key),
             StreamFilter.unscanned => !scanned,
             StreamFilter.scanned => scanned,
           };
@@ -134,29 +199,47 @@ class _StreamCatalogState extends State<StreamCatalog> {
           if (index == 0) {
             return Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Wrap(
-                spacing: 8,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (widget.showRefreshButton)
-                    TextButton.icon(
-                      onPressed: loading ? null : refresh,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Refresh archive'),
-                    ),
-                  for (final (value, label) in const [
-                    (StreamFilter.all, 'All VODs'),
-                    (StreamFilter.unscanned, 'Unscanned'),
-                    (StreamFilter.scanned, 'Scanned'),
-                  ])
-                    ChoiceChip(
-                      label: Text(label),
-                      selected: filter == value,
-                      onSelected: (_) {
-                        if (filter == value) return;
-                        if (scroll.hasClients) scroll.jumpTo(0);
-                        setState(() => filter = value);
-                      },
-                    ),
+                  Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        onPressed: publicationRefresh != null ? null : refresh,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Refresh VODs'),
+                      ),
+                      for (final (value, label) in const [
+                        (StreamFilter.all, 'All VODs'),
+                        (StreamFilter.unpublished, 'Unpublished'),
+                        (StreamFilter.unscanned, 'Unscanned here'),
+                        (StreamFilter.scanned, 'Scanned here'),
+                      ])
+                        ChoiceChip(
+                          label: Text(label),
+                          selected: filter == value,
+                          onSelected:
+                              value == StreamFilter.unpublished &&
+                                  published == null
+                              ? null
+                              : (_) {
+                                  if (filter == value) return;
+                                  if (scroll.hasClients) scroll.jumpTo(0);
+                                  setState(() => filter = value);
+                                },
+                        ),
+                    ],
+                  ),
+                  if (publicationFailed)
+                    Text(
+                      published == null
+                          ? 'Could not sync published scans. Use Refresh VODs to retry.'
+                          : 'Could not sync published scans. Showing the last synced status.',
+                    )
+                  else if (publicationRefresh != null)
+                    const Text('Syncing published scans…'),
                 ],
               ),
             );
@@ -203,23 +286,53 @@ class _StreamCatalogState extends State<StreamCatalog> {
           final entry = entries[index - 1];
           final reportId = widget.completed[entry.key];
           final queued = widget.queued.contains(entry.key);
+          final uploaded = isPublished(entry.key);
+          final statuses = [
+            if (uploaded) 'Published',
+            if (reportId != null) 'Scanned on this device',
+            if (queued) 'In scan queue',
+            if (!uploaded &&
+                reportId == null &&
+                !queued &&
+                published != null &&
+                !publicationFailed)
+              'No report yet',
+          ];
           return ListTile(
             key: ValueKey(entry.key),
             title: Text(entry.value),
-            subtitle: queued ? const Text('In scan queue') : null,
-            leading: reportId == null
-                ? Icon(queued ? Icons.schedule : Icons.video_library_outlined)
-                : Icon(
-                    Icons.check_circle,
-                    semanticLabel: 'Scanned',
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-            trailing: Icon(
-              reportId == null && !queued ? Icons.add : Icons.chevron_right,
+            subtitle: statuses.isEmpty ? null : Text(statuses.join(' · ')),
+            leading: Icon(
+              uploaded
+                  ? Icons.cloud_done_outlined
+                  : reportId != null
+                  ? Icons.check_circle
+                  : queued
+                  ? Icons.schedule
+                  : Icons.video_library_outlined,
+              color: uploaded || reportId != null
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
             ),
+            trailing: reportId != null
+                ? const Icon(Icons.chevron_right)
+                : uploaded && !queued && widget.queueStream != null
+                ? PopupMenuButton<void>(
+                    tooltip: 'Published VOD actions',
+                    itemBuilder: (_) => [
+                      PopupMenuItem<void>(
+                        onTap: () =>
+                            widget.queueStream!(entry.key, entry.value),
+                        child: const Text('Scan on this device'),
+                      ),
+                    ],
+                  )
+                : !uploaded && !queued && widget.queueStream != null
+                ? const Icon(Icons.add)
+                : null,
             onTap: reportId != null
                 ? () => widget.openReport(reportId)
-                : queued || widget.queueStream == null
+                : uploaded || queued || widget.queueStream == null
                 ? null
                 : () => widget.queueStream!(entry.key, entry.value),
           );

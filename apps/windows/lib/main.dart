@@ -404,7 +404,7 @@ class _ScanPageState extends State<ScanPage> {
           if (archiveOpened)
             StreamCatalog(
               api: archive,
-              showRefreshButton: true,
+              active: tab == 0,
               completed: queue.completed,
               openReport: openReport,
               queued: queue.queued,
