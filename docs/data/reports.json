@@ -970,6 +970,63 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "dVuLWfQzEbY",
+      "title": "I Held a 64% Winrate on Doomfist 👀",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=dVuLWfQzEbY",
+      "video_id": "dVuLWfQzEbY",
+      "vod_date": "2026-11-23",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-23T15:00:20Z",
+      "analyzed_at": "2026-11-24T17:53:25.379290Z",
+      "duration_seconds": 25656.981769,
+      "sample_interval_seconds": 5.0,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 5s; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 5430.0,
+          "end_seconds": 5585.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "my time. You don't need to be here, man. Have a great day and I hope you find a stream that you actually enjoy watching. God bless you, man. I'll pee. I'll be right back. He walked into me peeing.",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 10880.0,
+          "end_seconds": 11150.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "got banned. Wait, I've heard that one before. All right, big surprise. I got to pee and then we're going. All right, I'll be right back.",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 17905.0,
+          "end_seconds": 18135.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "not paying attention. All right. Hang on. I Well, and I think that could change. Lops. I could It could change if I were to put the time in. I think it would",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
