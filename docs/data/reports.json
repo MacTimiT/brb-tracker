@@ -1073,6 +1073,52 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "h8TByAMLdYo",
+      "title": "18/40 Hours on Doomfist, and it's showing 👊",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=h8TByAMLdYo",
+      "video_id": "h8TByAMLdYo",
+      "vod_date": "2026-10-28",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-10-28T14:00:30Z",
+      "analyzed_at": "2026-11-24T18:29:29.087809Z",
+      "duration_seconds": 14347.029478,
+      "sample_interval_seconds": 5.0,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 5s; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 4860.0,
+          "end_seconds": 5015.0,
+          "reason": "Drink",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "div.a was pretty strong. So, that was just a joke. All right, give me just a minute. I'm going to go grab a a Coke Zero. Actually, I got one last night. So, we're going to throw a little spice",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 10375.0,
+          "end_seconds": 10650.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "is interesting. All right, let me pee real quick. I don't think I've peed actually all day today, chat. We may have made progress somehow. I don't know how we would have",
+          "reviewed": false,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
