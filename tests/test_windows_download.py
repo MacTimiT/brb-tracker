@@ -8,7 +8,7 @@ import yt_dlp
 from brb_tracker.sources import download
 
 
-def test_media_download_obeys_configured_byte_rate(tmp_path, monkeypatch):
+def test_media_download_obeys_configured_byte_rate(tmp_path, monkeypatch, capsys):
     payload = b"\x00" * (256 * 1024)
     served = tmp_path / "source"
     served.mkdir()
@@ -48,3 +48,4 @@ def test_media_download_obeys_configured_byte_rate(tmp_path, monkeypatch):
     assert elapsed >= 1.8
     assert any(update["status"] == "downloading" for update in updates)
     assert updates[-1]["status"] == "finished"
+    assert "[download]" not in capsys.readouterr().out

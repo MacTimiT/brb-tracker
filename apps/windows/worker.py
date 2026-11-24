@@ -15,7 +15,8 @@ from brb_tracker.transcript import read_transcript
 
 
 def emit(event, **fields):
-    print(json.dumps({"event": event, **fields}), flush=True)
+    # Child tools can write terminal status lines, so start the event on its own line.
+    print("\n" + json.dumps({"event": event, **fields}), flush=True)
 
 
 def configure_tools(runtime: Path | None):

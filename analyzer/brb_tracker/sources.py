@@ -116,6 +116,7 @@ def download(
                 caption_error = "YouTube captions could not be downloaded; reason suggestions may be unavailable."
         with MediaDownloader({
             **options, "writesubtitles": False, "writeautomaticsub": False,
+            "noprogress": progress is not None,
             "progress_hooks": [progress] if progress is not None else [],
         }) as media_ydl:
             media_ydl.download([canonical])
