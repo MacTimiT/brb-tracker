@@ -27,12 +27,12 @@ def video_id(url: str) -> str:
     return candidate
 
 
-def limit_response(response, rate: int):
+def _limit_response(response, rate: int, block_size: int):
     """Pace native downloader reads with a high-resolution clock."""
     original_read = response.read
-    block_size = max(1, min(rate // 10, 64 * 1024))
 
-    def read(size=-1):
+    def read(amt=None):
+        size = -1 if amt is None else amt
         chunks = []
         while size != 0:
             start = time.perf_counter()
@@ -77,6 +77,7 @@ def download(
         "quiet": True,
         "no_warnings": False,
     }
+    block_size = max(1, min(rate_limit // 10, 64 * 1024)) if rate_limit is not None else 0
     if rate_limit is not None:
         # Use yt-dlp's own downloader and one fragment at a time so media transfers
         # share one limit. FFmpeg can still merge tracks locally afterward.
@@ -84,7 +85,7 @@ def download(
         quality = f"[height<={height}]{transport}"
         options.update(
             concurrent_fragment_downloads=1, hls_prefer_native=True,
-            buffersize=max(1, min(rate_limit // 10, 64 * 1024)), noresizebuffer=True,
+            buffersize=block_size, noresizebuffer=True,
             format=f"best{quality}[ext=mp4]/best{quality}/bestvideo{quality}+bestaudio{transport}",
         )
     if runtime is not None:
@@ -94,10 +95,11 @@ def download(
             skip_unavailable_fragments=False,
         )
     canonical = f"https://www.youtube.com/watch?v={identifier}"
+
     class MediaDownloader(yt_dlp.YoutubeDL):
         def urlopen(self, request):
             response = super().urlopen(request)
-            return limit_response(response, rate_limit) if rate_limit is not None else response
+            return _limit_response(response, rate_limit, block_size) if rate_limit is not None else response
 
     with yt_dlp.YoutubeDL(options) as ydl:
         info = ydl.extract_info(canonical, download=False)

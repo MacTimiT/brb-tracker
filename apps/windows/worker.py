@@ -131,7 +131,9 @@ def main():
     try:
         configure_tools(args.runtime)
         if args.self_test:
-            emit("ready")
+            from yt_dlp.version import __version__
+
+            emit("ready", downloader=__version__)
             return 0
         if not args.output or not (args.url or args.video):
             raise ValueError("Select a VOD or local video and an output folder.")
