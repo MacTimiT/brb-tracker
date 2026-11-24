@@ -85,3 +85,51 @@ def test_windows_catalog_pages_filter_live_entries_and_deduplicate(monkeypatch):
         "streams": [{"id": "fixture0001", "title": "Finished VOD"}],
         "next": 41,
     }
+
+
+def test_firefox_signin_is_opt_in_and_scoped_to_youtube(tmp_path, monkeypatch):
+    import sqlite3
+    from contextlib import closing
+
+    from yt_dlp import cookies
+
+    profile = tmp_path / "firefox"
+    profile.mkdir()
+    with closing(sqlite3.connect(profile / "cookies.sqlite")) as database:
+        database.execute("PRAGMA user_version=16")
+        database.execute(
+            "CREATE TABLE moz_cookies (host TEXT, name TEXT, value TEXT, path TEXT, expiry INT, isSecure INT)"
+        )
+        database.executemany("INSERT INTO moz_cookies VALUES (?, ?, ?, ?, ?, ?)", (
+            (domain, "fixture", "placeholder", "/", 2_000_000_000_000, 1)
+            for domain in (".youtube.com", "www.youtube.com", "notyoutube.com", ".example.com")
+        ))
+        database.commit()
+    monkeypatch.setattr(cookies, "_firefox_browser_dirs", lambda: [str(profile)])
+
+    sessions = []
+
+    class FixtureDownloader(yt_dlp.YoutubeDL):
+        def __init__(self, options):
+            sessions.append(dict(options))
+            super().__init__(options)
+
+        def extract_info(self, url, download):
+            assert {c.domain for c in self.cookiejar} == expected
+            return {"title": "VOD"}
+
+        def download(self, urls):
+            assert {c.domain for c in self.cookiejar} == expected
+            if not self.params.get("skip_download"):
+                (destination / "vod.mp4").write_bytes(b"fixture")
+
+    monkeypatch.setattr(yt_dlp, "YoutubeDL", FixtureDownloader)
+    for enabled in (False, True):
+        destination = tmp_path / str(enabled)
+        expected = {".youtube.com", "www.youtube.com"} if enabled else set()
+        sessions.clear()
+        video, _, _ = download("https://youtu.be/fixture0001", destination, firefox_session=enabled)
+        assert video.is_file()
+        assert sessions[0].get("cookiesfrombrowser") == (("firefox",) if enabled else None)
+        assert all("cookiefile" not in session for session in sessions)
+        assert all("cookiesfrombrowser" not in session for session in sessions[1:])

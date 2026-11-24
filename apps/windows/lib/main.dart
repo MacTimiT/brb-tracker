@@ -58,6 +58,7 @@ class _ScanPageState extends State<ScanPage> {
   int height = 480;
   int interval = 2;
   String profile = 'gamin4hope';
+  bool firefoxSession = false;
   late final ScanQueue queue;
   late final DesktopArchive archive;
   int tab = 1;
@@ -183,6 +184,7 @@ class _ScanPageState extends State<ScanPage> {
           if (link.isNotEmpty) ...['--url', link],
           if (localVideo != null) ...['--video', localVideo],
           if (localTranscript != null) ...['--transcript', localTranscript],
+          if (localVideo == null && firefoxSession) '--firefox-session',
           if (localVideo != null || title != 'YouTube VOD') ...[
             '--title',
             title,
@@ -474,6 +476,20 @@ class _ScanPageState extends State<ScanPage> {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 16),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Use Firefox sign-in'),
+                          subtitle: const Text(
+                            'For VODs that require login. Sign in to YouTube in a regular Firefox window first.',
+                          ),
+                          value: firefoxSession,
+                          onChanged: video == null
+                              ? (checked) => setState(
+                                  () => firefoxSession = checked ?? false,
+                                )
+                              : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(

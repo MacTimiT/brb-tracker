@@ -13,7 +13,12 @@ Open **GitHub publishing settings** from the gear button. Enter a fine-grained G
 
 The cap applies to video and audio transfers. YouTube metadata requests can make short bursts. The scan runs locally with FFmpeg and Tesseract. It uses available English YouTube captions or a transcript you supply. Breaks without transcript evidence can remain **Unknown**. **Full frame** is available for VODs with a different banner layout.
 
-If YouTube requires sign-in verification or returns no usable download, choose a saved video file to scan it locally.
+## When YouTube asks you to sign in
+
+1. On the same PC, sign in to YouTube in a regular Firefox window and open the VOD to check that it plays.
+2. In **Scan options**, enable **Use Firefox sign-in** and queue the VOD again. A job already in the queue keeps its original settings.
+
+The app uses your local Firefox session only when you enable this option. It limits the browser cookies used by the downloader to YouTube and keeps them out of the saved queue and reports. If verification still prevents a download, choose a saved video to scan it locally.
 
 ## Build
 

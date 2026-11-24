@@ -1,5 +1,6 @@
 import re
 import time
+from functools import cached_property
 from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qs, urlparse
@@ -54,7 +55,7 @@ def _limit_response(response, rate: int, block_size: int):
 def download(
     url: str, directory: Path, *, height: int = 480, rate_limit: int | None = None,
     progress: Callable[[dict], None] | None = None, runtime: Path | None = None,
-    fetch_captions: bool = True,
+    fetch_captions: bool = True, firefox_session: bool = False,
 ) -> tuple[Path, Path | None, dict]:
     import yt_dlp
 
@@ -95,13 +96,25 @@ def download(
             skip_unavailable_fragments=False,
         )
     canonical = f"https://www.youtube.com/watch?v={identifier}"
+    youtube_session = None
 
     class MediaDownloader(yt_dlp.YoutubeDL):
+        @cached_property
+        def cookiejar(self):
+            return youtube_session if youtube_session is not None else super().cookiejar
+
         def urlopen(self, request):
             response = super().urlopen(request)
             return _limit_response(response, rate_limit, block_size) if rate_limit is not None else response
 
-    with yt_dlp.YoutubeDL(options) as ydl:
+    browser = {"cookiesfrombrowser": ("firefox",)} if firefox_session else {}
+    with yt_dlp.YoutubeDL({**options, **browser}) as ydl:
+        if firefox_session:
+            youtube_session = ydl.cookiejar
+            for cookie in list(youtube_session):
+                domain = cookie.domain.lstrip(".").lower()
+                if domain != "youtube.com" and not domain.endswith(".youtube.com"):
+                    youtube_session.clear(cookie.domain, cookie.path, cookie.name)
         info = ydl.extract_info(canonical, download=False)
         if info.get("is_live"):
             raise ValueError("Wait until the livestream has ended before analyzing its VOD")

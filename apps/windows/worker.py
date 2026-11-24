@@ -125,6 +125,7 @@ def run(args):
         video, downloaded_captions, metadata = download(
             args.url, output / "Video", height=args.height, rate_limit=rate_limit,
             progress=transfer, runtime=args.runtime, fetch_captions=captions is None,
+            firefox_session=args.firefox_session,
         )
         if captions is None and downloaded_captions is not None:
             try:
@@ -170,6 +171,7 @@ def main():
     parser.add_argument("--profile", choices=("gamin4hope", "full_frame"), default="gamin4hope")
     parser.add_argument("--height", type=int, choices=(360, 480, 720, 1080), default=480)
     parser.add_argument("--limit-mbps", type=float, default=5)
+    parser.add_argument("--firefox-session", action="store_true")
     args = parser.parse_args()
     try:
         if args.catalog_start is not None:
@@ -186,8 +188,19 @@ def main():
         run(args)
     except Exception as exc:
         message = str(exc)
-        if "not a bot" in message.lower():
-            message = "YouTube asked for sign-in verification. Choose a saved video file to scan this VOD locally."
+        lower = message.lower()
+        if "not a bot" in lower or "sign in to confirm" in lower:
+            if args.firefox_session:
+                message = ("YouTube still requires verification. Check that this VOD plays in your signed-in "
+                           "Firefox window, then retry. You can also scan a saved copy.")
+            else:
+                message = ("Sign in to YouTube in Firefox, enable Use Firefox sign-in in Scan options, "
+                           "then queue this VOD again.")
+        elif args.firefox_session and any(term in lower for term in (
+            "firefox cookies database", "failed to load cookies", "sqlite", "database is locked",
+        )):
+            message = ("The app could not read your Firefox session. Open this VOD in a regular "
+                       "signed-in Firefox window, close Firefox, and retry the scan.")
         emit("error", message=message[-900:] or "The scan failed.")
         return 1
     return 0
