@@ -1456,6 +1456,77 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "9lVywQGcTKg",
+      "title": "I Played Doomfist in Quick Play & Progressed in WoW 😱",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=9lVywQGcTKg",
+      "video_id": "9lVywQGcTKg",
+      "vod_date": "2026-10-08",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-10-08T15:29:41Z",
+      "analyzed_at": "2026-11-24T21:36:26.107808Z",
+      "duration_seconds": 19636.093968,
+      "sample_interval_seconds": 5.0,
+      "adaptive_scan": true,
+      "boundary_refinement_seconds": 1.0,
+      "frames_checked": 3939,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 5s with 1s transition refinement; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 3835.0,
+          "end_seconds": 4100.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "really surprises you. But I really have to pee, bro. Stop pissing. I knew it was coming. I knew it was coming. All right, I'll be right back. It'll literally just take me",
+          "reviewed": false,
+          "truncated": false
+        },
+        {
+          "start_seconds": 8564.0,
+          "end_seconds": 8738.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": ">> Oh, I got MVP. Let's freaking Oh, I need to piss. I know, buddy. I got you. I'm going to do the same. So, may as well. We'll be together. All right, chat. I'll be right back.",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 12325.0,
+          "end_seconds": 12455.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "play one more, I think, cuz I really want to. I'm enjoying it. >> Okay. All right. I'll go urinate as well. I'll be back. >> No, Daddy.",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 16680.0,
+          "end_seconds": 16919.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Pee",
+          "confidence": "keyword",
+          "evidence": "let me pee real quick. I know that surprises all of you. I'm going to pee. I'm going to grab another beverage and I'll be back and we'll keep rolling. >> Brother, this guy has to pee a billion",
+          "reviewed": false,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
