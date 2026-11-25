@@ -1527,6 +1527,55 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "OfUcfGvReqM",
+      "title": "Rough Games Lead to Off-Role Day 🤙",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=OfUcfGvReqM",
+      "video_id": "OfUcfGvReqM",
+      "vod_date": "2026-09-30",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-09-30T15:02:02Z",
+      "analyzed_at": "2026-11-25T08:48:28.142448Z",
+      "duration_seconds": 21023.021859,
+      "sample_interval_seconds": 2.0,
+      "adaptive_scan": false,
+      "boundary_refinement_seconds": null,
+      "frames_checked": 10511,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 2s; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 7134.0,
+          "end_seconds": 7502.0,
+          "reason": "Drink",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "you just said. I need to grab a beverage real quick, chat. I'm going to turn on the AC. I'm going to give myself just a couple minutes and I'll be back. All right.",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 14088.0,
+          "end_seconds": 14356.0,
+          "reason": "Pee",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "the realization. Oh man, [clears throat] why don't you do DPS? I'm queued both support and DPS. So",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
