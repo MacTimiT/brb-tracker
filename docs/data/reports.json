@@ -1407,6 +1407,55 @@
           "truncated": false
         }
       ]
+    },
+    {
+      "schema_version": 1,
+      "id": "aTTBJTlW2UA",
+      "title": "Me vs. Me 💪 | !schedule",
+      "streamer": "Gamin4Hope",
+      "source_url": "https://www.youtube.com/watch?v=aTTBJTlW2UA",
+      "video_id": "aTTBJTlW2UA",
+      "vod_date": "2026-11-24",
+      "vod_date_source": "release_timestamp",
+      "stream_started_at": "2026-11-24T14:59:43Z",
+      "analyzed_at": "2026-11-24T21:52:40.068003Z",
+      "duration_seconds": 12690.123175,
+      "sample_interval_seconds": 2.0,
+      "adaptive_scan": false,
+      "boundary_refinement_seconds": null,
+      "frames_checked": 6345,
+      "transcript_source": "json3",
+      "detector_profile": "gamin4hope",
+      "is_demo": false,
+      "timings_ms": null,
+      "warnings": [
+        "Sampled every 2s; boundaries are estimates. Short breaks and OCR failures can be missed.",
+        "Gamin4Hope profile: OCR checks red banner text in the bottom-left region, excluding the right-side chat. Other layouts can be missed."
+      ],
+      "breaks": [
+        {
+          "start_seconds": 5778.0,
+          "end_seconds": 6124.0,
+          "reason": "Drink",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "it. All right. I'm going to get a Mountain Dew big surprise. And then we're going to keep it rolling. I shall return momentarily.",
+          "reviewed": true,
+          "truncated": false
+        },
+        {
+          "start_seconds": 11972.0,
+          "end_seconds": 12532.0,
+          "reason": "Mental Break",
+          "additional_reasons": [],
+          "suggested_reason": "Unknown",
+          "confidence": "manual",
+          "evidence": "Um, and then I'll be good. I just have to reset. It had nothing to do with the game, by the way. Just to be clear, has absolutely nothing to do with the game. So, I'll be right back.",
+          "reviewed": true,
+          "truncated": false
+        }
+      ]
     }
   ]
 }
